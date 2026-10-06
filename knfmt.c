@@ -30,6 +30,7 @@ struct main_context {
 	struct simple	*simple;
 	struct buffer	*src;
 	struct buffer	*dst;
+	struct buffer	*tmp;
 	struct arenas	 arena;
 };
 
@@ -122,6 +123,7 @@ main(int argc, char *argv[])
 
 	c.src = arena_buffer_alloc(&buffer_scope, 1 << 12);
 	c.dst = arena_buffer_alloc(&buffer_scope, 1 << 12);
+	c.tmp = arena_buffer_alloc(&buffer_scope, 1 << 12);
 
 	if (filelist(argc, argv, &files, &eternal_scope, c.arena.scratch,
 	    &c.options)) {
@@ -136,6 +138,7 @@ main(int argc, char *argv[])
 			error = 1;
 		buffer_reset(c.src);
 		buffer_reset(c.dst);
+		buffer_reset(c.tmp);
 		file_close(fe);
 	}
 
@@ -178,27 +181,23 @@ filelist(int argc, char **argv, struct files *files,
 }
 
 static int
-fileformat(struct main_context *c, struct file *fe)
+format_buffer(struct main_context *c, struct file *fe,
+    const struct buffer *in, struct buffer *out, struct arena_scope *scope)
 {
 	struct clang *clang;
-	struct lexer *lx = NULL;
-	struct parser *pr = NULL;
-
-	arena_scope(c->arena.eternal, eternal_scope);
-
-	if (file_read(fe, c->src))
-		return 1;
+	struct lexer *lx;
+	struct parser *pr;
 
 	clang = clang_alloc(c->style, c->simple, &c->arena,
-	    fe->fe_diff, &c->options, &eternal_scope);
+	    fe->fe_diff, &c->options, scope);
 	lx = lexer_tokenize(&(const struct lexer_arg){
 	    .path		= fe->fe_path,
-	    .bf			= c->src,
+	    .bf			= in,
 	    .op			= &c->options,
 	    .error_flush	= options_trace_level(&c->options,
 		TRACE_LEXER) > 0,
 	    .arena		= {
-		.eternal_scope	= &eternal_scope,
+		.eternal_scope	= scope,
 		.scratch	= c->arena.scratch,
 	    },
 	    .callbacks		= clang_lexer_callbacks(clang),
@@ -215,9 +214,47 @@ fileformat(struct main_context *c, struct file *fe)
 	    .simple	= c->simple,
 	    .clang	= clang,
 	    .arena	= &c->arena,
-	}, &eternal_scope);
-	if (parser_exec(pr, fe->fe_diff, c->dst))
+	}, scope);
+	return parser_exec(pr, fe->fe_diff, out);
+}
+
+static int
+fileformat(struct main_context *c, struct file *fe)
+{
+	int i;
+
+	arena_scope(c->arena.eternal, eternal_scope);
+
+	if (file_read(fe, c->src))
 		return 1;
+
+	/*
+	 * A handful of constructs (mostly around preprocessor line
+	 * continuations and comments) need more than one pass to reach a
+	 * fixed point. Keep formatting until the output stops changing, up to
+	 * a small bound, so that what is emitted is always canonical. Diff
+	 * mode consumes a patch and must not be iterated.
+	 */
+	for (i = 0; i < 9; i++) {
+		arena_scope(c->arena.eternal, pass_scope);
+
+		if (i == 0) {
+			if (format_buffer(c, fe, c->src, c->dst, &pass_scope))
+				return 1;
+			if (c->options.diffparse || c->options.simple)
+				break;
+			continue;
+		}
+		buffer_reset(c->tmp);
+		if (format_buffer(c, fe, c->dst, c->tmp, &pass_scope))
+			return 1;
+		if (buffer_cmp(c->dst, c->tmp) == 0)
+			break;
+		buffer_reset(c->dst);
+		if (buffer_puts(c->dst, buffer_get_ptr(c->tmp),
+		    buffer_get_len(c->tmp)))
+			return 1;
+	}
 
 	if (c->options.diff)
 		return filediff(c, fe);

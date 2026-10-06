@@ -1,0 +1,18 @@
+int (*p);
+int (*const p);
+int (*volatile p);
+int (*const *volatile p);
+int (**p);
+int (*p)[10];
+int (*const p)[10];
+int (*p)(void);
+int (*const p)(void);
+int (*(*f)(void))[3];
+int (*(*const f)(void))[3];
+int (*const (*volatile p)[4])(double);
+int (*(*const (*volatile p)[3])(long))[5];
+int (*const f(void))(void);
+int (*f(void))[10];
+int (*const f(void))[10];
+int (*f(int *s))(int);
+int (*f(const int *s))(int);

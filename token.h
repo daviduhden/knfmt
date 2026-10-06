@@ -8,6 +8,7 @@ struct arena_scope;
 	/* keywords */							\
 	OP(TOKEN_ASSEMBLY,	"asm", 0)				\
 	OP(TOKEN_ATTRIBUTE,	"__attribute__", 0)			\
+	OP(TOKEN_AUTO,		"auto", TOKEN_FLAG_STORAGE)		\
 	OP(TOKEN_BREAK,		"break", 0)				\
 	OP(TOKEN_CASE,		"case", 0)				\
 	OP(TOKEN_CHAR,		"char", TOKEN_FLAG_TYPE)		\

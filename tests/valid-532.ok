@@ -1,0 +1,19 @@
+int x;
+
+unsigned y;
+
+int z = 1234;
+
+void
+g(void)
+{
+	return;
+}
+
+#define CAT(a, b) a #\
+# b
+#define LONG(x) x \
+	+ 1
+
+/* comment */
+int w;

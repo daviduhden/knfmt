@@ -1323,6 +1323,9 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 	    .tk_flags	= TOKEN_FLAG_CPP,
 	});
 
+	/* Preserve the physical spelling, including line continuations. */
+	lexer_token_physical(lx, tk);
+
 	if (tk->tk_type == TOKEN_CPP_DEFINE) {
 		const char *str;
 
@@ -1505,7 +1508,7 @@ clang_read_number(struct clang *cl, struct lexer *lx,
 
 			if (lexer_eof(lx) || lexer_getc(lx, &n2) != 0 ||
 			    !(isdigit((unsigned char)n2) ||
-			      isalpha((unsigned char)n2) || n2 == '_')) {
+			    isalpha((unsigned char)n2) || n2 == '_')) {
 				/*
 				 * Not a digit separator, does not belong to
 				 * the number. However at EOF the leading
@@ -1742,4 +1745,3 @@ token_prolong(struct token *dst, struct token *src)
 	dst->tk_len += src->tk_len;
 	token_rele(src);
 }
-

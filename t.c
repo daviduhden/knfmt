@@ -316,6 +316,18 @@ main(void)
 	test_parser_type("const volatile x;", "const volatile");
 	test_parser_type("register x;", "register");
 	test_parser_type("extern x[3];", "extern");
+	test_parser_type("static *p;", "static *");
+	test_parser_type("auto *p;", "auto *");
+
+	/* Qualified parenthesized pointer declarators. */
+	test_parser_type("int (*const p)", "int ( * const p )");
+	test_parser_type("int (*const *volatile p)",
+	    "int ( * const * volatile p )");
+	test_parser_type("int (*const p)[10]", "int ( * const p ) [ 10 ]");
+	test_parser_type("int (*(*const f)(void))[3]",
+	    "int ( * ( * const f ) ( void ) ) [ 3 ]");
+	test_parser_type("int (*const (*volatile p)[4])(double)",
+	    "int ( * const ( * volatile p ) [ 4 ] ) ( double )");
 
 	test_parser_type_error("_asm volatile (");
 	test_parser_type_error("*");
@@ -419,6 +431,18 @@ main(void)
 	test_lexer_read("?\?'", "CARET");
 	test_lexer_read("?\?!", "PIPE");
 	test_lexer_read("?\?-", "TILDE");
+
+	/* Translation phase 2: backslash-newline splicing. */
+	test_lexer_read("in\\\nt", "INT");
+	test_lexer_read("unsign\\\ned", "UNSIGNED");
+	test_lexer_read("str\\\nuct", "STRUCT");
+	test_lexer_read("f\\\noo", "IDENT");
+	test_lexer_read("12\\\n34", "LITERAL");
+	test_lexer_read("1.0e\\\n+10", "LITERAL");
+	test_lexer_read("+\\\n=", "PLUSEQUAL");
+	test_lexer_read("<\\\n<", "LESSLESS");
+	test_lexer_read("-\\\n>", "ARROW");
+	test_lexer_read("in?\?/\nt", "INT");
 
 	/* Universal character names in identifiers, C99. */
 	test_lexer_read("\\u00e9", "IDENT");

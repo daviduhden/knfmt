@@ -662,6 +662,10 @@ TESTS+=	valid-528.c
 TESTS+=	valid-529.c
 TESTS+=	valid-530.c
 TESTS+=	valid-531.c
+TESTS+=	valid-532.c
+TESTS+=	valid-533.c
+TESTS+=	valid-534.c
+TESTS+=	valid-535.c
 
 TESTS+=	simple-001.c
 TESTS+=	simple-002.c

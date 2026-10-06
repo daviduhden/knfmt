@@ -178,6 +178,23 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 		return parser_semi(pr, concat);
 	}
 	if (!parser_type_peek(pr, &type, 0)) {
+		/*
+		 * No declaration specifiers. At file scope, try an implicit
+		 * int function declaration or definition as standardized by
+		 * C89/C90 before falling back to preprocessor constructs.
+		 * Block scope is intentionally excluded to avoid mistaking a
+		 * function call for a K&R identifier list.
+		 */
+		if (flags & PARSER_DECL_ROOT) {
+			switch (parser_func_peek(pr)) {
+			case PARSER_FUNC_PEEK_DECL:
+				return parser_func_decl(pr, dc, rl);
+			case PARSER_FUNC_PEEK_IMPL:
+				return parser_none(pr);
+			case PARSER_FUNC_PEEK_NONE:
+				break;
+			}
+		}
 		iscpp = parser_cpp_peek_decl(pr, &type,
 		    (flags & PARSER_DECL_ROOT) ? PARSER_CPP_DECL_ROOT : 0);
 		if (!iscpp)

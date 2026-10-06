@@ -1,6 +1,12 @@
 .clang-format:14: integer Integer<14:14>("2147483648") too large
+ColumnLimit: 2147483648 # addition overflow
+             ^^^^^^^^^^
 .clang-format:15: integer Integer<15:14>("-2147483648") too large
+ColumnLimit: -2147483648 # addition overflow
+             ^^^^^^^^^^^
 .clang-format:16: integer Integer<16:14>("9999999999") too large
+ColumnLimit: 9999999999 # multiplication overflow
+             ^^^^^^^^^^
 .clang-format:2: unknown value Integer<2:29>("0") for option Keyword<2:1>("AlwaysBreakAfterReturnType")
 AlwaysBreakAfterReturnType: 0
                             ^

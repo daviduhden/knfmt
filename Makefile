@@ -99,6 +99,7 @@ OBJS_fuzz-parse:=	${SRCS_fuzz-parse:.c=.o}
 OBJS_fuzz-parse:=	${OBJS_fuzz-parse:.S=.o}
 DEPS_fuzz-parse=	${OBJS_fuzz-parse:.o=.d}
 PROG_fuzz-parse=	fuzz-parse
+DICT_fuzz-parse=	parse.dict
 
 SRCS_benchmark+=	${SRCS}
 SRCS_benchmark+=	benchmark.cpp

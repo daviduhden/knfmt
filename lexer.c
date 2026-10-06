@@ -41,10 +41,17 @@ struct lexer {
 		const struct buffer	*bf;
 		const char		*ptr;
 		size_t			 len;
+		/* Physical source and logical-to-physical offset mapping. */
+		const char		*phys;
+		size_t			 phys_len;
+		const size_t		*map;
+		const unsigned int	*pline;
 	} lx_input;
 
 	/* Line number to buffer offset mapping. */
 	VECTOR(size_t)		 lx_lines;
+	/* Logical offsets at which a phase-2 splice was removed. */
+	VECTOR(size_t)		 lx_splices;
 
 	int			 lx_peek;
 
@@ -53,7 +60,11 @@ struct lexer {
 
 static void	lexer_free(void *);
 
-static void		lexer_line_alloc(struct lexer *, unsigned int);
+static void		lexer_input_init(struct lexer *, const struct buffer *);
+
+static void		lexer_apply_splices(struct lexer *);
+
+static unsigned int	lexer_line_of(const struct lexer *, size_t);
 
 static void	lexer_expect_error(struct lexer *, int, const struct token *,
     const char *, int);
@@ -83,13 +94,13 @@ lexer_tokenize(const struct lexer_arg *arg)
 	lx->lx_arena.eternal_scope = arg->arena.eternal_scope;
 	lx->lx_arena.scratch = arg->arena.scratch;
 	lx->lx_input.bf = arg->bf;
-	lx->lx_input.ptr = buffer_get_ptr(arg->bf);
-	lx->lx_input.len = buffer_get_len(arg->bf);
-	lx->lx_st.st_lno = 1;
 	if (VECTOR_INIT(lx->lx_lines))
 		err(1, NULL);
+	if (VECTOR_INIT(lx->lx_splices))
+		err(1, NULL);
+	lexer_input_init(lx, arg->bf);
+	lx->lx_st.st_lno = 1;
 	LIST_INIT(&lx->lx_tokens);
-	lexer_line_alloc(lx, 1);
 
 	arena_scope(lx->lx_arena.scratch, scratch_scope);
 	ARENA_VECTOR_INIT(&scratch_scope, discarded, 1 << 3);
@@ -114,6 +125,8 @@ lexer_tokenize(const struct lexer_arg *arg)
 		lexer_remove(lx, *tail);
 	}
 
+	lexer_apply_splices(lx);
+
 	if (lx->lx_callbacks.after_tokenize != NULL)
 		lx->lx_callbacks.after_tokenize(lx, lx->lx_callbacks.arg);
 
@@ -135,6 +148,7 @@ lexer_free(void *arg)
 		lx->lx_callbacks.before_free(lx, lx->lx_callbacks.arg);
 
 	VECTOR_FREE(lx->lx_lines);
+	VECTOR_FREE(lx->lx_splices);
 
 	LIST_FOREACH_SAFE(tk, &lx->lx_tokens, tmp) {
 		assert(tk->tk_refs == 1);
@@ -195,10 +209,7 @@ lexer_getc(struct lexer *lx, unsigned char *ch)
 
 	off = lx->lx_st.st_off++;
 	c = (unsigned char)lx->lx_input.ptr[off];
-	if (c == '\n') {
-		lx->lx_st.st_lno++;
-		lexer_line_alloc(lx, lx->lx_st.st_lno);
-	}
+	lx->lx_st.st_lno = lexer_line_of(lx, lx->lx_st.st_off);
 	*ch = c;
 
 	return 0;
@@ -208,17 +219,13 @@ void
 lexer_ungetc(struct lexer *lx)
 {
 	struct lexer_state *st = &lx->lx_st;
-	unsigned char c;
 
 	if (st->st_flags.eof)
 		return;
 
 	assert(st->st_off > 0);
 	st->st_off--;
-
-	c = (unsigned char)lx->lx_input.ptr[st->st_off];
-	if (c == '\n')
-		st->st_lno--;
+	st->st_lno = lexer_line_of(lx, st->st_off);
 }
 
 struct token *
@@ -348,7 +355,7 @@ int
 lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
     const char **str, size_t *len)
 {
-	const char *buf = lx->lx_input.ptr;
+	const char *buf = lx->lx_input.phys;
 	size_t nlines = VECTOR_LENGTH(lx->lx_lines);
 	size_t bo, eo;
 
@@ -359,7 +366,7 @@ lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
 
 	bo = lx->lx_lines[beg - 1];
 	if (end == 0)
-		eo = lx->lx_input.len;
+		eo = lx->lx_input.phys_len;
 	else
 		eo = lx->lx_lines[end - 1];
 	*str = &buf[bo];
@@ -947,29 +954,225 @@ lexer_eof(const struct lexer *lx)
 	return lx->lx_st.st_off == lx->lx_input.len;
 }
 
-static void
-lexer_line_alloc(struct lexer *lx, unsigned int lno)
+/*
+ * Returns the physical line number of the given logical offset.
+ */
+static unsigned int
+lexer_line_of(const struct lexer *lx, size_t off)
 {
-	size_t *dst;
+	if (off >= lx->lx_input.len)
+		return lx->lx_input.pline[lx->lx_input.len];
+	return lx->lx_input.pline[off];
+}
 
-	/* We could end up here again after lexer_ungetc(). */
-	if (lno - 1 < VECTOR_LENGTH(lx->lx_lines))
+/*
+ * Returns the length of a translation phase 2 splice starting at the given
+ * physical offset, i.e. a backslash immediately followed by a newline, or the
+ * trigraph spelling ??/ followed by a newline. Returns zero if no splice is
+ * present.
+ */
+static size_t
+splice_len(const char *p, size_t len, size_t off)
+{
+	const char *s = &p[off];
+	size_t n = len - off;
+
+	if (n >= 2 && s[0] == '\\') {
+		if (s[1] == '\n')
+			return 2;
+		if (n >= 3 && s[1] == '\r' && s[2] == '\n')
+			return 3;
+	}
+	if (n >= 4 && s[0] == '?' && s[1] == '?' && s[2] == '/') {
+		if (s[3] == '\n')
+			return 4;
+		if (n >= 5 && s[3] == '\r' && s[4] == '\n')
+			return 5;
+	}
+	return 0;
+}
+
+/*
+ * Build the logical input buffer by performing translation phase 2 (removing
+ * backslash-newline splices) while recording the mapping back to the physical
+ * source. The lexer operates on the logical buffer; preprocessor tokens are
+ * later mapped back to their physical spelling to preserve line continuations.
+ */
+static void
+lexer_input_init(struct lexer *lx, const struct buffer *bf)
+{
+	const char *p = buffer_get_ptr(bf);
+	size_t n = buffer_get_len(bf);
+	char *lg;
+	size_t *map;
+	unsigned int *pline;
+	size_t i, j;
+	unsigned int lno = 1;
+
+	/* Physical line table, mapping line number to physical offset. */
+	{
+		size_t *dst = VECTOR_ALLOC(lx->lx_lines);
+
+		if (dst == NULL)
+			err(1, NULL);
+		*dst = 0;
+	}
+	for (i = 0; i < n; i++) {
+		if (p[i] == '\n') {
+			size_t *dst = VECTOR_ALLOC(lx->lx_lines);
+
+			if (dst == NULL)
+				err(1, NULL);
+			*dst = i + 1;
+		}
+	}
+
+	lg = arena_malloc(lx->lx_arena.eternal_scope, n + 1);
+	map = arena_malloc(lx->lx_arena.eternal_scope, (n + 1) * sizeof(*map));
+	pline = arena_malloc(lx->lx_arena.eternal_scope,
+	    (n + 1) * sizeof(*pline));
+
+	j = 0;
+	for (i = 0; i < n;) {
+		size_t splice = splice_len(p, n, i);
+
+		if (splice > 0) {
+			size_t *dst = VECTOR_ALLOC(lx->lx_splices);
+
+			if (dst == NULL)
+				err(1, NULL);
+			*dst = j;
+			i += splice;
+			lno++;
+			continue;
+		}
+		map[j] = i;
+		lg[j] = p[i];
+		pline[j] = lno;
+		if (p[i] == '\n')
+			lno++;
+		j++;
+		i++;
+	}
+	map[j] = n;
+	pline[j] = lno;
+
+	lx->lx_input.phys = p;
+	lx->lx_input.phys_len = n;
+	lx->lx_input.ptr = lg;
+	lx->lx_input.len = j;
+	lx->lx_input.map = map;
+	lx->lx_input.pline = pline;
+}
+
+static size_t
+logical_to_physical(const struct lexer *lx, size_t off)
+{
+	if (off >= lx->lx_input.len)
+		return lx->lx_input.phys_len;
+	return lx->lx_input.map[off];
+}
+
+/*
+ * Rewrite the given token to refer to its physical spelling. Used for
+ * preprocessor directives so that line continuations are preserved.
+ */
+void
+lexer_token_physical(struct lexer *lx, struct token *tk)
+{
+	size_t ps, pe;
+
+	ps = logical_to_physical(lx, tk->tk_off);
+	pe = logical_to_physical(lx, tk->tk_off + tk->tk_len);
+	tk->tk_off = ps;
+	tk->tk_str = &lx->lx_input.phys[ps];
+	tk->tk_len = pe - ps;
+}
+
+/*
+ * Map a physical offset back to the logical offset. Every logical byte maps to
+ * a distinct physical byte; offsets pointing into a removed splice map to the
+ * following logical byte.
+ */
+static size_t
+physical_to_logical(const struct lexer *lx, size_t poff)
+{
+	size_t lo = 0, hi = lx->lx_input.len;
+
+	while (lo < hi) {
+		size_t mid = lo + (hi - lo) / 2;
+
+		if (lx->lx_input.map[mid] < poff)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return lo;
+}
+
+/*
+ * Translation phase 2 removes backslash-newline pairs before preprocessing
+ * tokens are formed. For the formatter, a removed splice still acts as a
+ * potential line break. Re-attach an optional line to the token preceding each
+ * splice so the original line structure is honored, unless the splice falls in
+ * the middle of a token (which is thereby joined) or within a preprocessor
+ * directive (which preserves its own continuations).
+ */
+static void
+lexer_apply_splices(struct lexer *lx)
+{
+	struct token *pv = NULL, *tk;
+	size_t i;
+
+	if (VECTOR_EMPTY(lx->lx_splices))
 		return;
 
-	dst = VECTOR_ALLOC(lx->lx_lines);
-	if (dst == NULL)
-		err(1, NULL);
-	*dst = lx->lx_st.st_off;
+	tk = LIST_FIRST(&lx->lx_tokens);
+	for (i = 0; i < VECTOR_LENGTH(lx->lx_splices); i++) {
+		size_t s = lx->lx_splices[i];
+		size_t beg, end;
+
+		while (tk != NULL) {
+			beg = tk->tk_off;
+			end = tk->tk_off + tk->tk_len;
+			if (tk->tk_flags & TOKEN_FLAG_CPP) {
+				beg = physical_to_logical(lx, tk->tk_off);
+				end = physical_to_logical(lx, end);
+			}
+			if (end > s)
+				break;
+			pv = tk;
+			tk = token_next(tk);
+		}
+
+		if (tk != NULL) {
+			beg = tk->tk_off;
+			if (tk->tk_flags & TOKEN_FLAG_CPP)
+				beg = physical_to_logical(lx, tk->tk_off);
+			if (beg < s)
+				continue;	/* Splice inside a token. */
+		}
+		if (pv == NULL || token_has_line(pv, 1))
+			continue;
+
+		token_list_append(&pv->tk_suffixes,
+		    lexer_emit_synthetic(lx, &(struct token){
+			.tk_type	= TOKEN_SPACE,
+			.tk_flags	= TOKEN_FLAG_OPTLINE,
+			.tk_str		= "\n",
+			.tk_len		= 1,
+		}));
+	}
 }
 
 unsigned int
 lexer_column(const struct lexer *lx, const struct lexer_state *st)
 {
-	size_t line_offset;
+	size_t poff, line_offset;
 
+	poff = logical_to_physical(lx, st->st_off);
 	line_offset = lx->lx_lines[st->st_lno - 1];
-	return colwidth(&lx->lx_input.ptr[line_offset],
-	    st->st_off - line_offset, 1);
+	return colwidth(&lx->lx_input.phys[line_offset], poff - line_offset, 1);
 }
 
 void

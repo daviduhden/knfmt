@@ -321,17 +321,23 @@ parser_decl_init(struct parser *pr, struct doc **out,
 			break;
 
 		if (lexer_if(lx, TOKEN_COMMA, &comma)) {
+			int hasline = token_has_line(comma, 1);
+
 			parser_doc_token(pr, comma, concat);
-			doc_alloc(
-			    token_has_line(comma, 1) ? DOC_HARDLINE : DOC_LINE,
-			    concat);
+			doc_alloc(hasline ? DOC_HARDLINE : DOC_LINE, concat);
 
 			if (is_simple_enabled(pr->pr_si, SIMPLE_DECL))
 				simple_decl_comma(pr->pr_simple.decl, comma);
-			/* Break before the argument. */
+			/*
+			 * Break before the argument. A hard line already broke the
+			 * line, so no optional break is needed in that case;
+			 * emitting both would produce a blank line on the next
+			 * pass.
+			 */
 			concat = doc_alloc(DOC_CONCAT,
 			    doc_alloc(DOC_GROUP, dc));
-			doc_alloc(DOC_SOFTLINE, concat);
+			if (!hasline)
+				doc_alloc(DOC_SOFTLINE, concat);
 			concat = doc_alloc(DOC_CONCAT,
 			    doc_alloc(DOC_GROUP, concat));
 		}

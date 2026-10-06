@@ -1025,10 +1025,19 @@ expr_doc_parens(struct expr *ex, struct expr_state *es, struct doc *dc)
 	struct token *lparen = ex->ex_tokens[0];
 	struct token *rparen = ex->ex_tokens[1];
 
-	/* Malformed input may leave the parentheses tokens absent. */
+	/*
+	 * A preprocessor branch may interrupt the expression before the closing
+	 * parenthesis is reached. Emit whichever delimiters were consumed so
+	 * that syntax committed before the branch is never lost; the branch
+	 * retry suppresses the duplicate.
+	 */
 	if (lparen == NULL || rparen == NULL) {
+		if (lparen != NULL)
+			expr_doc_token(es, lparen, dc);
 		if (ex->ex_lhs != NULL)
 			dc = expr_doc(ex->ex_lhs, es, dc);
+		if (rparen != NULL)
+			expr_doc_token(es, rparen, dc);
 		return dc;
 	}
 

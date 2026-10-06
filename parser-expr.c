@@ -23,6 +23,19 @@ static struct doc	*expr_recover_generic(const struct expr_exec_arg *,
 static struct doc	*expr_doc_token(struct token *, struct doc *,
     const char *, int, void *);
 
+/*
+ * A preprocessor branch can interrupt a recovery construct before it is
+ * complete. Return the document emitted so far so that syntax committed
+ * before the branch is preserved; the branch retry's duplicate is muted.
+ */
+static struct doc *
+recover_fail(struct parser *pr, struct doc *dc)
+{
+	if ((parser_good(pr) & BRCH) != 0)
+		return dc;
+	return NULL;
+}
+
 int
 parser_expr_peek(struct parser *pr, struct token **tk)
 {
@@ -108,13 +121,14 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 			if (parser_type(pr, dc, &type, NULL) & GOOD)
 				return dc;
 		}
-	} else if (lexer_if_flags(lx, TOKEN_FLAG_BINARY, &tk)) {
+	} else if (lexer_peek_if_flags(lx, TOKEN_FLAG_BINARY, &tk)) {
 		struct token *pv;
 
 		pv = token_prev(tk);
 		if (pv != NULL &&
 		    (pv->tk_type == TOKEN_LPAREN ||
 		     pv->tk_type == TOKEN_COMMA)) {
+			(void)lexer_pop(lx, &tk);
 			dc = doc_root(pr->pr_arena_scope.doc);
 			parser_doc_token(pr, tk, dc);
 			return dc;
@@ -127,12 +141,17 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		    PARSER_BRACES_DEDENT | PARSER_BRACES_INDENT_MAYBE);
 		if (error & GOOD)
 			return dc;
+		if (error & BRCH)
+			return dc;
 		if (error & FAIL) {
 			/* Try again, could be a GNU statement expression. */
 			dc = doc_root(pr->pr_arena_scope.doc);
 			parser_reset(pr);
 			lexer_seek(lx, lbrace);
-			if (parser_stmt_expr_gnu(pr, dc) & GOOD)
+			error = parser_stmt_expr_gnu(pr, dc);
+			if (error & GOOD)
+				return dc;
+			if (error & BRCH)
 				return dc;
 		}
 	} else if (lexer_if(lx, TOKEN_COMMA, &tk)) {
@@ -225,16 +244,23 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 
 	/* Controlling expression, a single assignment-expression. */
 	if (!lexer_peek_until_comma(lx, rparen, &stop) || stop == rparen)
-		return NULL;
+		return recover_fail(pr, dc);
 	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
 	    .dc		= dc,
 	    .stop	= stop,
 	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
 	});
-	if (error & HALT)
+	/*
+	 * A branch retry re-parses the whole construct. Return what has been
+	 * emitted so far so the committed prefix is not lost, and let the
+	 * retry's copy be muted.
+	 */
+	if (error & BRCH)
+		return dc;
+	if (error & (FAIL | NONE))
 		return NULL;
 	if (!lexer_expect(lx, TOKEN_COMMA, &comma))
-		return NULL;
+		return recover_fail(pr, dc);
 	parser_doc_token(pr, comma, dc);
 	doc_literal(" ", dc);
 
@@ -244,14 +270,17 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 		if (lexer_if(lx, TOKEN_DEFAULT, &tk)) {
 			parser_doc_token(pr, tk, dc);
 		} else if (parser_type_peek(pr, &type, 0)) {
-			if (parser_type(pr, dc, &type, NULL) & HALT)
-				return NULL;
+			error = parser_type(pr, dc, &type, NULL);
+			if (error & BRCH)
+				return dc;
+			if (error & HALT)
+				return recover_fail(pr, dc);
 		} else {
-			return NULL;
+			return recover_fail(pr, dc);
 		}
 
 		if (!lexer_expect(lx, TOKEN_COLON, &tk))
-			return NULL;
+			return recover_fail(pr, dc);
 		parser_doc_token(pr, tk, dc);
 		doc_literal(" ", dc);
 
@@ -261,22 +290,24 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 		    .stop	= stop,
 		    .indent	= style(pr->pr_st, ContinuationIndentWidth),
 		});
-		if (error & HALT)
+		if (error & BRCH)
+			return dc;
+		if (error & (FAIL | NONE))
 			return NULL;
 		nassoc++;
 
 		if (stop == rparen)
 			break;
 		if (!lexer_expect(lx, TOKEN_COMMA, &comma))
-			return NULL;
+			return recover_fail(pr, dc);
 		parser_doc_token(pr, comma, dc);
 		doc_literal(" ", dc);
 	}
 	if (nassoc == 0)
-		return NULL;
+		return recover_fail(pr, dc);
 
 	if (!lexer_expect(lx, TOKEN_RPAREN, &tk))
-		return NULL;
+		return recover_fail(pr, dc);
 	parser_doc_token(pr, tk, dc);
 
 	return dc;

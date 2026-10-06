@@ -223,17 +223,23 @@ parser_fail_impl(struct parser *pr, const char *fun, int lno)
 	struct lexer *lx = pr->pr_lx;
 	struct token *tk = NULL;
 
+	/*
+	 * A pending preprocessor branch is not an error: a retry continues the
+	 * parse on the other branch. Recording an error here would make callers
+	 * discard the document built so far, losing syntax committed before
+	 * the branch.
+	 */
+	if (is_branch(lx))
+		return BRCH;
+
 	if (lexer_get_error(lx))
-		goto out;
+		return FAIL;
 
 	if (!lexer_back(lx, &tk) && !lexer_peek_first(lx, &tk))
 		tk = &fallback;
 	lexer_error(pr->pr_lx, tk, fun, lno,
 	    "error at %s", lexer_serialize(lx, tk));
 
-out:
-	if (is_branch(pr->pr_lx))
-		return BRCH;
 	return FAIL;
 }
 

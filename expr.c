@@ -135,6 +135,7 @@ static struct expr	*expr_exec_recover_cast(struct expr_state *);
 static struct expr	*expr_exec_binary(struct expr_state *, struct expr *);
 static struct expr	*expr_exec_concat(struct expr_state *, struct expr *);
 static struct expr	*expr_exec_field(struct expr_state *, struct expr *);
+static struct expr	*expr_exec_generic(struct expr_state *, struct expr *);
 static struct expr	*expr_exec_literal(struct expr_state *, struct expr *);
 static struct expr	*expr_exec_parens(struct expr_state *, struct expr *);
 static struct expr	*expr_exec_prepost(struct expr_state *, struct expr *);
@@ -261,6 +262,8 @@ static const struct expr_rule rules[] = {
 	{ PC14 | PCUNARY,	1,	TOKEN_STAR,			expr_exec_unary },
 	{ PC14 | PCUNARY,	1,	TOKEN_AMP,			expr_exec_unary },
 	{ PC14 | PCUNARY,	1,	TOKEN_SIZEOF,			expr_exec_sizeof },
+	{ PC14 | PCUNARY,	1,	TOKEN_ALIGNOF,			expr_exec_sizeof },
+	{ PC15 | PCUNARY,	0,	TOKEN_GENERIC,			expr_exec_generic },
 	{ PC15,			0,	TOKEN_LPAREN,			expr_exec_parens },
 	{ PC15 | PCUNARY,	0,	TOKEN_LPAREN,			expr_exec_parens },
 	{ PC15,			0,	TOKEN_LSQUARE,			expr_exec_squares },
@@ -382,6 +385,24 @@ is_star_argument(struct lexer *lx)
 	return peek;
 }
 
+/*
+ * Returns non-zero if the next token(s) begin a C23 standard attribute
+ * specifier, i.e. [ [. Used to not mistake attributes trailing a declarator
+ * for array subscripts.
+ */
+static int
+is_std_attribute(struct lexer *lx)
+{
+	struct lexer_state s;
+	int peek;
+
+	lexer_peek_enter(lx, &s);
+	peek = lexer_if(lx, TOKEN_LSQUARE, NULL) &&
+	    lexer_if(lx, TOKEN_LSQUARE, NULL);
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
 static struct expr *
 expr_exec1(struct expr_state *es, enum expr_pc pc)
 {
@@ -421,6 +442,10 @@ expr_exec1(struct expr_state *es, enum expr_pc pc)
 		/* Only consider binary operators. */
 		er = expr_find_rule(tk, 0);
 		if (er == NULL)
+			break;
+
+		/* Do not treat C23 attributes as array subscripts. */
+		if (tk->tk_type == TOKEN_LSQUARE && is_std_attribute(es->es_lx))
 			break;
 		es->es_er = er;
 
@@ -626,6 +651,28 @@ expr_exec_sizeof(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 		ex->ex_lhs = expr_exec1(es, PC(es->es_er->er_pc));
 	}
 
+	return ex;
+}
+
+/*
+ * A _Generic selection is parsed by the parser through the recover_generic
+ * callback since it involves type names, which the expression parser is
+ * unaware of.
+ */
+static struct expr *
+expr_exec_generic(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
+{
+	const struct expr_exec_arg *ea = &es->es_ea;
+	struct doc *dc;
+	struct expr *ex;
+
+	assert(lhs == NULL);
+
+	dc = ea->callbacks.recover_generic(ea, ea->callbacks.arg);
+	if (dc == NULL)
+		return NULL;
+	ex = expr_alloc(EXPR_RECOVER, es);
+	ex->ex_dc = dc;
 	return ex;
 }
 
@@ -956,6 +1003,13 @@ expr_doc_parens(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	struct token *lparen = ex->ex_tokens[0];
 	struct token *rparen = ex->ex_tokens[1];
+
+	/* Malformed input may leave the parentheses tokens absent. */
+	if (lparen == NULL || rparen == NULL) {
+		if (ex->ex_lhs != NULL)
+			dc = expr_doc(ex->ex_lhs, es, dc);
+		return dc;
+	}
 
 	simple_cookie(simple);
 	if (token_is_moveable(lparen) && token_is_moveable(rparen) &&

@@ -345,6 +345,32 @@ token_has_c99_comment(const struct token *tk)
  * Returns non-zero if the given token represents a declaration of the given
  * type.
  */
+/*
+ * Returns the token preceding a trailing C23 attribute specifier, i.e. skips
+ * backwards over one or more [ [ ... ] ] sequences.
+ */
+static const struct token *
+token_skip_attributes_backward(const struct token *tk)
+{
+	while (tk != NULL && tk->tk_type == TOKEN_RSQUARE) {
+		const struct token *pv = tk;
+		int depth = 0;
+
+		for (; pv != NULL; pv = token_prev(pv)) {
+			if (pv->tk_type == TOKEN_RSQUARE) {
+				depth++;
+			} else if (pv->tk_type == TOKEN_LSQUARE) {
+				if (--depth == 0)
+					break;
+			}
+		}
+		if (pv == NULL)
+			break;
+		tk = token_prev(pv);
+	}
+	return tk;
+}
+
 int
 token_is_decl(const struct token *tk, int type)
 {
@@ -354,8 +380,35 @@ token_is_decl(const struct token *tk, int type)
 	if (nx == NULL || nx->tk_type != TOKEN_LBRACE)
 		return 0;
 
+	/*
+	 * Recognize a C23 enumeration with a fixed underlying type, i.e.
+	 * enum E : type-name { ... }. Walk back over the underlying type
+	 * looking for the enum keyword and a colon.
+	 */
+	if (type == TOKEN_ENUM) {
+		const struct token *pv;
+		int colon = 0;
+
+		for (pv = tk; pv != NULL; pv = token_prev(pv)) {
+			if (pv->tk_type == TOKEN_ENUM) {
+				if (colon)
+					return 1;
+				break;
+			}
+			if (pv->tk_type == TOKEN_COLON)
+				colon = 1;
+			else if (!colon &&
+			    pv->tk_type != TOKEN_IDENT &&
+			    (pv->tk_flags & TOKEN_FLAG_TYPE) == 0)
+				break;
+		}
+	}
+
 	if (tk->tk_type == TOKEN_IDENT) {
 		tk = token_prev(tk);
+		if (tk == NULL)
+			return 0;
+		tk = token_skip_attributes_backward(tk);
 		if (tk == NULL)
 			return 0;
 	}

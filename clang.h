@@ -28,7 +28,19 @@ struct token;
 	/* parser-cpp.c */						\
 	OP(CLANG_TOKEN_LIST_ENTRY,	"LIST_ENTRY")			\
 	/* parser-stmt.c */						\
-	OP(CLANG_TOKEN_FALLTHROUGH,	"FALLTHROUGH")
+	OP(CLANG_TOKEN_FALLTHROUGH,	"FALLTHROUGH")			\
+	/* C23 contextual keywords, recognized without breaking older C. */\
+	OP(CLANG_TOKEN_ALIGNAS,		"alignas")			\
+	OP(CLANG_TOKEN_ALIGNOF,		"alignof")			\
+	OP(CLANG_TOKEN_BOOL,		"bool")				\
+	OP(CLANG_TOKEN_CONSTEXPR,	"constexpr")			\
+	OP(CLANG_TOKEN_FALSE,		"false")			\
+	OP(CLANG_TOKEN_NULLPTR,		"nullptr")			\
+	OP(CLANG_TOKEN_STATIC_ASSERT,	"static_assert")		\
+	OP(CLANG_TOKEN_THREAD_LOCAL,	"thread_local")			\
+	OP(CLANG_TOKEN_TRUE,		"true")				\
+	OP(CLANG_TOKEN_TYPEOF,		"typeof")			\
+	OP(CLANG_TOKEN_TYPEOF_UNQUAL,	"typeof_unqual")
 
 enum clang_token_type {
 	CLANG_TOKEN_NONE = 0,

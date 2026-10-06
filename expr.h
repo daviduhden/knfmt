@@ -53,6 +53,14 @@ struct expr_exec_arg {
 		struct doc	*(*recover_cast)(const struct expr_exec_arg *,
 		    void *);
 
+		/*
+		 * Expected to consume a _Generic selection. Returning
+		 * anything other than NULL implies that the expression parser
+		 * can continue.
+		 */
+		struct doc	*(*recover_generic)(const struct expr_exec_arg *,
+		    void *);
+
 		/* Invoked while emitting a document token. */
 		struct doc	*(*doc_token)(struct token *, struct doc *,
 		    const char *, int, void *);

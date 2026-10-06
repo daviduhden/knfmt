@@ -135,5 +135,138 @@ parser_attributes(struct parser *pr, struct doc *dc, struct doc **out,
 			break;
 	}
 
+	return nattributes > 0 ? parser_good(pr) : parser_none(pr);
+}
+
+/*
+ * Returns non-zero if the next token(s) denote a C23 standard attribute
+ * specifier, i.e. [ [ ... ] ]. On success end is set to the last closing
+ * bracket. The lexer is left untouched.
+ */
+int
+parser_attributes_std_peek(struct parser *pr, struct token **end)
+{
+	struct lexer *lx = pr->pr_lx;
+	struct lexer_state s;
+	struct token *t;
+	int nest, peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_if(lx, TOKEN_LSQUARE, NULL) &&
+	    lexer_if(lx, TOKEN_LSQUARE, NULL)) {
+		nest = 2;
+		while (lexer_pop(lx, &t)) {
+			if (t->tk_type == LEXER_EOF)
+				break;
+			if (t->tk_type == TOKEN_LSQUARE) {
+				nest++;
+			} else if (t->tk_type == TOKEN_RSQUARE) {
+				if (--nest == 0) {
+					if (end != NULL)
+						*end = t;
+					peek = 1;
+					break;
+				}
+			}
+		}
+	}
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
+static int
+peek_colon_colon(struct lexer *lx)
+{
+	struct lexer_state s;
+	int peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_if(lx, TOKEN_COLON, NULL) &&
+	    lexer_if(lx, TOKEN_COLON, NULL))
+		peek = 1;
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
+/*
+ * Parse a C23 standard attribute specifier, i.e. [ [ attribute-list ] ].
+ * Standard attribute tokens are accepted without any semantic knowledge of the
+ * attribute.
+ */
+int
+parser_attributes_std(struct parser *pr, struct doc *dc)
+{
+	struct lexer *lx = pr->pr_lx;
+	struct token *end, *name = NULL, *t;
+	int error, nattributes = 0;
+
+	if (!parser_attributes_std_peek(pr, &end))
+		return parser_none(pr);
+
+	if (!lexer_if(lx, TOKEN_LSQUARE, &t))
+		return parser_none(pr);
+	parser_doc_token(pr, t, dc);
+	if (!lexer_if(lx, TOKEN_LSQUARE, &t))
+		return parser_none(pr);
+	parser_doc_token(pr, t, dc);
+
+	for (;;) {
+		/* Attribute name, possibly scoped using ::. */
+		if (lexer_if(lx, TOKEN_IDENT, &name) ||
+		    lexer_if_flags(lx, TOKEN_FLAG_TYPE, &name)) {
+			parser_doc_token(pr, name, dc);
+		} else {
+			break;
+		}
+
+		while (peek_colon_colon(lx)) {
+			if (lexer_if(lx, TOKEN_COLON, &t))
+				parser_doc_token(pr, t, dc);
+			if (lexer_if(lx, TOKEN_COLON, &t))
+				parser_doc_token(pr, t, dc);
+			if (lexer_if(lx, TOKEN_IDENT, &t) ||
+			    lexer_if_flags(lx, TOKEN_FLAG_TYPE, &t))
+				parser_doc_token(pr, t, dc);
+			else
+				break;
+		}
+
+		/* Optional attribute argument clause. */
+		if (lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+			struct token *rparen;
+
+			if (!lexer_peek_if_pair(lx, TOKEN_LPAREN,
+			    TOKEN_RPAREN, NULL, &rparen))
+				return parser_fail(pr);
+			if (!lexer_if(lx, TOKEN_LPAREN, &t))
+				return parser_fail(pr);
+			parser_doc_token(pr, t, dc);
+			if (!lexer_peek_if(lx, TOKEN_RPAREN, NULL)) {
+				error = parser_attributes_expr(pr, dc, &dc,
+				    name, rparen);
+				if (error & HALT)
+					return parser_fail(pr);
+			}
+			if (lexer_expect(lx, TOKEN_RPAREN, &t))
+				parser_doc_token(pr, t, dc);
+		}
+
+		nattributes++;
+
+		if (!lexer_peek_if(lx, TOKEN_COMMA, NULL))
+			break;
+		if (!lexer_if(lx, TOKEN_COMMA, &t))
+			break;
+		parser_doc_token(pr, t, dc);
+		doc_literal(" ", dc);
+	}
+	if (nattributes == 0)
+		return parser_fail(pr);
+
+	if (lexer_expect(lx, TOKEN_RSQUARE, &t))
+		parser_doc_token(pr, t, dc);
+	if (lexer_expect(lx, TOKEN_RSQUARE, &t))
+		parser_doc_token(pr, t, dc);
+
 	return parser_good(pr);
 }

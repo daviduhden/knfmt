@@ -9,6 +9,7 @@
 #include "expr.h"
 #include "lexer.h"
 #include "options.h"
+#include "parser-attributes.h"
 #include "parser-decl.h"
 #include "parser-expr.h"
 #include "parser-priv.h"
@@ -91,6 +92,17 @@ parser_stmt1(struct parser *pr, struct doc *dc)
 		.tail	= dc,
 		.flags	= PARSER_STMT_BLOCK_TRIM,
 	};
+
+	/* C23 standard attributes may prefix a statement. */
+	while (parser_attributes_std_peek(pr, NULL)) {
+		struct doc *concat;
+
+		concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
+		if (parser_attributes_std(pr, concat) & FAIL)
+			return parser_fail(pr);
+		if (!lexer_peek_if(pr->pr_lx, TOKEN_SEMI, NULL))
+			doc_alloc(DOC_LINE, concat);
+	}
 
 	/*
 	 * Most likely statement comes first with some crucial exceptions:

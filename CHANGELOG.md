@@ -1,3 +1,25 @@
+# 6.0.0 - 2026-10-06
+
+## News
+
+- Support parsing and formatting of the full published ANSI/ISO C language
+  family from C89/C90 through C23. This includes C11/C23 standard attributes
+  (`[[...]]`), `_Generic`, `_BitInt`, `typeof`/`typeof_unqual`,
+  `_Static_assert`/`static_assert`, `_Alignas`/`alignas`, `_Alignof`/`alignof`,
+  `_Atomic`, `_Noreturn`, `_Thread_local`/`thread_local`, `_Complex`,
+  `_Imaginary`, C23 fixed underlying enumeration types, empty initializers,
+  labels before declarations and at the end of compound statements, unnamed
+  parameters, digraphs, universal character names in identifiers, binary
+  integer constants, digit separators, hexa-decimal floating constants and
+  UTF-8/UTF-16/UTF-32 character and string literals.
+  (David Uhden Collado)
+
+## Bug fixes
+
+- Avoid pathological memory usage and undefined behavior when parsing
+  malformed attributes, parentheses, comments and ruler alignment.
+  (David Uhden Collado)
+
 # 5.3.1 - 2026-06-06
 
 ## Bug fixes

@@ -287,7 +287,7 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 {
 	const struct token *tk = rd->rd_tk;
 	const struct token *nx;
-	unsigned int alignment_width, datum_width;
+	unsigned int alignment_width, datum_width, delta;
 
 	if (token_has_suffix(tk, TOKEN_COMMENT))
 		return 0;
@@ -302,7 +302,12 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 	 * ^nx->tk_cno--------------------^
 	 */
 	datum_width = colwidth(tk->tk_str, tk->tk_len, tk->tk_cno);
-	alignment_width = nx->tk_cno - (nspaces - rd->rd_nspaces);
+	if (nspaces < rd->rd_nspaces)
+		return 0;
+	delta = nspaces - rd->rd_nspaces;
+	if (nx->tk_cno < delta)
+		return 0;
+	alignment_width = nx->tk_cno - delta;
 	if (datum_width >= alignment_width)
 		return 0;
 	return alignment_width;

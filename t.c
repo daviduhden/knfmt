@@ -289,6 +289,28 @@ main(void)
 	test_parser_type_flags(PARSER_TYPE_EXPR,
 	    "const foo_t)", "const foo_t");
 
+	/* C11/C23 type specifiers and attributes. */
+	test_parser_type("_Atomic int", "_Atomic int");
+	test_parser_type("_Atomic(int)", "_Atomic ( int )");
+	test_parser_type("_Atomic(int *)", "_Atomic ( int * )");
+	test_parser_type("_BitInt(8)", "_BitInt ( 8 )");
+	test_parser_type("signed _BitInt(8)", "signed _BitInt ( 8 )");
+	test_parser_type("unsigned _BitInt(17)",
+	    "unsigned _BitInt ( 17 )");
+	test_parser_type("typeof(int)", "typeof ( int )");
+	test_parser_type("typeof_unqual(int)", "typeof_unqual ( int )");
+	test_parser_type("_Alignas(16) int", "_Alignas ( 16 ) int");
+	test_parser_type("_Alignas(int) char", "_Alignas ( int ) char");
+	test_parser_type("_Complex double", "_Complex double");
+	test_parser_type("_Imaginary float", "_Imaginary float");
+	test_parser_type("enum E : int", "enum E : int");
+	test_parser_type("enum E : unsigned int", "enum E : unsigned int");
+	test_parser_type("[[deprecated]] int", "[ [ deprecated ] ] int");
+	test_parser_type("struct [[deprecated]] s",
+	    "struct [ [ deprecated ] ] s");
+	test_parser_type("_Noreturn void", "_Noreturn void");
+	test_parser_type("_Thread_local int", "_Thread_local int");
+
 	test_parser_type_error("_asm volatile (");
 	test_parser_type_error("*");
 	test_parser_type_error("[");
@@ -329,6 +351,64 @@ main(void)
 
 	test_lexer_read("asm_inline", "ASSEMBLY");
 	test_lexer_read("asm_volatile_goto", "ASSEMBLY");
+
+	/* C99/C11/C23 numeric constants. */
+	test_lexer_read("0", "LITERAL");
+	test_lexer_read("0x1p+3", "LITERAL");
+	test_lexer_read("0x1.8p-2", "LITERAL");
+	test_lexer_read("1e+5", "LITERAL");
+	test_lexer_read("1E-5", "LITERAL");
+	test_lexer_read("1.", "LITERAL");
+	test_lexer_read(".5", "LITERAL");
+	test_lexer_read("1'000'000", "LITERAL");
+	test_lexer_read("0xff'ff", "LITERAL");
+	test_lexer_read("0b1010", "LITERAL");
+	test_lexer_read("0B11", "LITERAL");
+	test_lexer_read("123ull", "LITERAL");
+	test_lexer_read("1.f", "LITERAL");
+
+	/* C95/C11/C23 string and character literal encoding prefixes. */
+	test_lexer_read("L\"x\"", "STRING");
+	test_lexer_read("u\"x\"", "STRING");
+	test_lexer_read("U\"x\"", "STRING");
+	test_lexer_read("u8\"x\"", "STRING");
+	test_lexer_read("L'x'", "LITERAL");
+	test_lexer_read("u'x'", "LITERAL");
+	test_lexer_read("U'x'", "LITERAL");
+	test_lexer_read("u8'x'", "LITERAL");
+	test_lexer_read("u8", "IDENT");
+	test_lexer_read("u8x", "IDENT");
+	test_lexer_read("u", "IDENT");
+	test_lexer_read("U", "IDENT");
+	test_lexer_read("L", "IDENT");
+	test_lexer_read("Lx", "IDENT");
+
+	/* C11/C23 keywords. */
+	test_lexer_read("_Alignas", "ALIGNAS");
+	test_lexer_read("_Alignof", "ALIGNOF");
+	test_lexer_read("_Atomic", "ATOMIC");
+	test_lexer_read("_BitInt", "BITINT");
+	test_lexer_read("_Complex", "COMPLEX");
+	test_lexer_read("_Generic", "GENERIC");
+	test_lexer_read("_Imaginary", "IMAGINARY");
+	test_lexer_read("_Noreturn", "NORETURN");
+	test_lexer_read("_Static_assert", "STATIC_ASSERT");
+	test_lexer_read("_Thread_local", "THREAD_LOCAL");
+	test_lexer_read("typeof", "IDENT");
+	test_lexer_read("bool", "IDENT");
+	test_lexer_read("true", "IDENT");
+	test_lexer_read("nullptr", "IDENT");
+
+	/* Digraphs, standardized by C95. */
+	test_lexer_read("<:", "LSQUARE");
+	test_lexer_read(":>", "RSQUARE");
+	test_lexer_read("<%", "LBRACE");
+	test_lexer_read("%>", "RBRACE");
+
+	/* Universal character names in identifiers, C99. */
+	test_lexer_read("\\u00e9", "IDENT");
+	test_lexer_read("a\\u00e9b", "IDENT");
+	test_lexer_read("\\U000000e9", "IDENT");
 
 	test_token_position_after((&(struct test_token_move){
 	    .src	= "\tint a;\n\tchar b;\n",

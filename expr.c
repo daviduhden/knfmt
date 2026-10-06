@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "libks/arena-buffer.h"
@@ -128,6 +129,8 @@ struct expr_state {
 	unsigned int		 es_nconcat;	/* # enclosing juxtapositions */
 	unsigned int		 es_noparens;	/* parens indent disabled */
 	unsigned int		 es_col;	/* ruler column */
+	int			 es_overflow;	/* stack budget exceeded */
+	const char		*es_stack_base;	/* stack budget origin */
 };
 
 static struct expr	*expr_exec1(struct expr_state *, enum expr_pc);
@@ -324,6 +327,7 @@ expr_exec(const struct expr_exec_arg *ea)
 	arena_scope(ea->arena.scratch, scratch_scope);
 
 	expr_state_init(&es, ea, EXPR_MODE_EXEC, &scratch_scope);
+	es.es_stack_base = (const char *)__builtin_frame_address(0);
 
 	ex = expr_exec1(&es, PC0);
 	if (ex == NULL)
@@ -351,6 +355,8 @@ expr_exec(const struct expr_exec_arg *ea)
 		indent = doc_alloc(DOC_OPTIONAL, indent);
 	}
 	expr = expr_doc(ex, &es, indent);
+	if (es.es_overflow)
+		return NULL;
 	return expr;
 }
 
@@ -411,6 +417,18 @@ is_std_attribute(struct lexer *lx)
  * exhaust the stack. Valid source is nowhere near this limit.
  */
 #define EXPR_MAX_DEPTH		8000
+
+/*
+ * Bound the document construction recursion by the amount of process stack it
+ * may consume. A flat left-associative operator chain such as a + a + ... + a
+ * is parsed iteratively but produces a left-nested expression tree whose
+ * document representation is equally deep. Reject such input cleanly instead
+ * of exhausting the process stack in expr_doc() and, subsequently, the
+ * renderer. Measuring consumed stack rather than recursion depth keeps the
+ * policy independent of frame sizes, which differ between builds (for example
+ * when sanitizer instrumentation is enabled).
+ */
+#define EXPR_STACK_BUDGET	(2 * 1024 * 1024)
 
 static struct expr *
 expr_exec1(struct expr_state *es, enum expr_pc pc)
@@ -782,6 +800,18 @@ static struct doc *
 expr_doc(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	struct doc *concat, *group;
+
+	if (es->es_stack_base != NULL) {
+		uintptr_t base = (uintptr_t)es->es_stack_base;
+		uintptr_t here = (uintptr_t)__builtin_frame_address(0);
+		size_t used = base > here ? (size_t)(base - here) :
+		    (size_t)(here - base);
+
+		if (used > EXPR_STACK_BUDGET) {
+			es->es_overflow = 1;
+			return doc_alloc(DOC_CONCAT, dc);
+		}
+	}
 
 	es->es_depth++;
 

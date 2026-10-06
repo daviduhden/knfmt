@@ -1,0 +1,61 @@
+parser.o: parser.c /usr/include/stdc-predef.h parser.h config.h \
+ /usr/include/string.h /usr/include/bits/libc-header-start.h \
+ /usr/include/features.h /usr/include/features-time64.h \
+ /usr/include/bits/wordsize.h /usr/include/bits/timesize.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/long-double.h \
+ /usr/include/gnu/stubs.h /usr/include/gnu/stubs-64.h \
+ /usr/lib/gcc/x86_64-redhat-linux/16/include/stddef.h \
+ /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
+ /usr/include/strings.h libks/arena-buffer.h libks/arena.h \
+ /usr/lib/gcc/x86_64-redhat-linux/16/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/types.h \
+ /usr/include/bits/typesizes.h /usr/include/bits/time64.h \
+ /usr/include/bits/wchar.h /usr/include/bits/stdint-intn.h \
+ /usr/include/bits/stdint-uintn.h /usr/include/bits/stdint-least.h \
+ libks/compiler.h libks/list.h clang.h lexer-callbacks.h doc.h lexer.h \
+ options.h trace-types.h parser-decl.h parser-extern.h parser-func.h \
+ parser-priv.h arenas.h trace.h parser-stmt-asm.h token.h
+/usr/include/stdc-predef.h:
+parser.h:
+config.h:
+/usr/include/string.h:
+/usr/include/bits/libc-header-start.h:
+/usr/include/features.h:
+/usr/include/features-time64.h:
+/usr/include/bits/wordsize.h:
+/usr/include/bits/timesize.h:
+/usr/include/sys/cdefs.h:
+/usr/include/bits/long-double.h:
+/usr/include/gnu/stubs.h:
+/usr/include/gnu/stubs-64.h:
+/usr/lib/gcc/x86_64-redhat-linux/16/include/stddef.h:
+/usr/include/bits/types/locale_t.h:
+/usr/include/bits/types/__locale_t.h:
+/usr/include/strings.h:
+libks/arena-buffer.h:
+libks/arena.h:
+/usr/lib/gcc/x86_64-redhat-linux/16/include/stdint.h:
+/usr/include/stdint.h:
+/usr/include/bits/types.h:
+/usr/include/bits/typesizes.h:
+/usr/include/bits/time64.h:
+/usr/include/bits/wchar.h:
+/usr/include/bits/stdint-intn.h:
+/usr/include/bits/stdint-uintn.h:
+/usr/include/bits/stdint-least.h:
+libks/compiler.h:
+libks/list.h:
+clang.h:
+lexer-callbacks.h:
+doc.h:
+lexer.h:
+options.h:
+trace-types.h:
+parser-decl.h:
+parser-extern.h:
+parser-func.h:
+parser-priv.h:
+arenas.h:
+trace.h:
+parser-stmt-asm.h:
+token.h:

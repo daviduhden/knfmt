@@ -292,6 +292,7 @@ static void		doc_exec_maxlines(const struct doc *,
     struct doc_state *);
 static void		doc_walk(const struct doc *, struct doc_state *,
     unsigned int (*)(const struct doc *, struct doc_state *, void *), void *);
+static int		doc_leads_with_break(const struct doc *);
 static int		doc_fits(const struct doc *, struct doc_state *);
 static unsigned int	doc_fits1(const struct doc *, struct doc_state *,
     void *);
@@ -641,7 +642,8 @@ doc_exec1(const struct doc *dc, struct doc_state *st)
 		diff = doc_diff_group_enter(dc, st, 0);
 		switch (st->st_mode) {
 		case MUNGE:
-			if (st->st_refit == 0) {
+			if (st->st_refit == 0 &&
+			    !doc_leads_with_break(dc->dc_doc)) {
 				doc_exec1(dc->dc_doc, st);
 				break;
 			}
@@ -714,6 +716,11 @@ doc_exec1(const struct doc *dc, struct doc_state *st)
 
 	case DOC_HARDLINE:
 		doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
+		/*
+		 * A hard line starts a new line; make the next group re-evaluate
+		 * whether it fits instead of inheriting the surrounding mode.
+		 */
+		st->st_refit = 1;
 		break;
 
 	case DOC_OPTLINE:
@@ -1077,6 +1084,33 @@ doc_walk(const struct doc *dc, struct doc_state *st,
 }
 
 static int
+doc_leads_with_break(const struct doc *dc)
+{
+	for (;;) {
+		const struct doc_description *desc =
+		    &doc_descriptions[dc->dc_type];
+
+		switch (dc->dc_type) {
+		case DOC_LINE:
+		case DOC_SOFTLINE:
+		case DOC_OPTLINE:
+			return 1;
+		default:
+			break;
+		}
+		if (desc->children.many) {
+			dc = LIST_FIRST(&dc->dc_list);
+			if (dc == NULL)
+				return 0;
+		} else if (desc->children.one) {
+			dc = dc->dc_doc;
+		} else {
+			return 0;
+		}
+	}
+}
+
+static int
 doc_fits(const struct doc *dc, struct doc_state *st)
 {
 	struct doc_state fst;
@@ -1158,6 +1192,12 @@ doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 	case DOC_HARDLINE:
 		doc_column(st, "\n", 1);
 		st->st_col += st->st_indent.cur;
+		/*
+		 * A hard line consumes any pending optional line, matching
+		 * doc_print(). Otherwise an optional line following a hard
+		 * line would make an overlong group appear to fit.
+		 */
+		st->st_optline = 0;
 		break;
 
 	case DOC_OPTLINE:

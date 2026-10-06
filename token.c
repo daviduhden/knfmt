@@ -380,6 +380,11 @@ token_is_decl(const struct token *tk, int type)
 	if (nx == NULL || nx->tk_type != TOKEN_LBRACE)
 		return 0;
 
+	/* Skip any trailing C23 attribute specifier, e.g. struct [[a]] { ... }. */
+	tk = token_skip_attributes_backward(tk);
+	if (tk == NULL)
+		return 0;
+
 	/*
 	 * Recognize a C23 enumeration with a fixed underlying type, i.e.
 	 * enum E : type-name { ... }. Walk back over the underlying type

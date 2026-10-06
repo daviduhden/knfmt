@@ -94,7 +94,7 @@ struct arena_scope;
 	OP(TOKEN_PIPE,			"|", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)\
 	OP(TOKEN_PIPEPIPE,		"||", TOKEN_FLAG_BINARY)	\
 	OP(TOKEN_PIPEEQUAL,		"|=", TOKEN_FLAG_ASSIGN)	\
-	OP(TOKEN_QUESTION,		"?", 0)				\
+	OP(TOKEN_QUESTION,		"?", TOKEN_FLAG_AMBIGUOUS)	\
 	OP(TOKEN_COLON,			":", TOKEN_FLAG_AMBIGUOUS)	\
 	OP(TOKEN_SEMI,			";", 0)				\
 	OP(TOKEN_EQUAL,			"=", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_ASSIGN)\
@@ -154,7 +154,17 @@ struct arena_scope;
 	OP(TOKEN_LSQUARE,	"<:", 0)				\
 	OP(TOKEN_RSQUARE,	":>", 0)				\
 	OP(TOKEN_LBRACE,	"<%", 0)				\
-	OP(TOKEN_RBRACE,	"%>", 0)
+	OP(TOKEN_RBRACE,	"%>", 0)				\
+	/* trigraphs, standardized by C89 and removed by C23 */		\
+	OP(TOKEN_QUESTION,	"?\?", 0)				\
+	OP(TOKEN_LSQUARE,	"?\?(", 0)				\
+	OP(TOKEN_RSQUARE,	"?\?)", 0)				\
+	OP(TOKEN_LBRACE,	"?\?<", 0)				\
+	OP(TOKEN_RBRACE,	"?\?>", 0)				\
+	OP(TOKEN_BACKSLASH,	"?\?/", 0)				\
+	OP(TOKEN_CARET,		"?\?'", 0)				\
+	OP(TOKEN_PIPE,		"?\?!", 0)				\
+	OP(TOKEN_TILDE,		"?\?-", 0)
 
 #define FOR_TOKEN_CPP(OP)						\
 	/* type			normalized	keyword */		\
@@ -234,6 +244,8 @@ struct token {
 /* Token covered by diff chunk. */
 #define TOKEN_FLAG_DIFF						0x00002000U
 #define TOKEN_FLAG_TYPE_FUNC					0x00004000U
+/* Token denotes a parenthesized declarator, i.e. type (ident). */
+#define TOKEN_FLAG_TYPE_PAREN					0x00020000U
 #define TOKEN_FLAG_COMMENT_CLANG_FORMAT_OFF			0x00008000U
 #define TOKEN_FLAG_COMMENT_CLANG_FORMAT_ON			0x00010000U
 

@@ -41,6 +41,8 @@ static int	parser_func_proto(struct parser *, struct doc **,
 
 static int	parser_func_arg_peek(struct parser *, struct parser_type *);
 
+static int	peek_paren_ident(struct lexer *, struct token **);
+
 static int	want_line_after_func_impl(struct parser *);
 
 /*
@@ -77,6 +79,25 @@ parser_func_peek(struct parser *pr)
 	return parser_func_peek1(pr, &type);
 }
 
+/*
+ * Returns non-zero if the next tokens form a parenthesized declarator, i.e.
+ * ( identifier ). rparen is set to the closing parenthesis.
+ */
+static int
+peek_paren_ident(struct lexer *lx, struct token **rparen)
+{
+	struct lexer_state s;
+	int peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_if(lx, TOKEN_LPAREN, NULL) &&
+	    lexer_if(lx, TOKEN_IDENT, NULL) &&
+	    lexer_if(lx, TOKEN_RPAREN, rparen))
+		peek = 1;
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
 static enum parser_func_peek
 parser_func_peek1(struct parser *pr, struct parser_type *type)
 {
@@ -97,6 +118,14 @@ parser_func_peek1(struct parser *pr, struct parser_type *type)
 
 		if (lexer_if(lx, TOKEN_IDENT, NULL)) {
 			/* nothing */
+		} else if (peek_paren_ident(lx, &attr)) {
+			/*
+			 * Parenthesized declarator: type ( ident ) ( args ).
+			 * Used by parser_func_proto().
+			 */
+			if (!lexer_seek_after(lx, attr))
+				goto out;
+			type->end->tk_flags |= TOKEN_FLAG_TYPE_PAREN;
 		} else if (lexer_if(lx, TOKEN_LPAREN, NULL) &&
 		    lexer_if(lx, TOKEN_STAR, NULL) &&
 		    lexer_if(lx, TOKEN_IDENT, NULL) &&
@@ -408,6 +437,14 @@ parser_func_proto(struct parser *pr, struct doc **out,
 			continue;
 		if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
 			parser_doc_token(pr, rparen, concat);
+		if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
+			parser_doc_token(pr, rparen, concat);
+	} else if (type->end->tk_flags & TOKEN_FLAG_TYPE_PAREN) {
+		/* Parenthesized declarator: ( ident ). */
+		if (lexer_expect(lx, TOKEN_LPAREN, &lparen))
+			parser_doc_token(pr, lparen, concat);
+		if (lexer_expect(lx, TOKEN_IDENT, &tk))
+			parser_doc_token(pr, tk, concat);
 		if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
 			parser_doc_token(pr, rparen, concat);
 	} else if (lexer_expect(lx, TOKEN_IDENT, &tk)) {

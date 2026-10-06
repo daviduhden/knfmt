@@ -1246,19 +1246,29 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 	struct token *tk;
 	size_t len;
 	int comment, type;
-	unsigned char ch;
+	unsigned char ch, pv, pv2;
 
 	KS_str_match_init_once("az", &match);
 
 	oldst = st = lexer_get_state(lx);
 	lexer_eat_lines_and_spaces(lx, &st);
-	if (lexer_getc(lx, &ch) || (ch != '#' && ch != '%')) {
+	if (lexer_getc(lx, &ch) || (ch != '#' && ch != '%' && ch != '?')) {
 		lexer_set_state(lx, &oldst);
 		return NULL;
 	}
 	/* Accept the %: digraph as an alternative spelling of #. */
 	if (ch == '%') {
 		if (lexer_getc(lx, &ch) || ch != ':') {
+			lexer_set_state(lx, &oldst);
+			return NULL;
+		}
+	} else if (ch == '?') {
+		/* Accept the ??= trigraph as an alternative spelling of #. */
+		if (lexer_getc(lx, &ch) || ch != '?') {
+			lexer_set_state(lx, &oldst);
+			return NULL;
+		}
+		if (lexer_getc(lx, &ch) || ch != '=') {
 			lexer_set_state(lx, &oldst);
 			return NULL;
 		}
@@ -1273,6 +1283,8 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 	type = clang_find_cpp(buf.ptr, len);
 
 	ch = '\0';
+	pv = '\0';
+	pv2 = '\0';
 	comment = 0;
 	for (;;) {
 		unsigned char peek;
@@ -1288,10 +1300,15 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 			comment = 1;
 		} else if (comment && ch == '*' && peek == '/') {
 			comment = 0;
-		} else if (!comment && ch != '\\' && peek == '\n') {
+		} else if (!comment && peek == '\n' &&
+		    ch != '\\' &&
+		    !(ch == '/' && pv == '?' && pv2 == '?')) {
+			/* Not a line continuation; end of directive. */
 			lexer_ungetc(lx);
 			break;
 		}
+		pv2 = pv;
+		pv = ch;
 		ch = peek;
 	}
 

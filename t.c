@@ -311,6 +311,12 @@ main(void)
 	test_parser_type("_Noreturn void", "_Noreturn void");
 	test_parser_type("_Thread_local int", "_Thread_local int");
 
+	/* C89/C90 implicit int specifier sequences. */
+	test_parser_type("static x;", "static");
+	test_parser_type("const volatile x;", "const volatile");
+	test_parser_type("register x;", "register");
+	test_parser_type("extern x[3];", "extern");
+
 	test_parser_type_error("_asm volatile (");
 	test_parser_type_error("*");
 	test_parser_type_error("[");
@@ -404,6 +410,15 @@ main(void)
 	test_lexer_read(":>", "RSQUARE");
 	test_lexer_read("<%", "LBRACE");
 	test_lexer_read("%>", "RBRACE");
+
+	/* Trigraphs, standardized by C89 and removed by C23. */
+	test_lexer_read("?\?(", "LSQUARE");
+	test_lexer_read("?\?)", "RSQUARE");
+	test_lexer_read("?\?<", "LBRACE");
+	test_lexer_read("?\?>", "RBRACE");
+	test_lexer_read("?\?'", "CARET");
+	test_lexer_read("?\?!", "PIPE");
+	test_lexer_read("?\?-", "TILDE");
 
 	/* Universal character names in identifiers, C99. */
 	test_lexer_read("\\u00e9", "IDENT");

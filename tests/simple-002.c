@@ -4,8 +4,7 @@
 
 #if 0
 
-struct
-a;
+struct a;
 struct b;
 
 h();

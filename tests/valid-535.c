@@ -1,0 +1,25 @@
+/*
+ * C23 auto type inference and char8_t.
+ */
+
+#include <uchar.h>
+
+void
+f(void)
+{
+	auto x = 1;
+	auto *p = &x;
+	auto int y = 2;
+	auto (*q) = &x;
+	static auto z = 3;
+	const auto c = 4;
+	auto i = 1, *j = &i;
+	char8_t ch = u8'a';
+	const char8_t *s = u8"x";
+}
+
+void
+g(void)
+{
+	auto (*p) = 0;
+}

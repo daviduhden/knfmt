@@ -1,4 +1,5 @@
 *.dict
+!parse.dict
 config.h
 config.log
 config.mk

@@ -1,0 +1,37 @@
+/*
+ * C89/C90 implicit int and K&R function definitions.
+ */
+
+main()
+{
+}
+
+f()
+{
+}
+
+f(a)
+	int a;
+{
+}
+
+f(a, b)
+	int a;
+	char *b;
+{
+}
+
+static g()
+{
+}
+
+static g(a)
+	int a;
+{
+}
+
+extern h();
+const q();
+
+static *p;
+register *r;

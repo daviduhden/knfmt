@@ -1237,7 +1237,12 @@ expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 		struct doc *tmp;
 
 		tmp = expr_doc(e, es, dc);
-		if (i + 1 < n)
+		/*
+		 * Do not add a separator when the operand is already followed
+		 * by a blank line from the source; the blank line is emitted
+		 * and the separator would add a spurious space.
+		 */
+		if (i + 1 < n && !token_has_line(e->ex_tk, 2))
 			doc_alloc(DOC_LINE, tmp);
 		/* Nest subsequent expressions under the first one. */
 		if (i == 0)
@@ -1297,7 +1302,12 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 			doc_alloc(DOC_LINE, ternary);
 			ternary = expr_doc_soft(ex->ex_rhs, es, dc,
 			    soft_weights.ternary);
-			doc_alloc(DOC_LINE, ternary);
+			/*
+			 * The colon binds to the true expression; do not offer
+			 * a break before it so the decision cannot depend on
+			 * line breaks present in the input.
+			 */
+			doc_literal(" ", ternary);
 		} else {
 			ternary = dc;
 		}

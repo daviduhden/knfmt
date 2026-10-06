@@ -1185,7 +1185,7 @@ expr_doc_arg(struct expr *ex, struct expr_state *es, struct doc *dc)
 
 		w = expr_doc_width(es, es->es_col == 0 ? es->es_dc : lhs);
 		ruler_insert(es->es_ea.rl, ex->ex_tk, lhs, ++es->es_col, w, 0);
-	} else if (!comma_has_spaces(comma)) {
+	} else if (!comma_has_spaces(comma) && !token_has_line(comma, 2)) {
 		doc_alloc(DOC_LINE, lhs);
 	}
 	if (ex->ex_rhs != NULL)

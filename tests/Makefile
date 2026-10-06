@@ -941,6 +941,7 @@ TESTS+=	include-categories.sh
 TESTS+=	simple.sh
 TESTS+=	stdin.sh
 TESTS+=	style-enoent.sh
+TESTS+=	nul.sh
 
 .SUFFIXES: .c .c-phony .h .h-phony .sh .sh-phony
 

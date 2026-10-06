@@ -30,7 +30,6 @@ struct main_context {
 	struct simple	*simple;
 	struct buffer	*src;
 	struct buffer	*dst;
-	struct buffer	*tmp;
 	struct arenas	 arena;
 };
 
@@ -123,7 +122,6 @@ main(int argc, char *argv[])
 
 	c.src = arena_buffer_alloc(&buffer_scope, 1 << 12);
 	c.dst = arena_buffer_alloc(&buffer_scope, 1 << 12);
-	c.tmp = arena_buffer_alloc(&buffer_scope, 1 << 12);
 
 	if (filelist(argc, argv, &files, &eternal_scope, c.arena.scratch,
 	    &c.options)) {
@@ -138,7 +136,6 @@ main(int argc, char *argv[])
 			error = 1;
 		buffer_reset(c.src);
 		buffer_reset(c.dst);
-		buffer_reset(c.tmp);
 		file_close(fe);
 	}
 
@@ -221,41 +218,13 @@ format_buffer(struct main_context *c, struct file *fe,
 static int
 fileformat(struct main_context *c, struct file *fe)
 {
-	int i;
-
 	arena_scope(c->arena.eternal, eternal_scope);
 
 	if (file_read(fe, c->src))
 		return 1;
 
-	/*
-	 * A handful of constructs (mostly around preprocessor line
-	 * continuations and comments) need more than one pass to reach a
-	 * fixed point. Keep formatting until the output stops changing, up to
-	 * a small bound, so that what is emitted is always canonical. Diff
-	 * mode consumes a patch and must not be iterated.
-	 */
-	for (i = 0; i < 9; i++) {
-		arena_scope(c->arena.eternal, pass_scope);
-
-		if (i == 0) {
-			if (format_buffer(c, fe, c->src, c->dst, &pass_scope))
-				return 1;
-			if (c->options.diffparse || c->options.simple ||
-			    buffer_cmp(c->src, c->dst) == 0)
-				break;
-			continue;
-		}
-		buffer_reset(c->tmp);
-		if (format_buffer(c, fe, c->dst, c->tmp, &pass_scope))
-			break;
-		if (buffer_cmp(c->dst, c->tmp) == 0)
-			break;
-		buffer_reset(c->dst);
-		if (buffer_puts(c->dst, buffer_get_ptr(c->tmp),
-		    buffer_get_len(c->tmp)))
-			return 1;
-	}
+	if (format_buffer(c, fe, c->src, c->dst, &eternal_scope))
+		return 1;
 
 	if (c->options.diff)
 		return filediff(c, fe);

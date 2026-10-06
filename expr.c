@@ -125,6 +125,7 @@ struct expr_state {
 	unsigned int		 es_parse_depth;	/* Recursion guard. */
 	unsigned int		 es_nassign;	/* # nested binary assignments */
 	unsigned int		 es_ncalls;	/* # nested calls */
+	unsigned int		 es_nconcat;	/* # enclosing juxtapositions */
 	unsigned int		 es_noparens;	/* parens indent disabled */
 	unsigned int		 es_col;	/* ruler column */
 };
@@ -1103,7 +1104,7 @@ expr_doc_call(struct expr *ex, struct expr_state *es, struct doc *dc)
 	es->es_ncalls++;
 
 	es->es_noparens++;
-	if (es->es_ncalls > 1)
+	if (es->es_ncalls > 1 && es->es_nconcat == 0)
 		dc = expr_doc_soft(ex->ex_lhs, es, dc, soft_weights.call);
 	else
 		dc = expr_doc(ex->ex_lhs, es, dc);
@@ -1230,6 +1231,7 @@ expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 	    !token_has_line(pv, 1))
 		dc = expr_doc_align(ex, es, dc, 0);
 	n = VECTOR_LENGTH(ex->ex_concat);
+	es->es_nconcat++;
 	for (i = 0; i < n; i++) {
 		struct expr *e = ex->ex_concat[i];
 		struct doc *tmp;
@@ -1241,6 +1243,7 @@ expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 		if (i == 0)
 			dc = tmp;
 	}
+	es->es_nconcat--;
 	return dc;
 }
 

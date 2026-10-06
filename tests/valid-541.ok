@@ -1,0 +1,15 @@
+const char *
+f(void)
+{
+	return A(
+	    BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB)
+	    "." A(CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC);
+}
+
+const char *
+g(void)
+{
+	return A(
+	    BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB)
+	    "x" A(CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC);
+}

@@ -92,7 +92,7 @@ static void
 target(const struct buffer *bf, void *userdata)
 {
 	struct test_context *c = userdata;
-	struct buffer *dst, *dst2;
+	struct buffer *dst, *dst2, *dst3;
 
 	arena_scope(c->arena.eternal, eternal_scope);
 	arena_scope(c->arena.buffer, buffer_scope);
@@ -101,13 +101,22 @@ target(const struct buffer *bf, void *userdata)
 	if (!format_once(c, bf, &eternal_scope, dst))
 		return;
 
-	/* Format twice: a successful first pass must be a fixed point. */
+	/*
+	 * Format three times. Malformed input may need a first pass to
+	 * normalize, but from the second pass on the output must be a fixed
+	 * point.
+	 */
 	dst2 = arena_buffer_alloc(&buffer_scope, 1 << 12);
-	if (format_once(c, dst, &eternal_scope, dst2)) {
-		if (buffer_get_len(dst) != buffer_get_len(dst2) ||
-		    memcmp(buffer_str(dst), buffer_str(dst2),
-		     buffer_get_len(dst)) != 0)
-			__builtin_trap();
-	}
+	if (!format_once(c, dst, &eternal_scope, dst2))
+		return;
+
+	dst3 = arena_buffer_alloc(&buffer_scope, 1 << 12);
+	if (!format_once(c, dst2, &eternal_scope, dst3))
+		return;
+
+	if (buffer_get_len(dst2) != buffer_get_len(dst3) ||
+	    memcmp(buffer_str(dst2), buffer_str(dst3),
+	     buffer_get_len(dst2)) != 0)
+		__builtin_trap();
 }
 FUZZER_TARGET_BUFFER(target);

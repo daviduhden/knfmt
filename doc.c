@@ -692,7 +692,10 @@ doc_exec1(const struct doc *dc, struct doc_state *st)
 	case DOC_LINE:
 		switch (st->st_mode) {
 		case BREAK:
-			doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
+			if (st->st_col > style(st->st_st, ColumnLimit))
+				doc_print(dc, st, " ", 1, DOC_PRINT_INDENT);
+			else
+				doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
 			break;
 		case MUNGE:
 			if (doc_print(dc, st, " ", 1, DOC_PRINT_INDENT)) {

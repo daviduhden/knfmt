@@ -37,6 +37,10 @@ static int	peek_type_squares(struct lexer *, struct token **);
 static int	peek_type_paren_ident(struct lexer *, enum clang_token_type,
     struct token **);
 static int	peek_type_alignas(struct lexer *, struct token **);
+static int	ok_implicit_int_declarator(struct lexer *);
+static int	peek_paren_pair_then_lparen(struct lexer *);
+static int	peek_type_abstract_func(struct lexer *, struct token **,
+    struct token **);
 
 int
 parser_type_peek(struct parser *pr, struct parser_type *type,
@@ -52,6 +56,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 	int nkeywords = 0;
 	int ntokens = 0;
 	int unknown = 0;
+	int implicit_int = 0;
 	int issizeof;
 
 	if (!lexer_peek(lx, &beg))
@@ -127,9 +132,11 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			if (type_token == TOKEN_ENUM ||
 			    type_token == TOKEN_STRUCT ||
 			    type_token == TOKEN_UNION) {
-				if (parser_attributes_std_peek(pr, &rparen) &&
-				    !lexer_seek_after(lx, rparen))
-					return 0;
+				if (parser_attributes_std_peek(pr, &rparen)) {
+					if (!lexer_seek_after(lx, rparen))
+						return 0;
+					end = rparen;
+				}
 				(void)lexer_if(lx, TOKEN_IDENT, &end);
 			}
 			/* C23: enum E : type-name { ... } */
@@ -157,8 +164,23 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			/* Ensure this is not the identifier after the type. */
 			if ((flags & PARSER_TYPE_CAST) == 0 &&
 			    (flags & PARSER_TYPE_EXPR) == 0 &&
-			    peek_type_ident_after_type(pr, &c))
+			    peek_type_ident_after_type(pr, &c)) {
+				/*
+				 * Remember whether the trailing identifier is a
+				 * plausible declarator. Together with a
+				 * storage/qualifier-only specifier sequence this
+				 * denotes an implicit int declaration as
+				 * standardized by C89/C90, e.g. `static x;'.
+				 * Only applicable to declarations; abstract
+				 * parameter and cast type names must not be
+				 * affected.
+				 */
+				if ((flags & (PARSER_TYPE_ARG |
+				    PARSER_TYPE_CAST | PARSER_TYPE_EXPR)) == 0 &&
+				    ok_implicit_int_declarator(lx))
+					implicit_int = 1;
 				break;
+			}
 
 			/* Identifier is part of the type, consume it. */
 			if (!lexer_if(lx, TOKEN_IDENT, &end))
@@ -181,6 +203,22 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			end = rsquare;
 			peek = 1;
 			break;
+		} else if (ntokens > 0 && peek_paren_pair_then_lparen(lx)) {
+			/*
+			 * A parenthesized declarator with a following parameter
+			 * list ends the type: type ( ... ) ( args ).
+			 */
+			peek = 1;
+			break;
+		} else if (peek &&
+		    (flags & (PARSER_TYPE_EXPR | PARSER_TYPE_CAST)) != 0 &&
+		    peek_type_abstract_func(lx, &args, &end)) {
+			/*
+			 * Abstract function type in a type name, e.g.
+			 * sizeof(int (int)) or typeof(int (void)).
+			 */
+			peek = 1;
+			break;
 		} else if (parser_attributes_peek(pr, &rparen, 0)) {
 			if (!lexer_seek_after(lx, rparen))
 				return 0;
@@ -199,8 +237,16 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 
 	if (ntokens > 0 && ntokens == nkeywords &&
 	    (flags & PARSER_TYPE_ARG) == 0) {
-		/* Only qualifier or storage token(s) cannot denote a type. */
-		peek = 0;
+		/*
+		 * Only qualifier or storage token(s) cannot denote a type,
+		 * unless this is a C89/C90 implicit int declaration where the
+		 * trailing identifier is a non-function declarator.
+		 */
+		if (implicit_int && (flags &
+		    (PARSER_TYPE_CAST | PARSER_TYPE_EXPR)) == 0)
+			peek = 1;
+		else
+			peek = 0;
 	} else if (!peek && !unknown && ntokens > 0) {
 		/*
 		 * Nothing was found. However this is a sequence of identifiers
@@ -227,7 +273,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 	{
 		simple_cookie(simple);
 		if (simple_enter(pr->pr_si, SIMPLE_IMPLICIT_INT, 0, &simple))
-			end = simple_implicit_int(lx, beg, end);
+			end = simple_implicit_int(lx, beg, end, implicit_int);
 	}
 
 out:
@@ -431,10 +477,21 @@ peek_type_func_ptr(struct parser *pr, struct lexer *lx, struct token **lhs,
 	    lexer_if(lx, TOKEN_STAR, NULL)) {
 		struct token *ident = NULL;
 
-		lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, NULL);
-		while (lexer_if(lx, TOKEN_STAR, NULL))
-			continue;
-		lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, NULL);
+		/*
+		 * Consume pointer(s), allowing C23 attributes and qualifiers
+		 * after each *, i.e. * attribute-specifier-sequence? type-qualifier-list?
+		 */
+		for (;;) {
+			struct token *attr;
+
+			while (parser_attributes_std_peek(pr, &attr) &&
+			    lexer_seek_after(lx, attr))
+				continue;
+			while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, NULL))
+				continue;
+			if (!lexer_if(lx, TOKEN_STAR, NULL))
+				break;
+		}
 
 		lexer_if(lx, TOKEN_IDENT, &ident);
 		/* C23 attributes may trail the declarator identifier. */
@@ -505,7 +562,8 @@ peek_type_ident_after_type(struct parser *pr, const Parser_Type_Context *c)
 	if (lexer_if(lx, TOKEN_IDENT, NULL) &&
 	    (lexer_if_flags(lx, TOKEN_FLAG_ASSIGN, NULL) ||
 	     lexer_if(lx, TOKEN_LSQUARE, NULL) ||
-	     (lexer_if(lx, TOKEN_LPAREN, NULL) &&
+	     (!peek_paren_pair_then_lparen(lx) &&
+	      lexer_if(lx, TOKEN_LPAREN, NULL) &&
 	      !lexer_peek_if(lx, TOKEN_STAR, NULL)) ||
 	     lexer_if(lx, TOKEN_RPAREN, NULL) ||
 	     lexer_if(lx, TOKEN_SEMI, NULL) ||
@@ -519,6 +577,121 @@ peek_type_ident_after_type(struct parser *pr, const Parser_Type_Context *c)
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 
+	return peek;
+}
+
+/*
+ * Returns non-zero if the current token sequence denotes a declarator that can
+ * follow an implicit int specifier sequence, i.e. an identifier optionally
+ * followed by a function parameter/identifier list. Function declarators are
+ * only accepted when the parenthesized content is a plausible parameter list,
+ * which keeps macro attributes such as __printf(3, 4) from being mistaken for
+ * declarators.
+ */
+static int
+ok_implicit_int_declarator(struct lexer *lx)
+{
+	struct lexer_state s;
+	struct token *rparen;
+	int ok = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_if(lx, TOKEN_IDENT, NULL)) {
+		if (!lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+			ok = 1;
+		} else if (lexer_peek_if_pair(lx, TOKEN_LPAREN,
+		    TOKEN_RPAREN, NULL, &rparen)) {
+			/*
+			 * A function declarator is only accepted for a
+			 * definition, i.e. immediately followed by a compound
+			 * statement. This keeps macro attributes preceding an
+			 * ordinary declaration (ending in ; or =) from being
+			 * mistaken for a declarator.
+			 */
+			struct lexer_state s2;
+			int valid = 0;
+
+			lexer_peek_enter(lx, &s2);
+			(void)lexer_if(lx, TOKEN_LPAREN, NULL);
+			valid = lexer_if(lx, TOKEN_RPAREN, NULL) ||
+			    (lexer_if(lx, TOKEN_VOID, NULL) &&
+			     lexer_if(lx, TOKEN_RPAREN, NULL)) ||
+			    lexer_if(lx, TOKEN_ELLIPSIS, NULL) ||
+			    lexer_peek_if_flags(lx,
+			     TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER |
+			     TOKEN_FLAG_STORAGE, NULL) ||
+			    lexer_peek_if(lx, TOKEN_IDENT, NULL);
+			lexer_peek_leave(lx, &s2);
+
+			if (valid &&
+			    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
+			     NULL, &rparen) &&
+			    lexer_peek_if(lx, TOKEN_LBRACE, NULL))
+				ok = 1;
+		}
+	}
+	lexer_peek_leave(lx, &s);
+	return ok;
+}
+
+/*
+ * Returns non-zero if the next tokens form ( ... ) ( , i.e. a parenthesized
+ * declarator followed by a parameter list. Used to keep a preceding identifier
+ * from being mistaken for the declarator instead of a typedef name, e.g.
+ * T (g)(T) or T (*(*g)(T))(T).
+ */
+static int
+peek_paren_pair_then_lparen(struct lexer *lx)
+{
+	struct lexer_state s;
+	struct token *rparen;
+	int peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, &rparen) &&
+	    lexer_peek_if(lx, TOKEN_LPAREN, NULL))
+		peek = 1;
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
+/*
+ * Returns non-zero if the next tokens form an abstract function declarator,
+ * i.e. ( parameter-type-list ), and sets args/end to the parentheses. Only
+ * used while parsing type names such as sizeof(int (int)).
+ */
+static int
+peek_type_abstract_func(struct lexer *lx, struct token **args,
+    struct token **end)
+{
+	struct lexer_state s, s2;
+	struct token *lparen = NULL, *rparen = NULL;
+	int peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
+	    &rparen)) {
+		int content = 0;
+
+		lexer_peek_enter(lx, &s2);
+		(void)lexer_if(lx, TOKEN_LPAREN, NULL);
+		content = lexer_if(lx, TOKEN_RPAREN, NULL) ||
+		    lexer_if(lx, TOKEN_VOID, NULL) ||
+		    lexer_if(lx, TOKEN_ELLIPSIS, NULL) ||
+		    lexer_peek_if_flags(lx,
+		     TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER |
+		     TOKEN_FLAG_STORAGE, NULL);
+		lexer_peek_leave(lx, &s2);
+
+		if (content &&
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
+		     &rparen)) {
+			*args = lparen;
+			*end = rparen;
+			peek = 1;
+		}
+	}
+	lexer_peek_leave(lx, &s);
 	return peek;
 }
 

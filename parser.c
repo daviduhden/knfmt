@@ -34,6 +34,14 @@ clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 	if (off == NULL)
 		return;
 	beg = off->tk_lno + token_lines(off);
+	/*
+	 * A comment that does not end in a newline (e.g. a C99 comment at end
+	 * of file) occupies its last line, so the region starts on the next
+	 * one. Without this the comment would be emitted both as a prefix and
+	 * as the start of the verbatim region, duplicating it on each pass.
+	 */
+	if (off->tk_len > 0 && off->tk_str[off->tk_len - 1] != '\n')
+		beg++;
 	token_rele(off);
 
 	parser_trace(pr, "beg %u, end %u", beg, end);
@@ -107,6 +115,8 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 	struct clang *clang = pr->pr_clang;
 	struct lexer *lx = pr->pr_lx;
 	unsigned int doc_flags = 0;
+	unsigned int ndocs = 0;
+	unsigned int brch_docs = 0;
 	int error = 0;
 
 	arena_scope(pr->pr_arena.doc, doc_scope);
@@ -127,22 +137,28 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 		}
 
 		concat = doc_alloc(DOC_CONCAT, dc);
+		ndocs++;
 
 		error = parser_root(pr, concat);
 		if (error & GOOD) {
-			clang_stamp(clang, lx);
+			clang_stamp(clang, lx, ndocs);
+			brch_docs = 0;
 		} else if (error & BRCH) {
 			if (!clang_branch(clang, lx, &pr->pr_token.unmute))
 				break;
+			brch_docs = ndocs;
 			parser_reset(pr);
 		} else if (error & (FAIL | NONE)) {
 			int r;
 
-			r = clang_recover(clang, lx, &pr->pr_token.unmute);
+			r = clang_recover(clang, lx, &pr->pr_token.unmute,
+			    ndocs, brch_docs);
 			if (r == 0)
 				break;
-			while (r-- > 0)
+			while (r-- > 0) {
 				doc_remove_tail(dc);
+				ndocs--;
+			}
 			parser_reset(pr);
 		}
 	}

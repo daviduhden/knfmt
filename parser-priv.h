@@ -49,6 +49,9 @@ struct parser {
 	struct {
 		unsigned int	depth;
 	} pr_stmt;
+
+	/* General parser recursion guard. */
+	unsigned int	pr_depth;
 };
 
 struct parser_arena_scope_cookie {

@@ -1,0 +1,16 @@
+/*
+ * Cpp branch recovery must not drop preceding declarations.
+ */
+
+enum __pid_type {
+};
+
+struct f_owner_ex {
+};
+#ifdef __USE_GNU
+# ifdef __USE_LARGEFILE64
+extern int fallocate64 (int __fd, int __mode, __off64_t __offset,
+			__off64_t __len);
+# endif
+extern int name_to_handle_at (int __dfd, const char *__name,
+#endif	/* use GNU */

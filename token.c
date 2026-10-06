@@ -3,6 +3,7 @@
 #include "config.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <string.h>
 
 #include "libks/arena-buffer.h"
@@ -454,6 +455,56 @@ token_set_str(struct token *tk, const char *str, size_t len)
 {
 	tk->tk_str = str;
 	tk->tk_len = len;
+}
+
+/*
+ * Returns non-zero if the two given tokens must be separated by whitespace in
+ * order to not merge into a single, different token.
+ */
+int
+token_pair_needs_space(const struct token *a, const struct token *b)
+{
+	unsigned char ac, bc;
+
+	if (a == NULL || a->tk_len == 0 || b->tk_len == 0)
+		return 0;
+
+	ac = (unsigned char)a->tk_str[a->tk_len - 1];
+	bc = (unsigned char)b->tk_str[0];
+
+	/* Adjacent identifier or number characters always merge. */
+	if ((isalnum(ac) || ac == '_') && (isalnum(bc) || bc == '_'))
+		return 1;
+
+	/* Avoid accidentally forming a comment. */
+	if (ac == '/' && (bc == '/' || bc == '*'))
+		return 1;
+
+	/* A number followed by '.' forms a floating constant. */
+	if (a->tk_type == TOKEN_LITERAL && bc == '.')
+		return 1;
+
+	/* '.' followed by a digit forms a floating constant. */
+	if (ac == '.' && isdigit(bc))
+		return 1;
+
+	/* Adjacent punctuators that would form a different operator. */
+	if ((ac == '+' && bc == '+') ||
+	    (ac == '-' && (bc == '-' || bc == '>')) ||
+	    (ac == '&' && bc == '&') ||
+	    (ac == '|' && bc == '|') ||
+	    (ac == '<' && (bc == '<' || bc == '=')) ||
+	    (ac == '>' && (bc == '>' || bc == '=')) ||
+	    (ac == '=' && bc == '=') ||
+	    (ac == '!' && bc == '=') ||
+	    (ac == '*' && bc == '=') ||
+	    (ac == '/' && bc == '=') ||
+	    (ac == '%' && bc == '=') ||
+	    (ac == '^' && bc == '=') ||
+	    (ac == '#' && bc == '#'))
+		return 1;
+
+	return 0;
 }
 
 unsigned int

@@ -8,3 +8,7 @@ fuzz-parse
 fuzz-style
 knfmt
 t
+
+# Build artifacts
+*.o
+*.d

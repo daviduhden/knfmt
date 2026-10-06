@@ -51,6 +51,15 @@ trim_line(const char *str, size_t len, struct arena_scope *s)
 	while (len > 0 && isspace((unsigned char)str[len - 1]))
 		len--;
 
+	/*
+	 * A tail made up solely of blank line(s) is the separator after the
+	 * directive. The directive's own hard line already terminated the
+	 * last content line, so emit at most one further new line; otherwise
+	 * the number of blank lines would depend on the source layout.
+	 */
+	if (len == 0)
+		return newlines > 0 ? "\n" : "";
+
 	return arena_sprintf(s, "%.*s%s%s",
 	    (int)len, str,
 	    newlines >= 2 ? "\n" : "",

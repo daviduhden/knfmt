@@ -38,13 +38,13 @@ comment_trim(const struct token *tk, const struct style *st,
 	size_t len = tk->tk_len;
 	int iscrlf;
 
-	if (len == 0 || sp[len - 1] != '\n')
+	if (len == 0 || memchr(sp, '\n', len) == NULL)
 		return NULL;
 
 	arena_scope(scratch, scratch_scope);
 
 	iscrlf = len >= 2 && sp[len - 2] == '\r';
-	bf = arena_buffer_alloc(&scratch_scope, len);
+	bf = arena_buffer_alloc(&scratch_scope, len + 1);
 	for (;;) {
 		const char *ep;
 		size_t commlen;
@@ -60,8 +60,15 @@ comment_trim(const struct token *tk, const struct style *st,
 			sp += wslen;
 		}
 		ep = nextline(sp, len);
-		if (ep == NULL)
+		if (ep == NULL) {
+			/*
+			 * Last line without a trailing new line, e.g. a merged
+			 * block of C99 comments. Trim and emit it too.
+			 */
+			if (len > 0)
+				buffer_puts(bf, sp, rskipws(sp, len));
 			break;
+		}
 		commlen = (size_t)(ep - sp);
 		buffer_puts(bf, sp, rskipws(sp, commlen));
 		if (iscrlf)

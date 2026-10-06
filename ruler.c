@@ -296,6 +296,17 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 	if (nx == NULL || token_cmp(tk, nx) != 0)
 		return 0;
 	/*
+	 * An alignment datum is a declarator or a designator. When the
+	 * declaration has no declarator (malformed input), the datum is a type
+	 * specifier followed by the assignment operator; sensing its source
+	 * column creates an unfortunate feedback loop where a space is added on
+	 * every pass.
+	 */
+	if (nx->tk_type == TOKEN_EQUAL &&
+	    (tk->tk_flags & (TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER |
+	     TOKEN_FLAG_STORAGE)))
+		return 0;
+	/*
 	 * <tab> struct sss <tab> <space> *
 	 * ^datum_width---^             | |
 	 * ^alignment_width-------------^ |

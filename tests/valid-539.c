@@ -1,0 +1,35 @@
+/*
+ * Preprocessor branch inside a parenthesized expression.
+ */
+
+int y = (
+#if A
+    x + 1
+#else
+    y + 2
+#endif
+);
+
+int z = f(
+#if A
+    a
+#else
+    b
+#endif
+);
+
+int w = _Generic((
+#if A
+    p
+#else
+    q
+#endif
+), int: 1, default: 0);
+
+int v = (struct s){
+#if A
+    1
+#else
+    2
+#endif
+};

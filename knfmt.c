@@ -241,13 +241,14 @@ fileformat(struct main_context *c, struct file *fe)
 		if (i == 0) {
 			if (format_buffer(c, fe, c->src, c->dst, &pass_scope))
 				return 1;
-			if (c->options.diffparse || c->options.simple)
+			if (c->options.diffparse || c->options.simple ||
+			    buffer_cmp(c->src, c->dst) == 0)
 				break;
 			continue;
 		}
 		buffer_reset(c->tmp);
 		if (format_buffer(c, fe, c->dst, c->tmp, &pass_scope))
-			return 1;
+			break;
 		if (buffer_cmp(c->dst, c->tmp) == 0)
 			break;
 		buffer_reset(c->dst);

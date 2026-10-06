@@ -122,6 +122,7 @@ struct expr_state {
 	struct token		*es_tk;
 	enum expr_mode		 es_mode;
 	unsigned int		 es_depth;
+	unsigned int		 es_parse_depth;	/* Recursion guard. */
 	unsigned int		 es_nassign;	/* # nested binary assignments */
 	unsigned int		 es_ncalls;	/* # nested calls */
 	unsigned int		 es_noparens;	/* parens indent disabled */
@@ -129,6 +130,7 @@ struct expr_state {
 };
 
 static struct expr	*expr_exec1(struct expr_state *, enum expr_pc);
+static struct expr	*expr_exec2(struct expr_state *, enum expr_pc);
 static struct expr	*expr_exec_recover(struct expr_state *);
 static struct expr	*expr_exec_recover_cast(struct expr_state *);
 
@@ -403,8 +405,27 @@ is_std_attribute(struct lexer *lx)
 	return peek;
 }
 
+/*
+ * Bound the parser recursion so that pathologically nested input cannot
+ * exhaust the stack. Valid source is nowhere near this limit.
+ */
+#define EXPR_MAX_DEPTH		8000
+
 static struct expr *
 expr_exec1(struct expr_state *es, enum expr_pc pc)
+{
+	struct expr *ex;
+
+	if (es->es_parse_depth >= EXPR_MAX_DEPTH)
+		return NULL;
+	es->es_parse_depth++;
+	ex = expr_exec2(es, pc);
+	es->es_parse_depth--;
+	return ex;
+}
+
+static struct expr *
+expr_exec2(struct expr_state *es, enum expr_pc pc)
 {
 	const struct expr_rule *er;
 	struct expr *ex = NULL;
@@ -1046,7 +1067,16 @@ expr_doc_parens(struct expr *ex, struct expr_state *es, struct doc *dc)
 static struct doc *
 expr_doc_field(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
+	struct token *pv;
+
 	dc = expr_doc(ex->ex_lhs, es, dc);
+	/*
+	 * Keep the member access tight, but separate the operands when they
+	 * would otherwise merge into a different token, e.g. `0 .' or `. 5'.
+	 */
+	pv = token_prev(ex->ex_tk);
+	if (token_pair_needs_space(pv, ex->ex_tk))
+		doc_alloc(DOC_LINE, dc);
 	token_trim(ex->ex_tk);
 	expr_doc_token(es, ex->ex_tk, dc);
 	if (ex->ex_rhs != NULL)
@@ -1262,7 +1292,16 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 
 		if (ex->ex_tokens[1] != NULL)
 			expr_doc_token(es, ex->ex_tokens[1], ternary);	/* : */
-		doc_alloc(DOC_LINE, ternary);
+		/*
+		 * A trailing //-comment must be followed by a new line even if
+		 * the surrounding group would otherwise fit.
+		 */
+		if (ex->ex_tokens[1] != NULL &&
+		    token_has_suffix(ex->ex_tokens[1], TOKEN_COMMENT) &&
+		    token_has_line(ex->ex_tokens[1], 1))
+			doc_alloc(DOC_HARDLINE, ternary);
+		else
+			doc_alloc(DOC_LINE, ternary);
 
 		return expr_doc_soft(ex->ex_ternary, es, dc,
 		    soft_weights.ternary);

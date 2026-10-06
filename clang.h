@@ -59,9 +59,10 @@ struct clang	*clang_alloc(const struct style *, struct simple *,
 
 struct lexer_callbacks	clang_lexer_callbacks(struct clang *);
 
-void	clang_stamp(struct clang *, struct lexer *);
+void	clang_stamp(struct clang *, struct lexer *, unsigned int);
 int	clang_branch(struct clang *, struct lexer *, struct token **);
-int	clang_recover(struct clang *, struct lexer *, struct token **);
+int	clang_recover(struct clang *, struct lexer *, struct token **,
+    unsigned int, unsigned int);
 
 struct token	*clang_token_branch_next(struct token *);
 struct token	*clang_token_branch_parent(struct token *);

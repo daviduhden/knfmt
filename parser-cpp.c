@@ -103,7 +103,9 @@ parser_cpp_peek_type(struct parser *pr, struct token **rparen)
 	lexer_peek_enter(lx, &s);
 	if (lexer_back_if(lx, TOKEN_TYPEDEF, NULL) &&
 	    lexer_if(lx, TOKEN_IDENT, NULL) &&
-	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, rparen))
+	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, rparen) &&
+	    (lexer_peek_if(lx, TOKEN_IDENT, NULL) ||
+	     lexer_peek_if(lx, TOKEN_STAR, NULL)))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 

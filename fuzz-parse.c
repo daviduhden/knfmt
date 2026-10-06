@@ -1,5 +1,7 @@
 #include "config.h"
 
+#include <string.h>
+
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
@@ -53,32 +55,27 @@ teardown(void *userdata)
 }
 FUZZER_TEARDOWN(teardown);
 
-static void
-target(const struct buffer *bf, void *userdata)
+static int
+format_once(const struct test_context *c, const struct buffer *bf,
+    struct arena_scope *scope, struct buffer *dst)
 {
-	struct test_context *c = userdata;
 	struct clang *clang;
 	struct lexer *lx;
 	struct parser *pr;
-	struct buffer *dst;
 
-	arena_scope(c->arena.eternal, eternal_scope);
-	arena_scope(c->arena.buffer, buffer_scope);
-
-	clang = clang_alloc(c->st, c->si, &c->arena, NULL, &c->op,
-	    &eternal_scope);
+	clang = clang_alloc(c->st, c->si, &c->arena, NULL, &c->op, scope);
 	lx = lexer_tokenize(&(const struct lexer_arg){
 	    .path		= "test.c",
 	    .bf			= bf,
 	    .op			= &c->op,
 	    .arena		= {
-		.eternal_scope	= &eternal_scope,
+		.eternal_scope	= scope,
 		.scratch	= c->arena.scratch,
 	    },
 	    .callbacks		= clang_lexer_callbacks(clang),
 	});
 	if (lx == NULL)
-		return;
+		return 0;
 
 	pr = parser_alloc(&(struct parser_arg){
 	    .lexer	= lx,
@@ -87,8 +84,30 @@ target(const struct buffer *bf, void *userdata)
 	    .simple	= c->si,
 	    .clang	= clang,
 	    .arena	= &c->arena,
-	}, &eternal_scope);
+	}, scope);
+	return parser_exec(pr, NULL, dst) == 0;
+}
+
+static void
+target(const struct buffer *bf, void *userdata)
+{
+	struct test_context *c = userdata;
+	struct buffer *dst, *dst2;
+
+	arena_scope(c->arena.eternal, eternal_scope);
+	arena_scope(c->arena.buffer, buffer_scope);
+
 	dst = arena_buffer_alloc(&buffer_scope, 1 << 12);
-	(void)parser_exec(pr, NULL, dst);
+	if (!format_once(c, bf, &eternal_scope, dst))
+		return;
+
+	/* Format twice: a successful first pass must be a fixed point. */
+	dst2 = arena_buffer_alloc(&buffer_scope, 1 << 12);
+	if (format_once(c, dst, &eternal_scope, dst2)) {
+		if (buffer_get_len(dst) != buffer_get_len(dst2) ||
+		    memcmp(buffer_str(dst), buffer_str(dst2),
+		     buffer_get_len(dst)) != 0)
+			__builtin_trap();
+	}
 }
 FUZZER_TARGET_BUFFER(target);

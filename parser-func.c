@@ -44,34 +44,10 @@ static int	parser_func_arg_peek(struct parser *, struct parser_type *);
 
 static int	peek_paren_ident(struct lexer *, struct token **);
 static int	peek_func_ptr_pattern(struct parser *);
+static int	parser_annotation_macro(struct parser *, struct doc *);
+static int	parser_annotation_macros(struct parser *, struct doc *);
 
 static int	want_line_after_func_impl(struct parser *);
-
-/*
- * Returns non-zero if the two given tokens must be separated by whitespace in
- * order to not merge into a single, different token.
- */
-static int
-token_pair_needs_space(const struct token *a, const struct token *b)
-{
-	unsigned char ac, bc;
-
-	if (a == NULL || a->tk_len == 0 || b->tk_len == 0)
-		return 0;
-
-	ac = (unsigned char)a->tk_str[a->tk_len - 1];
-	bc = (unsigned char)b->tk_str[0];
-
-	/* Adjacent identifier or number characters always merge. */
-	if ((isalnum(ac) || ac == '_') && (isalnum(bc) || bc == '_'))
-		return 1;
-
-	/* Avoid accidentally forming a comment. */
-	if (ac == '/' && (bc == '/' || bc == '*'))
-		return 1;
-
-	return 0;
-}
 
 enum parser_func_peek
 parser_func_peek(struct parser *pr)
@@ -79,6 +55,63 @@ parser_func_peek(struct parser *pr)
 	struct parser_type type;
 
 	return parser_func_peek1(pr, &type);
+}
+
+/*
+ * Consume a macro-like declaration annotation: an identifier optionally
+ * followed by balanced parentheses, e.g. __THROW, __wur or __nonnull((1)).
+ * The tokens are preserved opaquely; no semantics are attributed to them.
+ * Returns non-zero if an annotation was consumed. When dc is non-NULL the
+ * tokens are appended to it.
+ */
+static int
+parser_annotation_macro(struct parser *pr, struct doc *dc)
+{
+	struct lexer *lx = pr->pr_lx;
+	struct token *lparen, *rparen, *tk;
+
+	if (!lexer_if(lx, TOKEN_IDENT, &tk))
+		return 0;
+	if (dc != NULL)
+		parser_doc_token(pr, tk, dc);
+	if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
+	    &rparen))
+		return 1;
+	if (!lexer_if(lx, TOKEN_LPAREN, &lparen))
+		return 1;
+	if (dc != NULL)
+		parser_doc_token(pr, lparen, dc);
+	for (;;) {
+		if (!lexer_pop(lx, &tk))
+			break;
+		if (dc != NULL)
+			parser_doc_token(pr, tk, dc);
+		if (tk == rparen)
+			break;
+	}
+	return 1;
+}
+
+/*
+ * Consume a run of annotation macros, separated by a single space when
+ * rendered. Returns the number of annotations consumed.
+ */
+static int
+parser_annotation_macros(struct parser *pr, struct doc *dc)
+{
+	int nattributes = 0;
+
+	for (;;) {
+		if (dc != NULL)
+			doc_alloc(DOC_LINE, dc);
+		if (!parser_annotation_macro(pr, dc)) {
+			if (dc != NULL)
+				(void)doc_remove_tail(dc);
+			break;
+		}
+		nattributes++;
+	}
+	return nattributes;
 }
 
 /*
@@ -209,6 +242,18 @@ parser_func_peek1(struct parser *pr, struct parser_type *type)
 			peek = PARSER_FUNC_PEEK_IMPL;
 		else if (parser_type_decl_list_then_lbrace(pr))
 			peek = PARSER_FUNC_PEEK_IMPL;	/* K&R */
+		else if (parser_annotation_macros(pr, NULL) > 0) {
+			/*
+			 * Trailing annotation macros such as __THROW, __wur or
+			 * __nonnull((1)).
+			 */
+			if (lexer_if(lx, TOKEN_SEMI, NULL))
+				peek = PARSER_FUNC_PEEK_DECL;
+			else if (lexer_if(lx, TOKEN_LBRACE, NULL))
+				peek = PARSER_FUNC_PEEK_IMPL;
+			else if (parser_type_decl_list_then_lbrace(pr))
+				peek = PARSER_FUNC_PEEK_IMPL;
+		}
 	} else {
 		/*
 		 * Implicit int function declaration or definition as
@@ -621,28 +666,49 @@ parser_func_proto(struct parser *pr, struct doc **out,
 			return parser_fail(pr);
 	}
 
-	/* Recognize K&R argument declarations. */
-	kr = doc_alloc(DOC_GROUP, dc);
-	indent = doc_indent(style(pr->pr_st, IndentWidth), kr);
-	doc_alloc(DOC_HARDLINE, indent);
-	if (parser_decl(pr, indent, 0) & GOOD)
-		nkr++;
-	if (nkr == 0)
-		doc_remove(kr, dc);
+	/*
+	 * Recognize K&R argument declarations. Only definitions can carry
+	 * them; a declaration ends with attributes and annotations instead.
+	 */
+	if (arg->flags & PARSER_FUNC_PROTO_IMPL) {
+		kr = doc_alloc(DOC_GROUP, dc);
+		indent = doc_indent(style(pr->pr_st, IndentWidth), kr);
+		doc_alloc(DOC_HARDLINE, indent);
+		if (parser_decl(pr, indent, 0) & GOOD)
+			nkr++;
+		if (nkr == 0)
+			doc_remove(kr, dc);
+	}
+	if (nkr == 0) {
+		/*
+		 * Trailing annotation macros (e.g. __THROW, __wur,
+		 * __nonnull((1))) and attributes, possibly interleaved.
+		 * Annotations are macro-like declaration modifiers and are
+		 * preserved opaquely without attributing semantics to them.
+		 */
+		for (;;) {
+			int progressed = 0;
 
-	attr = doc_alloc(DOC_GROUP, dc);
-	indent = doc_indent(style(pr->pr_st, IndentWidth), attr);
-	if (parser_attributes(pr, indent, out, PARSER_ATTRIBUTES_LINE) & HALT) {
-		/* No __attribute__, try C23 standard attributes. */
-		doc_remove(attr, dc);
-		if (parser_attributes_std_peek(pr, NULL)) {
-			doc_alloc(DOC_LINE, *out);
-			if (parser_attributes_std(pr, *out) & HALT)
-				return parser_fail(pr);
+			if (parser_annotation_macros(pr, *out) > 0)
+				progressed = 1;
+			attr = doc_alloc(DOC_GROUP, dc);
+			indent = doc_indent(style(pr->pr_st, IndentWidth),
+			    attr);
+			if (parser_attributes(pr, indent, out,
+			    PARSER_ATTRIBUTES_LINE) & GOOD) {
+				progressed = 1;
+			} else {
+				doc_remove(attr, dc);
+			}
+			if (parser_attributes_std_peek(pr, NULL)) {
+				doc_alloc(DOC_LINE, *out);
+				if (parser_attributes_std(pr, *out) & HALT)
+					return parser_fail(pr);
+				progressed = 1;
+			}
+			if (!progressed)
+				break;
 		}
-	} else {
-		/* Also honor trailing standard attributes. */
-		(void)parser_attributes_std(pr, *out);
 	}
 
 	return parser_good(pr);

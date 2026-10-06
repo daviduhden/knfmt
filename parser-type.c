@@ -26,6 +26,9 @@ typedef struct Parser_Type_Context {
 	int token_type;
 } Parser_Type_Context;
 
+/* Bound declarator-scanning recursion. */
+#define SCAN_MAX_DEPTH	8000
+
 static int		 peek_type_ident_after_type(struct parser *, const Parser_Type_Context *);
 static int		 peek_type_declarator(struct parser *, struct token **,
     struct token **);
@@ -33,6 +36,10 @@ static int		 is_declarator_paren(struct parser *, struct lexer *);
 static struct token	*matching_rparen(struct token *);
 static int		 scan_declarator(struct parser *, struct lexer *,
     struct token **, struct token **, unsigned int *);
+static int		 scan_declarator1(struct parser *, struct lexer *,
+    struct token **, struct token **, unsigned int *);
+static int		 scan_function_declarator1(struct parser *,
+    struct lexer *, struct token **, struct token **);
 static int		 peek_type_noident(struct lexer *, struct token **);
 static int		 peek_type_unknown_array(struct lexer *, struct token **);
 static int		 peek_type_unknown_bitfield(struct lexer *, struct token **);
@@ -528,6 +535,21 @@ static int
 scan_declarator(struct parser *pr, struct lexer *lx, struct token **args,
     struct token **end, unsigned int *flags)
 {
+	int result;
+
+	/* Bound recursion so that deeply nested declarators cannot overflow. */
+	if (pr->pr_depth >= SCAN_MAX_DEPTH)
+		return 0;
+	pr->pr_depth++;
+	result = scan_declarator1(pr, lx, args, end, flags);
+	pr->pr_depth--;
+	return result;
+}
+
+static int
+scan_declarator1(struct parser *pr, struct lexer *lx, struct token **args,
+    struct token **end, unsigned int *flags)
+{
 	struct token *tk;
 	int have = 0;
 
@@ -602,6 +624,20 @@ scan_declarator(struct parser *pr, struct lexer *lx, struct token **args,
  */
 static int
 scan_function_declarator(struct parser *pr, struct lexer *lx,
+    struct token **func_lparen, struct token **end)
+{
+	int result;
+
+	if (pr->pr_depth >= SCAN_MAX_DEPTH)
+		return 0;
+	pr->pr_depth++;
+	result = scan_function_declarator1(pr, lx, func_lparen, end);
+	pr->pr_depth--;
+	return result;
+}
+
+static int
+scan_function_declarator1(struct parser *pr, struct lexer *lx,
     struct token **func_lparen, struct token **end)
 {
 	struct token *tk;

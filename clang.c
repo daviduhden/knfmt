@@ -40,6 +40,11 @@ struct clang {
 	struct token_list	 prefixes;
 	VECTOR(struct token *)	 branches;
 	VECTOR(struct token *)	 stamps;
+	/*
+	 * Number of top-level documents in the output at the point each
+	 * stamp was taken, used to roll back exactly on recovery.
+	 */
+	VECTOR(unsigned int)	 stamp_docs;
 };
 
 struct clang_token {
@@ -229,6 +234,8 @@ clang_alloc(const struct style *st, struct simple *si, struct arenas *arena,
 		err(1, NULL);
 	if (VECTOR_INIT(cl->stamps))
 		err(1, NULL);
+	if (VECTOR_INIT(cl->stamp_docs))
+		err(1, NULL);
 	return cl;
 }
 
@@ -239,6 +246,7 @@ clang_free(void *arg)
 
 	VECTOR_FREE(cl->branches);
 	VECTOR_FREE(cl->stamps);
+	VECTOR_FREE(cl->stamp_docs);
 }
 
 struct lexer_callbacks
@@ -263,19 +271,25 @@ clang_lexer_callbacks(struct clang *cl)
  * recovering.
  */
 void
-clang_stamp(struct clang *cl, struct lexer *lx)
+clang_stamp(struct clang *cl, struct lexer *lx, unsigned int ndocs)
 {
 	struct token **dst;
+	unsigned int *docs;
 	struct token *back;
 
 	if (!lexer_back(lx, &back))
 		return;
-	clang_trace(cl, "stamp %s", lexer_serialize(lx, back));
+	clang_trace(cl, "stamp %s at %u document(s)",
+	    lexer_serialize(lx, back), ndocs);
 	token_ref(back);
 	dst = VECTOR_ALLOC(cl->stamps);
 	if (dst == NULL)
 		err(1, NULL);
 	*dst = back;
+	docs = VECTOR_ALLOC(cl->stamp_docs);
+	if (docs == NULL)
+		err(1, NULL);
+	*docs = ndocs;
 }
 
 /*
@@ -347,19 +361,23 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
 }
 
 /*
- * Try to recover after encountering invalid source code. Returns the index of
- * the stamped token seeked to, starting from the end. This index should
- * correspond to the number of documents that must be removed since we're about
- * to parse them again.
+ * Try to recover after encountering invalid source code. Returns the number of
+ * documents that must be removed since they are about to be parsed again, or
+ * zero if recovery is not possible.
+ *
+ * cur_docs is the current number of top-level documents. Each stamp records
+ * the number of documents that existed when it was taken, so rolling back to
+ * a stamp is exact and does not depend on the number of branch iterations.
  */
 int
-clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute)
+clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
+    unsigned int cur_docs, unsigned int brch_docs)
 {
 	struct token *seek = NULL;
 	struct token *back, *cpp_dst, *cpp_src, *dst, *src, *stamp;
-	size_t i;
+	size_t i, seek_index = 0;
+	unsigned int remove;
 	int error = 0;
-	int ndocs = 1;
 
 	if (!lexer_back(lx, &back) && !lexer_peek_first(lx, &back))
 		return 0;
@@ -380,17 +398,17 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute)
 	    lexer_serialize(lx, src), lexer_serialize(lx, dst));
 
 	/*
-	 * Find the offset of the first stamped token before the branch.
-	 * Must be done before getting rid of the branch as stamped tokens might
-	 * be removed.
+	 * Find the last stamped token before the branch. Its recorded document
+	 * count is used to roll back exactly. The stamp itself may be removed by
+	 * the fold below, so it is re-evaluated afterwards.
 	 */
 	for (i = VECTOR_LENGTH(cl->stamps); i > 0; i--) {
 		stamp = cl->stamps[i - 1];
-		if (!token_is_dangling(stamp) && token_cmp(stamp, cpp_src) < 0)
+		if (!token_is_dangling(stamp) && token_cmp(stamp, cpp_src) < 0) {
+			seek_index = i;
 			break;
-		ndocs++;
+		}
 	}
-	clang_trace(cl, "removing %d document(s)", ndocs);
 
 	/*
 	 * Turn the whole branch into a prefix. As the branch is about to be
@@ -398,17 +416,26 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute)
 	 */
 	token_ref(cpp_src);
 	clang_branch_fold(cl, lx, cpp_src, unmute);
+	token_rele(cpp_src);
 
-	/* Find first stamped token before the branch. */
-	for (i = VECTOR_LENGTH(cl->stamps); i > 0; i--) {
-		stamp = cl->stamps[i - 1];
-		if (!token_is_dangling(stamp) &&
-		    token_cmp(stamp, cpp_src) < 0) {
+	if (seek_index > 0) {
+		stamp = cl->stamps[seek_index - 1];
+		if (!token_is_dangling(stamp)) {
 			seek = stamp;
-			break;
+			remove = cur_docs - cl->stamp_docs[seek_index - 1];
 		}
 	}
-	token_rele(cpp_src);
+	if (seek == NULL) {
+		/*
+		 * No usable stamp remains before the branch. Contents up to the
+		 * most recent branch are committed and must be kept, everything
+		 * after it is re-parsed from the beginning.
+		 */
+		remove = cur_docs > brch_docs ? cur_docs - brch_docs : 1;
+		if (remove == 0)
+			remove = 1;
+	}
+	clang_trace(cl, "removing %u document(s)", remove);
 
 	if (seek != NULL) {
 		if (!lexer_seek_after(lx, seek))
@@ -419,7 +446,7 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute)
 		error = 1;
 	}
 
-	return error ? 0 : ndocs;
+	return error ? 0 : (int)remove;
 }
 
 static void
@@ -535,6 +562,7 @@ clang_before_free(struct lexer *lx, void *arg)
 
 		tail = VECTOR_POP(cl->stamps);
 		token_rele(*tail);
+		VECTOR_POP(cl->stamp_docs);
 	}
 }
 

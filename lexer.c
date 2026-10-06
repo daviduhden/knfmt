@@ -354,6 +354,8 @@ lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
 
 	if (beg > nlines || end > nlines)
 		return 0;
+	if (end != 0 && beg > end)
+		return 0;
 
 	bo = lx->lx_lines[beg - 1];
 	if (end == 0)

@@ -12,10 +12,13 @@
 #include "parser-stmt-expr.h"
 #include "parser-type.h"
 #include "simple.h"
+#include "style.h"
 #include "token.h"
 
 static struct doc	*expr_recover(const struct expr_exec_arg *, void *);
 static struct doc	*expr_recover_cast(const struct expr_exec_arg *,
+    void *);
+static struct doc	*expr_recover_generic(const struct expr_exec_arg *,
     void *);
 static struct doc	*expr_doc_token(struct token *, struct doc *,
     const char *, int, void *);
@@ -33,6 +36,7 @@ parser_expr_peek(struct parser *pr, struct token **tk)
 		.callbacks	= {
 			.recover	= expr_recover,
 			.recover_cast	= expr_recover_cast,
+			.recover_generic	= expr_recover_generic,
 			.doc_token	= expr_doc_token,
 			.arg		= pr,
 		},
@@ -65,6 +69,7 @@ parser_expr(struct parser *pr, struct doc **expr, struct parser_expr_arg *arg)
 		.callbacks	= {
 			.recover	= expr_recover,
 			.recover_cast	= expr_recover_cast,
+			.recover_generic	= expr_recover_generic,
 			.doc_token	= expr_doc_token,
 			.arg		= pr,
 		},
@@ -92,6 +97,7 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		struct token *nx;
 
 		if (lexer_back_if(lx, TOKEN_SIZEOF, NULL) ||
+		    lexer_back_if(lx, TOKEN_ALIGNOF, NULL) ||
 		    ((lexer_back_if(lx, TOKEN_LPAREN, NULL) ||
 		      lexer_back_if(lx, TOKEN_COMMA, NULL)) &&
 		     ((nx = token_next(type.end)) != NULL &&
@@ -188,6 +194,92 @@ expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 	if (parser_type(pr, dc, &type, NULL) & GOOD)
 		return dc;
 	return NULL;
+}
+
+/*
+ * Parse a C11/C23 generic selection, i.e.
+ * _Generic ( assignment-expression , generic-association-list ).
+ */
+static struct doc *
+expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
+{
+	struct parser *pr = arg;
+	struct lexer *lx = pr->pr_lx;
+	struct doc *dc, *expr;
+	struct token *tk, *lparen, *rparen, *comma, *stop;
+	int error, nassoc = 0;
+
+	if (!lexer_back(lx, &tk) || tk->tk_type != TOKEN_GENERIC)
+		return NULL;
+
+	dc = doc_root(pr->pr_arena_scope.doc);
+	parser_doc_token(pr, tk, dc);
+
+	/* Find the matching right parenthesis to bound the construct. */
+	if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
+	    &rparen))
+		return NULL;
+	if (!lexer_if(lx, TOKEN_LPAREN, &lparen))
+		return NULL;
+	parser_doc_token(pr, lparen, dc);
+
+	/* Controlling expression, a single assignment-expression. */
+	if (!lexer_peek_until_comma(lx, rparen, &stop) || stop == rparen)
+		return NULL;
+	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
+	    .dc		= dc,
+	    .stop	= stop,
+	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
+	});
+	if (error & HALT)
+		return NULL;
+	if (!lexer_expect(lx, TOKEN_COMMA, &comma))
+		return NULL;
+	parser_doc_token(pr, comma, dc);
+	doc_literal(" ", dc);
+
+	for (;;) {
+		struct parser_type type;
+
+		if (lexer_if(lx, TOKEN_DEFAULT, &tk)) {
+			parser_doc_token(pr, tk, dc);
+		} else if (parser_type_peek(pr, &type, 0)) {
+			if (parser_type(pr, dc, &type, NULL) & HALT)
+				return NULL;
+		} else {
+			return NULL;
+		}
+
+		if (!lexer_expect(lx, TOKEN_COLON, &tk))
+			return NULL;
+		parser_doc_token(pr, tk, dc);
+		doc_literal(" ", dc);
+
+		(void)lexer_peek_until_comma(lx, rparen, &stop);
+		error = parser_expr(pr, &expr, &(struct parser_expr_arg){
+		    .dc		= dc,
+		    .stop	= stop,
+		    .indent	= style(pr->pr_st, ContinuationIndentWidth),
+		});
+		if (error & HALT)
+			return NULL;
+		nassoc++;
+
+		if (stop == rparen)
+			break;
+		if (!lexer_expect(lx, TOKEN_COMMA, &comma))
+			return NULL;
+		parser_doc_token(pr, comma, dc);
+		doc_literal(" ", dc);
+	}
+	if (nassoc == 0)
+		return NULL;
+
+	if (!lexer_expect(lx, TOKEN_RPAREN, &tk))
+		return NULL;
+	parser_doc_token(pr, tk, dc);
+
+	return dc;
 }
 
 static struct doc *

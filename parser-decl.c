@@ -4,6 +4,7 @@
 
 #include "libks/arena.h"
 
+#include "clang.h"
 #include "doc.h"
 #include "expr.h"
 #include "lexer.h"
@@ -42,6 +43,7 @@ static int	parser_decl_init_assign(struct parser *, struct doc *,
     struct doc **, struct parser_decl_init_arg *);
 static int	parser_decl_bitfield(struct parser *, struct doc *);
 static int	parser_decl_braces(struct parser *, struct doc *, int);
+static int	parser_static_assert(struct parser *, struct doc *);
 
 static int	parser_simple_decl_enter(struct parser *, unsigned int,
     struct simple_cookie *);
@@ -156,7 +158,7 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 	struct lexer *lx = pr->pr_lx;
 	struct doc *out = NULL;
 	struct doc *concat;
-	struct token *beg, *end, *semi;
+	struct token *beg, *end, *semi, *attr_end;
 	int iscpp = 0;
 	int error;
 
@@ -164,6 +166,17 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 		return parser_good(pr);
 	if ((flags & PARSER_DECL_ROOT) && (parser_cpp_decl_root(pr, dc) & GOOD))
 		return parser_good(pr);
+	if (parser_static_assert(pr, dc) & GOOD)
+		return parser_good(pr);
+	/* C23 attribute declaration, i.e. [[ ... ]] ; */
+	if (parser_attributes_std_peek(pr, &attr_end) &&
+	    token_next(attr_end) != NULL &&
+	    token_next(attr_end)->tk_type == TOKEN_SEMI) {
+		concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
+		if (parser_attributes_std(pr, concat) & FAIL)
+			return parser_fail(pr);
+		return parser_semi(pr, concat);
+	}
 	if (!parser_type_peek(pr, &type, 0)) {
 		iscpp = parser_cpp_peek_decl(pr, &type,
 		    (flags & PARSER_DECL_ROOT) ? PARSER_CPP_DECL_ROOT : 0);
@@ -338,6 +351,18 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 	struct lexer *lx = pr->pr_lx;
 	struct token *lhs, *tk;
 
+	/*
+	 * C23 standard attributes may trail a declarator. Must be checked
+	 * before parenthesized or square declarators as [[...]] would
+	 * otherwise be mistaken for a pair of square brackets.
+	 */
+	if (parser_attributes_std_peek(pr, NULL)) {
+		doc_literal(" ", dc);
+		if (parser_attributes_std(pr, dc) & FAIL)
+			return parser_fail(pr);
+		return parser_good(pr);
+	}
+
 	if (lexer_if(lx, TOKEN_IDENT, &tk)) {
 		parser_doc_token(pr, tk, dc);
 		if (lexer_peek_if(lx, TOKEN_IDENT, NULL))
@@ -440,6 +465,98 @@ parser_decl_init_assign(struct parser *pr, struct doc *dc, struct doc **out,
 	return parser_good(pr);
 }
 
+/*
+ * Returns non-zero if the next token(s) denote a C11/C23 static assertion,
+ * i.e. _Static_assert or static_assert followed by a parenthesized expression
+ * and a semicolon.
+ */
+static int
+parser_static_assert_peek(struct parser *pr)
+{
+	struct lexer *lx = pr->pr_lx;
+	struct lexer_state s;
+	struct token *tk, *rparen, *semi, *attr;
+	int peek = 0;
+
+	lexer_peek_enter(lx, &s);
+	while (parser_attributes_std_peek(pr, &attr)) {
+		if (!lexer_seek_after(lx, attr))
+			break;
+	}
+	if (lexer_if(lx, TOKEN_STATIC_ASSERT, &tk) ||
+	    (lexer_if(lx, TOKEN_IDENT, &tk) &&
+	     clang_token_type(tk) == CLANG_TOKEN_STATIC_ASSERT)) {
+		if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+		    &rparen) &&
+		    lexer_if(lx, TOKEN_SEMI, &semi))
+			peek = 1;
+	}
+	lexer_peek_leave(lx, &s);
+	return peek;
+}
+
+/*
+ * Parse a C11/C23 static assertion declaration, i.e.
+ * _Static_assert ( constant-expression [, string-literal] ) ;
+ * or the C23 spelling static_assert.
+ */
+static int
+parser_static_assert(struct parser *pr, struct doc *dc)
+{
+	struct lexer *lx = pr->pr_lx;
+	struct doc *concat;
+	struct token *tk, *rparen, *stop;
+	int error;
+
+	if (!parser_static_assert_peek(pr))
+		return parser_none(pr);
+
+	concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
+
+	/* Emit any leading C23 standard attributes. */
+	while (parser_attributes_std_peek(pr, NULL)) {
+		if (parser_attributes_std(pr, concat) & FAIL)
+			return parser_fail(pr);
+		doc_alloc(DOC_LINE, concat);
+	}
+
+	if (!lexer_pop(lx, &tk))
+		return parser_fail(pr);
+	parser_doc_token(pr, tk, concat);
+
+	if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &tk,
+	    &rparen))
+		return parser_fail(pr);
+	if (!lexer_if(lx, TOKEN_LPAREN, &tk))
+		return parser_fail(pr);
+	parser_doc_token(pr, tk, concat);
+
+	(void)lexer_peek_until_comma(lx, rparen, &stop);
+	error = parser_expr(pr, NULL, &(struct parser_expr_arg){
+	    .dc		= concat,
+	    .stop	= stop,
+	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
+	});
+	if (error & HALT)
+		return parser_fail(pr);
+
+	if (stop != rparen) {
+		if (!lexer_expect(lx, TOKEN_COMMA, &tk))
+			return parser_fail(pr);
+		parser_doc_token(pr, tk, concat);
+		doc_literal(" ", concat);
+		if (!lexer_expect(lx, TOKEN_STRING, &tk))
+			return parser_fail(pr);
+		parser_doc_token(pr, tk, concat);
+	}
+
+	if (!lexer_expect(lx, TOKEN_RPAREN, &tk))
+		return parser_fail(pr);
+	parser_doc_token(pr, tk, concat);
+
+	return parser_semi(pr, concat);
+}
+
 static int
 parser_decl_bitfield(struct parser *pr, struct doc *dc)
 {
@@ -488,7 +605,8 @@ parser_decl_braces(struct parser *pr, struct doc *dc, int break_before_braces)
 		parser_doc_token(pr, rbrace, dc);
 
 	if (!lexer_peek_if(lx, TOKEN_SEMI, NULL) &&
-	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, NULL))
+	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, NULL) &&
+	    !parser_attributes_std_peek(pr, NULL))
 		doc_literal(" ", dc);
 
 	return parser_good(pr);

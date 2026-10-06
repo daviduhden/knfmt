@@ -8,6 +8,7 @@
 #include "doc.h"
 #include "expr.h"
 #include "lexer.h"
+#include "parser-attributes.h"
 #include "parser-cpp.h"
 #include "parser-expr.h"
 #include "parser-priv.h"
@@ -134,7 +135,7 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 		indent = doc_indent(val, braces);
 		doc_alloc(DOC_HARDLINE, indent);
 	} else if (is_row_aligned(lbrace, rbrace)) {
-		unsigned int effective_indent;
+		unsigned int effective_indent, parent_width, sub;
 
 		/*
 		 * Rows are aligned using an indent equal to the position of the
@@ -145,8 +146,10 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 		 */
 		if (token_has_spaces(lbrace))
 			doc_literal(" ", braces);
-		effective_indent = parser_width(pr, parent) -
-		    ((pr->pr_braces.depth - 1) * indent_width);
+		parent_width = parser_width(pr, parent);
+		sub = pr->pr_braces.depth > 0 ?
+		    (pr->pr_braces.depth - 1) * indent_width : 0;
+		effective_indent = parent_width > sub ? parent_width - sub : 0;
 		indent = doc_indent(effective_indent, braces);
 	} else if (!is_first_token_on_line(lbrace)) {
 		/*
@@ -295,7 +298,8 @@ out:
 	    !lexer_peek_if(lx, TOKEN_RBRACE, NULL) &&
 	    !lexer_peek_if(lx, TOKEN_RPAREN, NULL) &&
 	    !lexer_peek_if(lx, TOKEN_PERIOD, NULL) &&
-	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, NULL))
+	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, NULL) &&
+	    !parser_attributes_std_peek(pr, NULL))
 		doc_literal(" ", braces);
 
 	return parser_good(pr);
@@ -361,6 +365,13 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 	struct doc *dc = arg->dc;
 	struct token *tk;
 	int error;
+
+	if (parser_attributes_std_peek(pr, NULL)) {
+		doc_literal(" ", dc);
+		if (parser_attributes_std(pr, dc) & FAIL)
+			return parser_fail(pr);
+		return parser_good(pr);
+	}
 
 	if (lexer_if(lx, TOKEN_LSQUARE, &tk)) {
 		struct doc *expr = NULL;

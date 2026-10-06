@@ -13,3 +13,7 @@ struct token;
 int	parser_attributes_peek(struct parser *, struct token **, unsigned int);
 int	parser_attributes(struct parser *, struct doc *, struct doc **,
     unsigned int);
+
+/* C23 standard attributes: [ [ ... ] ] */
+int	parser_attributes_std_peek(struct parser *, struct token **);
+int	parser_attributes_std(struct parser *, struct doc *);

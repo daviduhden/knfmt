@@ -41,6 +41,18 @@ struct arena_scope;
 	OP(TOKEN_VOID,		"void", TOKEN_FLAG_TYPE)		\
 	OP(TOKEN_VOLATILE,	"volatile", TOKEN_FLAG_QUALIFIER)	\
 	OP(TOKEN_WHILE,		"while", 0)				\
+	/* C11 keywords */						\
+	OP(TOKEN_ALIGNAS,	"_Alignas", 0)				\
+	OP(TOKEN_ALIGNOF,	"_Alignof", 0)				\
+	OP(TOKEN_ATOMIC,	"_Atomic", TOKEN_FLAG_QUALIFIER)	\
+	OP(TOKEN_COMPLEX,	"_Complex", TOKEN_FLAG_TYPE)		\
+	OP(TOKEN_GENERIC,	"_Generic", 0)				\
+	OP(TOKEN_IMAGINARY,	"_Imaginary", TOKEN_FLAG_TYPE)		\
+	OP(TOKEN_NORETURN,	"_Noreturn", TOKEN_FLAG_STORAGE)	\
+	OP(TOKEN_STATIC_ASSERT,	"_Static_assert", 0)			\
+	OP(TOKEN_THREAD_LOCAL,	"_Thread_local", TOKEN_FLAG_STORAGE)	\
+	/* C23 keywords */						\
+	OP(TOKEN_BITINT,	"_BitInt", TOKEN_FLAG_TYPE)		\
 	/* punctuators */						\
 	OP(TOKEN_LSQUARE,		"[", 0)				\
 	OP(TOKEN_RSQUARE,		"]", 0)				\
@@ -83,7 +95,7 @@ struct arena_scope;
 	OP(TOKEN_PIPEPIPE,		"||", TOKEN_FLAG_BINARY)	\
 	OP(TOKEN_PIPEEQUAL,		"|=", TOKEN_FLAG_ASSIGN)	\
 	OP(TOKEN_QUESTION,		"?", 0)				\
-	OP(TOKEN_COLON,			":", 0)				\
+	OP(TOKEN_COLON,			":", TOKEN_FLAG_AMBIGUOUS)	\
 	OP(TOKEN_SEMI,			";", 0)				\
 	OP(TOKEN_EQUAL,			"=", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_ASSIGN)\
 	OP(TOKEN_EQUALEQUAL,		"==", TOKEN_FLAG_BINARY)	\
@@ -137,7 +149,12 @@ struct arena_scope;
 	OP(TOKEN_UINT8,		"u_int8_t", 0)				\
 	OP(TOKEN_UINT16,	"u_int16_t", 0)				\
 	OP(TOKEN_UINT32,	"u_int32_t", 0)				\
-	OP(TOKEN_UINT64,	"u_int64_t", 0)
+	OP(TOKEN_UINT64,	"u_int64_t", 0)				\
+	/* digraphs, standardized by C95 */				\
+	OP(TOKEN_LSQUARE,	"<:", 0)				\
+	OP(TOKEN_RSQUARE,	":>", 0)				\
+	OP(TOKEN_LBRACE,	"<%", 0)				\
+	OP(TOKEN_RBRACE,	"%>", 0)
 
 #define FOR_TOKEN_CPP(OP)						\
 	/* type			normalized	keyword */		\

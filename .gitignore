@@ -3,6 +3,7 @@ config.h
 config.log
 config.mk
 fuzz-dict
+fuzz-parse
 fuzz-style
 knfmt
 t

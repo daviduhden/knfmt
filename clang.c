@@ -79,6 +79,15 @@ static struct token		*clang_keyword(const struct clang *,
 static const struct token	*clang_find_keyword(const struct lexer *,
     const struct lexer_state *);
 static const struct token	*clang_ellipsis(struct lexer *);
+static unsigned char		 clang_read_literal_prefix(struct lexer *,
+    unsigned char);
+static struct token		*clang_read_number(struct clang *,
+    struct lexer *, const struct lexer_state *, unsigned char);
+static struct token		*clang_read_string(struct clang *,
+    struct lexer *, const struct lexer_state *, unsigned char);
+static size_t			 identifier_match(const char *, size_t);
+static size_t			 ucn_length(const char *, size_t);
+static int			 clang_ucn_start(const struct lexer *);
 static struct token		*clang_token_alloc(struct arena_scope *,
     const struct token *);
 static struct token		*clang_token_emit(const struct clang *,
@@ -116,8 +125,6 @@ static void		 token_branch_parent(struct token *, struct token *);
 static void		 token_branch_parent_update_flags(struct token *);
 static void		 token_branch_revert(struct token *);
 static void		 token_prolong(struct token *, struct token *);
-
-static int	isnum(unsigned char);
 
 static MAP(const char, *, const struct token *) clang_tokens;
 static MAP(const char, *, int) cpp_token_types;
@@ -569,25 +576,29 @@ clang_read(struct lexer *lx, void *arg)
 	if (lexer_getc(lx, &ch))
 		goto eof;
 
-	if (ch == 'L') {
-		unsigned char peek;
+	/*
+	 * Recognize string and character literal encoding prefixes, i.e.
+	 * L, u, U and u8, as standardized by C95, C11 and C23. The prefix is
+	 * only recognized when immediately followed by a quote, otherwise the
+	 * character(s) start an ordinary identifier.
+	 */
+	if (ch == 'L' || ch == 'u' || ch == 'U') {
+		unsigned char delim = clang_read_literal_prefix(lx, ch);
 
-		if (lexer_getc(lx, &peek) == 0 && (peek == '"' || peek == '\''))
-			ch = peek;
-		else
-			lexer_ungetc(lx);
+		if (delim != 0) {
+			tk = clang_read_string(cl, lx, &st, delim);
+			goto out;
+		}
 	}
 
-	if (isalpha(ch) || ch == '_') {
-		static struct KS_str_match match;
+	if (isalpha(ch) || ch == '_' ||
+	    (ch == '\\' && clang_ucn_start(lx))) {
 		struct lexer_buffer buf;
 		const struct token *kw;
 		size_t len;
 
-		KS_str_match_init_once("AZaz09__", &match);
-
 		lexer_buffer_peek(lx, &buf);
-		len = KS_str_match(buf.ptr, buf.len, &match);
+		len = identifier_match(buf.ptr, buf.len);
 		lexer_buffer_seek(lx, len);
 
 		if ((kw = clang_find_keyword(lx, &st)) != NULL) {
@@ -599,27 +610,9 @@ clang_read(struct lexer *lx, void *arg)
 			    clang_find_identifier(tk->tk_str, tk->tk_len);
 		}
 	} else if (isdigit(ch) || ch == '.') {
-		do {
-			if (lexer_getc(lx, &ch))
-				goto eof;
-		} while (isnum(ch));
-		lexer_ungetc(lx);
-		tk = clang_token_emit(cl, lx, &st, TOKEN_LITERAL);
+		tk = clang_read_number(cl, lx, &st, ch);
 	} else if (ch == '"' || ch == '\'') {
-		unsigned char delim = ch;
-		unsigned char pch = ch;
-
-		for (;;) {
-			if (lexer_getc(lx, &ch))
-				goto eof;
-			if (pch == '\\' && ch == '\\')
-				ch = '\0';
-			else if (pch != '\\' && ch == delim)
-				break;
-			pch = ch;
-		}
-		tk = clang_token_emit(cl, lx, &st,
-		    delim == '"' ? TOKEN_STRING : TOKEN_LITERAL);
+		tk = clang_read_string(cl, lx, &st, ch);
 	} else if (lexer_eof(lx)) {
 eof:
 		tk = clang_token_emit(cl, lx, &st, LEXER_EOF);
@@ -1259,9 +1252,16 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 
 	oldst = st = lexer_get_state(lx);
 	lexer_eat_lines_and_spaces(lx, &st);
-	if (lexer_getc(lx, &ch) || ch != '#') {
+	if (lexer_getc(lx, &ch) || (ch != '#' && ch != '%')) {
 		lexer_set_state(lx, &oldst);
 		return NULL;
+	}
+	/* Accept the %: digraph as an alternative spelling of #. */
+	if (ch == '%') {
+		if (lexer_getc(lx, &ch) || ch != ':') {
+			lexer_set_state(lx, &oldst);
+			return NULL;
+		}
 	}
 
 	/* Space(s) before keyword is allowed. */
@@ -1354,6 +1354,15 @@ clang_keyword(const struct clang *cl, struct lexer *lx)
 			break;
 		}
 		if ((tmp->tk_flags & TOKEN_FLAG_AMBIGUOUS) == 0) {
+			/*
+			 * A backslash introducing a universal character name
+			 * belongs to an identifier, not a standalone token.
+			 */
+			if (tmp->tk_type == TOKEN_BACKSLASH &&
+			    clang_ucn_start(lx)) {
+				lexer_set_state(lx, &st);
+				return NULL;
+			}
 			tk = tmp;
 			break;
 		}
@@ -1418,6 +1427,193 @@ clang_ellipsis(struct lexer *lx)
 		}
 	}
 	return clang_keyword_token(TOKEN_ELLIPSIS);
+}
+
+/*
+ * Determine whether the given leading character, already consumed, is part of
+ * a string or character literal encoding prefix. Returns the enclosing quote
+ * character, leaving the lexer positioned immediately after it. Returns zero
+ * and leaves the lexer positioned immediately after the leading character if no
+ * such prefix is present.
+ */
+static unsigned char
+clang_read_literal_prefix(struct lexer *lx, unsigned char ch)
+{
+	unsigned char peek;
+
+	if (lexer_getc(lx, &peek))
+		return 0;
+
+	if (peek == '"' || peek == '\'')
+		return peek;
+
+	/* u8 prefix, standardized by C11 (strings) and C23 (characters). */
+	if (ch == 'u' && peek == '8') {
+		unsigned char peek2;
+
+		if (lexer_getc(lx, &peek2) == 0 &&
+		    (peek2 == '"' || peek2 == '\''))
+			return peek2;
+		if (!lexer_eof(lx))
+			lexer_ungetc(lx);
+		return 0;
+	}
+
+	lexer_ungetc(lx);
+	return 0;
+}
+
+/*
+ * Consume a preprocessing number as standardized through C23. The first
+ * character has already been consumed by the caller and is passed in ch. The
+ * grammar accepted here is a superset of the standardized numeric constants,
+ * matching the pp-number production including digit separators (') and
+ * floating point exponents (e/E and p/P), which keeps the formatter robust for
+ * malformed as well as valid input.
+ */
+static struct token *
+clang_read_number(struct clang *cl, struct lexer *lx,
+    const struct lexer_state *st, unsigned char ch)
+{
+	unsigned char pv = ch;
+
+	for (;;) {
+		unsigned char nx;
+
+		if (lexer_getc(lx, &nx))
+			break;
+
+		if (nx == '\'') {
+			unsigned char n2;
+
+			if (lexer_eof(lx) || lexer_getc(lx, &n2) != 0 ||
+			    !(isdigit((unsigned char)n2) ||
+			      isalpha((unsigned char)n2) || n2 == '_')) {
+				/*
+				 * Not a digit separator, does not belong to
+				 * the number. However at EOF the leading
+				 * character cannot be pushed back.
+				 */
+				if (!lexer_eof(lx))
+					lexer_ungetc(lx);
+				break;
+			}
+			pv = n2;
+			continue;
+		}
+
+		/* Exponent sign, e.g. 1e+2, 0x1p-3. */
+		if ((nx == '+' || nx == '-') &&
+		    (pv == 'e' || pv == 'E' || pv == 'p' || pv == 'P')) {
+			pv = nx;
+			continue;
+		}
+
+		if (isdigit(nx) || isalpha(nx) || nx == '_' || nx == '.') {
+			pv = nx;
+			continue;
+		}
+
+		lexer_ungetc(lx);
+		break;
+	}
+
+	return clang_token_emit(cl, lx, st, TOKEN_LITERAL);
+}
+
+/*
+ * Consume a string or character literal, including any encoding prefix already
+ * consumed. The lexer is positioned immediately after the opening quote.
+ */
+static struct token *
+clang_read_string(struct clang *cl, struct lexer *lx,
+    const struct lexer_state *st, unsigned char delim)
+{
+	unsigned char ch, pch = delim;
+
+	for (;;) {
+		if (lexer_getc(lx, &ch))
+			break;
+		if (pch == '\\' && ch == '\\')
+			ch = '\0';
+		else if (pch != '\\' && ch == delim)
+			break;
+		pch = ch;
+	}
+
+	return clang_token_emit(cl, lx, st,
+	    delim == '"' ? TOKEN_STRING : TOKEN_LITERAL);
+}
+
+/*
+ * Returns the length of a universal character name starting at ptr, i.e.
+ * \uXXXX or \UXXXXXXXX, or zero if none is present.
+ */
+static size_t
+ucn_length(const char *ptr, size_t len)
+{
+	size_t i, n;
+
+	if (len < 2)
+		return 0;
+	if (ptr[0] == 'u')
+		n = 4;
+	else if (ptr[0] == 'U')
+		n = 8;
+	else
+		return 0;
+
+	if (len < n + 1)
+		return 0;
+	for (i = 1; i <= n; i++) {
+		if (!isxdigit((unsigned char)ptr[i]))
+			return 0;
+	}
+	return n + 1;
+}
+
+/*
+ * Returns non-zero if the lexer buffer currently begins with the tail of a
+ * universal character name, i.e. the characters following a backslash that has
+ * already been consumed.
+ */
+static int
+clang_ucn_start(const struct lexer *lx)
+{
+	struct lexer_buffer buf;
+
+	lexer_buffer_peek(lx, &buf);
+	return ucn_length(buf.ptr, buf.len) > 0;
+}
+
+/*
+ * Consume an identifier, including any universal character name(s), from the
+ * given buffer. The first character has already been consumed by the caller.
+ */
+static size_t
+identifier_match(const char *ptr, size_t len)
+{
+	size_t i = 0;
+
+	while (i < len) {
+		unsigned char ch = (unsigned char)ptr[i];
+
+		if (isalnum(ch) || ch == '_') {
+			i++;
+			continue;
+		}
+		if (ch == '\\') {
+			size_t n = ucn_length(&ptr[i + 1], len - i - 1);
+
+			if (n > 0) {
+				i += 1 + n;
+				continue;
+			}
+		}
+		break;
+	}
+
+	return i;
 }
 
 void
@@ -1530,10 +1726,3 @@ token_prolong(struct token *dst, struct token *src)
 	token_rele(src);
 }
 
-static int
-isnum(unsigned char ch)
-{
-	ch = isupper(ch) ? (unsigned char)tolower(ch) : ch;
-	return isdigit(ch) || isxdigit(ch) || ch == 'l' || ch == 'x' ||
-	    ch == 'u' || ch == '.';
-}

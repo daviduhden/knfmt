@@ -20,8 +20,13 @@ static size_t		 rskipws(const char *, size_t);
 static int
 is_comment_trimmed(const struct token *tk, const struct buffer *bf)
 {
-	return tk->tk_len != buffer_get_len(bf) &&
-	    memcmp(tk->tk_str, buffer_get_ptr(bf), buffer_get_len(bf)) != 0;
+	size_t bflen = buffer_get_len(bf);
+
+	if (tk->tk_len != bflen)
+		return 1;
+	if (bflen == 0)
+		return 0;
+	return memcmp(tk->tk_str, buffer_get_ptr(bf), bflen) != 0;
 }
 
 const char *

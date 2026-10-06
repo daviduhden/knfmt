@@ -2,6 +2,8 @@
 
 #include "config.h"
 
+#include <ctype.h>
+
 #include "libks/arena.h"
 
 #include "doc.h"
@@ -40,6 +42,32 @@ static int	parser_func_proto(struct parser *, struct doc **,
 static int	parser_func_arg_peek(struct parser *, struct parser_type *);
 
 static int	want_line_after_func_impl(struct parser *);
+
+/*
+ * Returns non-zero if the two given tokens must be separated by whitespace in
+ * order to not merge into a single, different token.
+ */
+static int
+token_pair_needs_space(const struct token *a, const struct token *b)
+{
+	unsigned char ac, bc;
+
+	if (a == NULL || a->tk_len == 0 || b->tk_len == 0)
+		return 0;
+
+	ac = (unsigned char)a->tk_str[a->tk_len - 1];
+	bc = (unsigned char)b->tk_str[0];
+
+	/* Adjacent identifier or number characters always merge. */
+	if ((isalnum(ac) || ac == '_') && (isalnum(bc) || bc == '_'))
+		return 1;
+
+	/* Avoid accidentally forming a comment. */
+	if (ac == '/' && (bc == '/' || bc == '*'))
+		return 1;
+
+	return 0;
+}
 
 enum parser_func_peek
 parser_func_peek(struct parser *pr)
@@ -87,6 +115,9 @@ parser_func_peek1(struct parser *pr, struct parser_type *type)
 			goto out;
 
 		if (parser_attributes_peek(pr, &attr, 0) &&
+		    !lexer_seek_after(lx, attr))
+			goto out;
+		if (parser_attributes_std_peek(pr, &attr) &&
 		    !lexer_seek_after(lx, attr))
 			goto out;
 
@@ -240,6 +271,12 @@ parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
 		    PARSER_ATTRIBUTES_LINE) & FAIL)
 			return parser_fail(pr);
 
+		if (parser_attributes_std_peek(pr, NULL)) {
+			if (parser_attributes_std(pr, concat) & FAIL)
+				return parser_fail(pr);
+			doc_alloc(DOC_LINE, concat);
+		}
+
 		if (lexer_if(lx, TOKEN_COMMA, &tk)) {
 			parser_doc_token(pr, tk, concat);
 			doc_alloc(DOC_LINE, concat);
@@ -250,9 +287,8 @@ parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
 
 		if (!lexer_pop(lx, &tk))
 			return parser_fail(pr);
-		/* Identifiers must be separated. */
-		if (pv != NULL && pv->tk_type == TOKEN_IDENT &&
-		    tk->tk_type == TOKEN_IDENT)
+		/* Ensure tokens that would otherwise merge stay separated. */
+		if (token_pair_needs_space(pv, tk))
 			doc_alloc(DOC_LINE, concat);
 		parser_doc_token(pr, tk, concat);
 		pv = tk;
@@ -421,6 +457,15 @@ parser_func_proto(struct parser *pr, struct doc **out,
 	if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
 		parser_doc_token(pr, rparen, *out);
 
+	/* C23 standard attributes trailing the declarator. Must be handled
+	 * before the K&R declaration list as [[...]] ; would otherwise be
+	 * parsed as an attribute declaration. */
+	if (parser_attributes_std_peek(pr, NULL)) {
+		doc_alloc(DOC_LINE, *out);
+		if (parser_attributes_std(pr, *out) & HALT)
+			return parser_fail(pr);
+	}
+
 	/* Recognize K&R argument declarations. */
 	kr = doc_alloc(DOC_GROUP, dc);
 	indent = doc_indent(style(pr->pr_st, IndentWidth), kr);
@@ -432,8 +477,18 @@ parser_func_proto(struct parser *pr, struct doc **out,
 
 	attr = doc_alloc(DOC_GROUP, dc);
 	indent = doc_indent(style(pr->pr_st, IndentWidth), attr);
-	if (parser_attributes(pr, indent, out, PARSER_ATTRIBUTES_LINE) & HALT)
+	if (parser_attributes(pr, indent, out, PARSER_ATTRIBUTES_LINE) & HALT) {
+		/* No __attribute__, try C23 standard attributes. */
 		doc_remove(attr, dc);
+		if (parser_attributes_std_peek(pr, NULL)) {
+			doc_alloc(DOC_LINE, *out);
+			if (parser_attributes_std(pr, *out) & HALT)
+				return parser_fail(pr);
+		}
+	} else {
+		/* Also honor trailing standard attributes. */
+		(void)parser_attributes_std(pr, *out);
+	}
 
 	return parser_good(pr);
 }

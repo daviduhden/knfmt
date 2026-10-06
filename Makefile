@@ -1,6 +1,6 @@
 include ${.CURDIR}/config.mk
 
-VERSION=	5.3.1
+VERSION=	6.0.0
 
 SRCS+=	arenas.c
 SRCS+=	clang.c
@@ -93,6 +93,13 @@ DEPS_fuzz-style=	${OBJS_fuzz-style:.o=.d}
 PROG_fuzz-style=	fuzz-style
 DICT_fuzz-style=	style.dict
 
+SRCS_fuzz-parse+=	${SRCS}
+SRCS_fuzz-parse+=	fuzz-parse.c
+OBJS_fuzz-parse:=	${SRCS_fuzz-parse:.c=.o}
+OBJS_fuzz-parse:=	${OBJS_fuzz-parse:.S=.o}
+DEPS_fuzz-parse=	${OBJS_fuzz-parse:.o=.d}
+PROG_fuzz-parse=	fuzz-parse
+
 SRCS_benchmark+=	${SRCS}
 SRCS_benchmark+=	benchmark.cpp
 OBJS_benchmark:=	${SRCS_benchmark}
@@ -126,6 +133,7 @@ KNFMT+=	expr.h
 KNFMT+=	file.c
 KNFMT+=	file.h
 KNFMT+=	fuzz-dict.c
+KNFMT+=	fuzz-parse.c
 KNFMT+=	fuzz-style.c
 KNFMT+=	knfmt.c
 KNFMT+=	lexer-callbacks.h
@@ -478,6 +486,7 @@ clean:
 		${DEPS_test} ${OBJS_test} ${PROG_test} \
 		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
 		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
+		${DEPS_fuzz-parse} ${OBJS_fuzz-parse} ${PROG_fuzz-parse} \
 		${DEPS_benchmark} ${OBJS_benchmark} ${PROG_benchmark}
 .PHONY: clean
 
@@ -495,7 +504,7 @@ format: ${PROG_knfmt}
 	cd ${.CURDIR} && ${.OBJDIR}/${PROG_knfmt} -is ${KNFMT}
 .PHONY: format
 
-fuzz: ${PROG_fuzz-style}
+fuzz: ${PROG_fuzz-style} ${PROG_fuzz-parse}
 
 ${PROG_fuzz-dict}: ${OBJS_fuzz-dict}
 	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_fuzz-dict} ${OBJS_fuzz-dict} ${LDFLAGS}
@@ -505,6 +514,9 @@ ${DICT_fuzz-style}: ${PROG_fuzz-dict}
 
 ${PROG_fuzz-style}: ${OBJS_fuzz-style} ${DICT_fuzz-style}
 	${CC} ${DEBUG} -o ${PROG_fuzz-style} ${OBJS_fuzz-style} ${LDFLAGS}
+
+${PROG_fuzz-parse}: ${OBJS_fuzz-parse}
+	${CC} ${DEBUG} -o ${PROG_fuzz-parse} ${OBJS_fuzz-parse} ${LDFLAGS}
 
 install: all
 	@mkdir -p ${DESTDIR}${BINDIR}
@@ -547,4 +559,5 @@ test-${PROG_test}: ${PROG_test}
 -include ${DEPS_test}
 -include ${DEPS_fuzz-dict}
 -include ${DEPS_fuzz-style}
+-include ${DEPS_fuzz-parse}
 -include ${DEPS_benchmark}

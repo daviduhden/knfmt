@@ -380,7 +380,7 @@ findpath(const char *str, size_t len, struct arena_scope *s)
 		return NULL;
 	c = so[0] == '"' ? '"' : '>';
 	len -= (size_t)(so - str);
-	eo = memchr(&so[1], c, len);
+	eo = memchr(&so[1], c, len - 1);
 	if (eo == NULL)
 		return NULL;
 	return arena_strndup(s, so, (size_t)(eo - so) + 1);

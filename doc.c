@@ -83,6 +83,13 @@ struct doc {
 
 	struct doc_walk_state	 dc_walk;
 
+	/*
+	 * Cached flat-width summary. Computed iteratively by
+	 * doc_summarize() before layout; see DOC_SUM_*.
+	 */
+	unsigned int		 dc_sum_flat;
+	unsigned int		 dc_sum_flags;
+
 	LIST_ENTRY(doc_list, doc);
 };
 
@@ -181,8 +188,23 @@ struct doc_walk_queue {
 enum {
 	DOC_WALK_BREAK		= 0x00000001U,
 	DOC_WALK_CONTINUE	= 0x00000002U,
+	DOC_WALK_SKIP		= 0x00000004U,
 	DOC_WALK_RESTORE	= 0x40000000U,
 };
+
+/*
+ * Cached, context-independent structural summary of a document subtree.
+ *
+ * A subtree is "pure" when its MUNGE-mode contribution is a fixed number of
+ * columns and it has no side effects on the walking state (no hard line,
+ * optional line, indentation or tab alignment). Only pure subtrees may be
+ * skipped by doc_fits(); impure subtrees are traversed as before.
+ */
+#define DOC_SUM_VALID		0x00000001U
+#define DOC_SUM_PURE		0x00000002U
+#define DOC_SUM_TOOWIDE		0x00000004U
+/* Saturating width sentinel; larger than any useful column limit. */
+#define DOC_WIDTH_INF		0x10000000U
 
 /*
  * Description of per document type specific semantics.
@@ -389,12 +411,148 @@ static const char	*statestr(const struct doc_state *, unsigned int,
 static unsigned int	count_verbatim_lines(const char *, size_t,
     unsigned int);
 
+static unsigned int
+doc_width_add(unsigned int a, unsigned int b)
+{
+	if (a >= DOC_WIDTH_INF || b >= DOC_WIDTH_INF || a > DOC_WIDTH_INF - b)
+		return DOC_WIDTH_INF;
+	return a + b;
+}
+
+/*
+ * Compute the structural summary of a single node from its (already summed)
+ * children. Must be called in post-order.
+ */
+static void
+doc_sum_one(struct doc *dc)
+{
+	unsigned int flat = 0;
+	int pure = 1;
+
+	switch (dc->dc_type) {
+	case DOC_CONCAT: {
+		struct doc *child;
+
+		LIST_FOREACH(child, &dc->dc_list) {
+			flat = doc_width_add(flat, child->dc_sum_flat);
+			if (!(child->dc_sum_flags & DOC_SUM_PURE))
+				pure = 0;
+		}
+		break;
+	}
+	case DOC_GROUP:
+	case DOC_NOINDENT:
+	case DOC_MINIMIZE:
+	case DOC_SCOPE:
+	case DOC_MAXLINES:
+		flat = dc->dc_doc->dc_sum_flat;
+		if (!(dc->dc_doc->dc_sum_flags & DOC_SUM_PURE))
+			pure = 0;
+		break;
+	case DOC_INDENT:
+		/*
+		 * Changing the indentation affects any later hard line, so the
+		 * subtree is not pure even though its own width is a no-op.
+		 */
+		flat = dc->dc_doc->dc_sum_flat;
+		pure = 0;
+		break;
+	case DOC_ALIGN:
+		if (dc->dc_align.tabalign)
+			pure = 0;
+		else
+			flat = doc_width_add(dc->dc_align.indent,
+			    dc->dc_align.spaces);
+		break;
+	case DOC_LITERAL:
+		/* Tab stops and new lines make the width context dependent. */
+		if (dc->dc_str != NULL &&
+		    (memchr(dc->dc_str, '\n', dc->dc_len) != NULL ||
+		     memchr(dc->dc_str, '\t', dc->dc_len) != NULL))
+			pure = 0;
+		else
+			flat = (unsigned int)dc->dc_len;
+		break;
+	case DOC_VERBATIM:
+		if (dc->dc_str != NULL &&
+		    (memchr(dc->dc_str, '\n', dc->dc_len) != NULL ||
+		     memchr(dc->dc_str, '\t', dc->dc_len) != NULL))
+			pure = 0;
+		else
+			flat = (unsigned int)dc->dc_len;
+		break;
+	case DOC_LINE:
+		flat = 1;
+		break;
+	case DOC_SOFTLINE:
+	case DOC_MUTE:
+	case DOC_UNMUTE:
+		flat = 0;
+		break;
+	case DOC_HARDLINE:
+	case DOC_OPTLINE:
+	case DOC_OPTIONAL:
+		pure = 0;
+		break;
+	}
+
+	if (flat >= DOC_WIDTH_INF)
+		pure = 0;
+	dc->dc_sum_flat = flat;
+	dc->dc_sum_flags = DOC_SUM_VALID |
+	    (pure ? DOC_SUM_PURE : 0) |
+	    (flat >= DOC_WIDTH_INF ? DOC_SUM_TOOWIDE : 0);
+}
+
+/*
+ * Iteratively compute cached structural summaries for every node reachable
+ * from (and including) root. Uses an explicit stack so that a flat document
+ * of arbitrary length does not consume process stack. The tree is immutable
+ * while it is being walked, so summaries stay valid for the whole layout.
+ */
+static void
+doc_summarize(struct doc *root, struct arena *scratch)
+{
+	VECTOR(struct doc *) stack;
+	VECTOR(struct doc *) order;
+	struct doc *dc;
+	size_t i;
+
+	arena_scope(scratch, s);
+
+	ARENA_VECTOR_INIT(&s, stack, 1 << 4);
+	ARENA_VECTOR_INIT(&s, order, 1 << 4);
+
+	*ARENA_VECTOR_ALLOC(stack) = root;
+	while (!VECTOR_EMPTY(stack)) {
+		const struct doc_description *desc;
+
+		dc = *VECTOR_POP(stack);
+		*ARENA_VECTOR_ALLOC(order) = dc;
+		desc = &doc_descriptions[dc->dc_type];
+		if (desc->children.many) {
+			struct doc *child;
+
+			LIST_FOREACH_REVERSE(child, &dc->dc_list) {
+				*ARENA_VECTOR_ALLOC(stack) = child;
+			}
+		} else if (desc->children.one) {
+			*ARENA_VECTOR_ALLOC(stack) = dc->dc_doc;
+		}
+	}
+
+	/* Reverse pre-order visits every child before its parent. */
+	for (i = VECTOR_LENGTH(order); i > 0; i--)
+		doc_sum_one(order[i - 1]);
+}
+
 void
 doc_exec(struct doc_exec_arg *arg)
 {
 	const struct doc *dc = arg->dc;
 	struct doc_state st;
 
+	doc_summarize((struct doc *)dc, arg->scratch);
 	doc_state_init(&st, arg, BREAK);
 	doc_exec1(dc, &st);
 	if (arg->flags & DOC_EXEC_TRIM)
@@ -408,6 +566,7 @@ doc_width(struct doc_exec_arg *arg)
 {
 	struct doc_state st;
 
+	doc_summarize((struct doc *)arg->dc, arg->scratch);
 	doc_state_init(&st, arg, MUNGE);
 	doc_exec1(arg->dc, &st);
 	return st.st_col;
@@ -1065,6 +1224,8 @@ doc_walk(const struct doc *dc, struct doc_state *st,
 		rv = cb(dc, st, arg);
 		if (rv & DOC_WALK_BREAK)
 			break;
+		if (rv & DOC_WALK_SKIP)
+			continue;
 		if (rv & DOC_WALK_RESTORE) {
 			*ARENA_VECTOR_ALLOC(queue) = (struct doc_walk_queue){
 			    .dc		= dc,
@@ -1149,6 +1310,27 @@ doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 	if (st->st_newline) {
 		fits->fits = st->st_col <= style(st->st_st, ColumnLimit);
 		return DOC_WALK_BREAK;
+	}
+
+	/*
+	 * A pure subtree has a context-independent flat width and no side
+	 * effects on the walk state. Accept or reject it as a whole instead of
+	 * descending its entire (possibly long) left spine.
+	 */
+	if ((dc->dc_sum_flags & (DOC_SUM_VALID | DOC_SUM_PURE)) ==
+	    (DOC_SUM_VALID | DOC_SUM_PURE)) {
+		unsigned int limit = style(st->st_st, ColumnLimit);
+
+		if (dc->dc_sum_flags & DOC_SUM_TOOWIDE) {
+			fits->fits = 0;
+			return DOC_WALK_BREAK;
+		}
+		st->st_col += dc->dc_sum_flat;
+		if (st->st_col > limit) {
+			fits->fits = 0;
+			return DOC_WALK_BREAK;
+		}
+		return DOC_WALK_CONTINUE | DOC_WALK_SKIP;
 	}
 
 	switch (dc->dc_type) {

@@ -89,6 +89,10 @@ parser_expr(struct parser *pr, struct doc **expr, struct parser_expr_arg *arg)
 	};
 	struct doc *ex;
 
+	/* An output parameter is always given a defined value. */
+	if (expr != NULL)
+		*expr = NULL;
+
 	ex = expr_exec(&ea);
 	if (ex == NULL)
 		return parser_none(pr);

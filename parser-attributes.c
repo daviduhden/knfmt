@@ -70,6 +70,13 @@ parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
 		});
 		if (error & HALT)
 			return parser_fail(pr);
+		/*
+		 * parser_expr() may return without producing a document. Fall
+		 * back to the enclosing document so that a subsequent append
+		 * never dereferences an indeterminate pointer.
+		 */
+		if (out != NULL && *out == NULL)
+			*out = dc;
 
 		if (lexer_peek_if(lx, TOKEN_RPAREN, &nx) && nx == rparen)
 			break;

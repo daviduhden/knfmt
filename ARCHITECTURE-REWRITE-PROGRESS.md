@@ -303,3 +303,23 @@ Results:
 Remaining: byte-domain extensions (invalid UTF-8, mixed newlines,
 trigraphs), committed benchmarks/RSS, executed fuzz campaigns,
 OpenBSD/ANONERO re-runs, permanent documentation.
+
+## Update — raw-byte extensions, benchmarks and RSS (HEAD next)
+
+- `137cf2f` `tests: extend the raw-byte contract`: invalid UTF-8 in
+  comments/strings (opaque, preserved), mixed LF/CRLF, lone-CR rejection
+  within mixed input, EOF after backslash/blank/whitespace.
+- `tests/bench.sh`: reproducible flat-expression benchmark (time + peak
+  RSS via `/usr/bin/time`).
+
+Measured (gcc, this environment, `int x = a+a+...+a;`):
+
+| terms | in bytes | out bytes | time | peak RSS | idempotent |
+|---|---:|---:|---:|---:|---|
+| 10,000 | 20,011 | 41,675 | 0.154 s | 28 MB | ok |
+| 50,000 | 100,011 | 208,343 | 0.861 s | 114 MB | ok |
+| 100,000 | 200,011 | 416,675 | 2.05 s | 222 MB | ok |
+| 200,000 | 400,011 | 833,343 | 5.56 s | 437 MB | ok |
+
+Time and RSS scale approximately linearly (20x terms -> ~16x RSS, ~36x
+time). Memory ~2.2 KB/term (documents + AST + summaries).

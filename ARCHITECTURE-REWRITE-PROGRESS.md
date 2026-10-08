@@ -203,3 +203,21 @@ Failure-transition reentrancy (single process, `knfmt A M A`):
 - normal: `A M A` output == `A A` when M is malformed; M reports a clean
   error, rc=1, and does not contaminate the following A ✓
 - `-s`: same ✓
+
+## Update — raw-byte tests, UBSan/overflow, fuzz artifact
+
+- `dc2975e` `tests: add the raw-byte input-domain contract`
+  (`tests/bytes.sh`, registered in `tests/Makefile`).
+- Sanitizer matrix (clean clang builds, `LC_ALL=C`):
+  - `-fsanitize=undefined -fno-sanitize-recover=all`: full suite green,
+    0 reports.
+  - `-fsanitize=unsigned-integer-overflow -fno-sanitize-recover=all`:
+    full suite green, 0 reports.
+  - ASan cross-build: `OK (3700)`.
+- 183-byte fuzz artifact: not found in repo, history, or `/tmp`; the
+  original artifact directory no longer exists → classification **(E)**
+  irretrievable, documented. The raw-parser harness `fuzz-parse.c` uses
+  the production path (`clang_alloc` → `lexer_tokenize` → `parser_alloc`
+  → `parser_exec`), i.e. it follows the real initialization contract, so
+  prior failures were not caused by an artificially uninitialized API use
+  in the current harness.

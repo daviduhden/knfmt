@@ -51,3 +51,30 @@ printf 'int x = \\\n1;\n' >"${_wrkdir}/splice.c"
 stable splice.c
 printf '// c\\\nint y = 2;\n' >"${_wrkdir}/cslice.c"
 stable cslice.c
+
+# Invalid UTF-8 (isolated continuation, incomplete multibyte, overlong) is
+# opaque and preserved in comments and string literals.
+printf '/* \200\277 */\nchar *s = "\300\257";\n' >"${_wrkdir}/u8.c"
+stable u8.c
+
+# Mixed LF and CRLF is accepted and normalized to LF.
+printf 'int x = 1;\n\r\nint y = 2;\r\nint z = 3;\n' >"${_wrkdir}/mixed.c"
+stable mixed.c
+printf 'int x = 1;\n\nint y = 2;\nint z = 3;\n' >"${_wrkdir}/mixed.ok"
+cmp -s "${_wrkdir}/o1" "${_wrkdir}/mixed.ok"
+
+# A lone CR remains rejected even when mixed with LF.
+printf 'int x = 1;\n\rint y = 2;\n' >"${_wrkdir}/mixed-cr.c"
+if (cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" mixed-cr.c) \
+    >"${_wrkdir}/o1" 2>"${_wrkdir}/e1"; then
+	exit 1
+fi
+[ ! -s "${_wrkdir}/o1" ]
+
+# EOF after a backslash, blank lines and whitespace is accepted and stable.
+printf 'int x = 1;\\' >"${_wrkdir}/eof-bs.c"
+stable eof-bs.c
+printf 'int x = 1;\n\n\n' >"${_wrkdir}/eof-blank.c"
+stable eof-blank.c
+printf 'int x = 1;\t' >"${_wrkdir}/eof-ws.c"
+stable eof-ws.c

@@ -160,3 +160,16 @@ Per-run context; parser result/checkpoint contracts (largely addressed by
 `1277edd`/`80ac297`); in-process A/B/A reentrancy harness; 183-byte fuzz
 finding; raw-byte policy; malformed self-reparse; DOC_CONCAT audit
 (already n-ary, no DOC_SEQ needed); benchmarks; UBSan runs.
+
+## Update — in-process reentrancy verified
+
+The CLI formats several files in one process, so `knfmt A B A` is an
+in-process A/B/A test (not subprocesses).
+
+- normal: `knfmt A.c B.c A.c` == `A.out B.out A.out` ✓
+- `-s`: `knfmt -s A.c B.c A.c` == concatenated single runs ✓
+- `-d`: `knfmt -d A.c B.c A.c` == concatenated single runs ✓
+- `-D`: reads a single patch from stdin (presentation over the same
+  formatter); rc=0 sanity ✓
+
+State does not leak across invocations for these modes.

@@ -323,3 +323,41 @@ Measured (gcc, this environment, `int x = a+a+...+a;`):
 
 Time and RSS scale approximately linearly (20x terms -> ~16x RSS, ~36x
 time). Memory ~2.2 KB/term (documents + AST + summaries).
+
+## Update — fuzz campaign, declaration benchmark, trigraph probe (HEAD next)
+
+### Fuzz campaign (executed)
+- Target: `fuzz-parse` (production path: clang_alloc -> lexer_tokenize ->
+  parser_alloc -> parser_exec).
+- Build: `CC=clang ./configure --fuzz llvm`; DEBUG =
+  `-fsanitize=address,undefined,unsigned-integer-overflow,fuzzer
+  -fno-sanitize-recover=all`; link needs
+  `LDFLAGS=-L/home/linuxbrew/.linuxbrew/Cellar/gcc/16.2.0/lib/gcc/16`.
+- Seeds: all `tests/*.c` and `tests/*.h` (925 files).
+- Duration: ~120 s (killed by an outer timeout). Executions: 925,
+  ~7 exec/s, peak RSS 425 MB, new units 0.
+- Findings: no crashes, no sanitizer reports, no leaks, no hangs
+  (slowest unit < 1 s). The low exec rate and high RSS are properties of
+  per-iteration arena allocation under the sanitizer build, not crashes.
+
+### Annotated-declaration scaling (near-linear, cache effective)
+`int fN() A B;`
+
+| declarations | time |
+|---|---:|
+| 320 | 0.030 s |
+| 640 | 0.042 s |
+| 1280 | 0.064 s |
+| 2560 | 0.111 s |
+| 5120 | 0.222 s |
+
+### Trigraph probe
+knfmt recognises trigraphs: `??/` acts as a backslash (phase-2 splice:
+`int x??/\n= 1;` formats as `int x =\n    1;`), and `??>` is lexed as a
+closing bracket token (a different token than the parser expected). C23
+stops defining trigraphs; knfmt has no standard selector, so its actual
+translation behaviour is as observed above.
+
+### Still outstanding
+UBSan/overflow re-run after `2a8d9bd`; OpenBSD/ANONERO corpus re-runs;
+committed declaration benchmark mode; permanent architecture document.

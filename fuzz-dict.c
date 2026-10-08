@@ -10,7 +10,7 @@
 
 #include "style.h"
 
-static void	usage(void) __attribute__((noreturn));
+[[noreturn]] static void	usage(void);
 
 int
 main(int argc, const char *argv[])

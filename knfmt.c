@@ -33,7 +33,7 @@ struct main_context {
 	struct arenas	 arena;
 };
 
-static void	usage(void) __attribute__((noreturn));
+[[noreturn]] static void	usage(void);
 
 static int	filelist(int, char **, struct files *, struct arena_scope *,
     struct arena *, const struct options *);

@@ -408,3 +408,33 @@ stable, so the trigger involves additional malformed structure.
 ### Remaining
 Fix the malformed-input non-idempotence; run `-s` and full-formatter fuzz
 targets; unavailable historical corpora remain an evidence limitation.
+
+## Update — minimized non-idempotence reproducer (mechanism)
+
+Reduced `tests/repro-idempotence-001.c` (15058 bytes) to a 7-line
+reproducer, saved as `tests/repro-idempotence-002.c`:
+
+```c
+int f(struct ifbrparam *bparam)
+{
+	if (bparam->ifbrp_ctime 8
+| <| 	    bparam->ifbrp_ctime > 3600)
+		return (EINVAL);
+	return (0);
+}
+```
+
+Pass 1 emits `... 8 |` / `    <  | ...`; pass 2 emits `... 8 |  <` /
+`    | ...`. The break position moves one token per pass.
+
+Mechanism: the malformed `8 <newline> | <|` recovers into a binary
+expression, and the line-break decision honours the source line break
+before `|`. Reformatting the already-broken output (where the break is now
+after `|`) moves the break again, so the layout is not a fixed point.
+This is the "layout depends on incidental source line breaks" class.
+
+Not yet fixed: the break-placement rule must be made independent of the
+incidental source break for this recovered expression, or the malformed
+input must be rejected cleanly. Both the original (15058-byte) and the
+minimized reproducer are preserved; neither is wired into `bmake test`
+while the defect remains.

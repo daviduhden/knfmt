@@ -212,7 +212,7 @@ enum {
  * document taller than this is rejected instead of overflowing the process
  * stack. Remove once rendering is iterative.
  */
-#define DOC_MAX_EXEC_DEPTH	60000U
+#define DOC_MAX_EXEC_DEPTH	9000U
 
 /*
  * Description of per document type specific semantics.

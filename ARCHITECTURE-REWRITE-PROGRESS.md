@@ -279,3 +279,27 @@ machine: when the current paren pair is removable, descend into the operand
 and, while it is another removable `EXPR_PARENS`, skip every layer without
 re-entering `simple_enter()` for the same pass. Verify with `-Ds`,
 `tests/diff-simple-002.c`, and `tests/reparse.sh`.
+
+## Update — `-s` nested-paren idempotence FIXED (HEAD next)
+
+`2a8d9bd` `expr: canonicalize nested redundant parentheses in one pass`.
+
+Fix: in `expr_doc_parens()`, after deciding to drop a redundant paren pair,
+call `simple_leave()` *before* formatting the operand, so nested removable
+grouping and other simplifications run in the same pass. The general
+`simple_enter()`/`simple_leave()` mutual-exclusion/re-entry semantics are
+unchanged (the reverted global re-entry relaxation is not used).
+
+Results:
+
+- `tests/reparse.sh`: `accepted=1686 rejected=164 fail=0`.
+- `while (((0) != 0))` -> pass1 `while (0 != 0)` (idempotent).
+- `return ((sizeof int));` -> pass1 `return sizeof(int);` (idempotent).
+- `tests/diff-simple-002` with `-Ds`: crash-free (rc=0).
+- `LC_ALL=C bmake test`: green. Only two `.ok` files changed, to the
+  canonical form.
+- ASan cross-build: `OK (3700)`.
+
+Remaining: byte-domain extensions (invalid UTF-8, mixed newlines,
+trigraphs), committed benchmarks/RSS, executed fuzz campaigns,
+OpenBSD/ANONERO re-runs, permanent documentation.

@@ -247,3 +247,35 @@ output. Fixing this requires permitting nested same-pass simplification
 in `simple.c`, which was not completed.
 
 Normal-mode (non `-s`) self-reparse: no failures.
+
+## Update — `-s` nested-paren fix attempted; reverted (unsafe)
+
+Attempted to make `-s` canonicalize nested redundant parentheses in one
+pass by allowing same-pass nesting in `simple.c`:
+
+- `is_pass_mutually_exclusive()`: skip `i == pass` (self is never exclusive).
+- `simple_enter()`: treat an already `ENABLE` pass as re-enterable (only
+  `IGNORE` suppresses), and only assign `flags` on the `DISABLE -> ENABLE`
+  transition.
+
+Result:
+
+- Both known fixtures became idempotent: `while (((0) != 0))` -> pass1
+  `while (0 != 0)`; `return ((sizeof int));` -> pass1 `return sizeof(int);`.
+- **But it caused a SIGSEGV** in `-Ds` (diffparse + simplify) on
+  `tests/diff-simple-002` (`simple.c` interaction with diff-mode document
+  emission). That is an unacceptable regression.
+
+The change was reverted (`git checkout -- simple.c`). `-Ds` works again and
+`LC_ALL=C bmake test` is green. The two `-s` self-reparse failures therefore
+**remain**:
+`tests/simple-expr-parens-002.c`, `tests/simple-expr-sizeof-002.c`.
+
+### Next exact action for this defect
+
+Canonicalize a whole chain of redundant parentheses in a single traversal
+inside `expr_doc_parens()` (Approach C), rather than relaxing the pass state
+machine: when the current paren pair is removable, descend into the operand
+and, while it is another removable `EXPR_PARENS`, skip every layer without
+re-entering `simple_enter()` for the same pass. Verify with `-Ds`,
+`tests/diff-simple-002.c`, and `tests/reparse.sh`.

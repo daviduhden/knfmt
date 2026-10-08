@@ -170,6 +170,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 				 */
 				if ((flags & (PARSER_TYPE_ARG |
 				    PARSER_TYPE_CAST | PARSER_TYPE_EXPR)) == 0 &&
+				    ntokens == nkeywords &&
 				    parser_type_implicit_int(pr))
 					implicit_int = 1;
 				break;
@@ -197,6 +198,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 				 */
 				if ((flags & (PARSER_TYPE_ARG |
 				    PARSER_TYPE_CAST | PARSER_TYPE_EXPR)) == 0 &&
+				    ntokens == nkeywords &&
 				    parser_type_implicit_int(pr))
 					implicit_int = 1;
 				break;

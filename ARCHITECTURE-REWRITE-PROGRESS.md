@@ -142,3 +142,21 @@ One-pass idempotent at 200k. `bmake test` green; cross-build `OK (3700)`.
 5. Parser result/checkpoint contracts.
 6. 183-byte fuzz finding; raw-byte policy; malformed self-reparse.
 7. Benchmarks/tests committed; RSS scaling.
+
+## Update — declaration scan cached, O(N²) removed (head next)
+
+Cached the `parser_type_decl_list_then_lbrace()` scan range in
+`struct parser` (`pr_decl_scan_beg/end/nolbrace`). A scan that proves no
+declaration-list-then-`{` from a position proves it for every later start
+in the scanned range, so repeated annotated declarations no longer rescan
+the suffix.
+
+Repeated `int f() A B;`: 320 0.212s→0.028s, 640 0.775s→0.040s,
+1280 2.94s→0.063s, 2560 →0.112s (near-linear). pthread.h 0.024s.
+
+### Remaining
+
+Per-run context; parser result/checkpoint contracts (largely addressed by
+`1277edd`/`80ac297`); in-process A/B/A reentrancy harness; 183-byte fuzz
+finding; raw-byte policy; malformed self-reparse; DOC_CONCAT audit
+(already n-ary, no DOC_SEQ needed); benchmarks; UBSan runs.

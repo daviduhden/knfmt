@@ -377,3 +377,34 @@ committed declaration benchmark mode; permanent architecture document.
   suites remain.
 - `docs/architecture.md` added: permanent description of the implemented
   design and verification commands.
+
+## Update — mutation-based fuzzing executed; non-idempotence finding
+
+### Campaign (executed, mutations confirmed)
+- Target `fuzz-parse` (production path), sanitizer build
+  `-fsanitize=address,undefined,unsigned-integer-overflow,fuzzer
+  -fno-sanitize-recover=all`.
+- Curated corpus: 7 seed files (including `diff-014.c`,
+  `simple-expr-parens-002.c`, an error fixture, high-bit bytes, flat chain).
+- `-max_total_time=280` (outer `timeout 320`); **executions=2050**,
+  **new_units_added=443**, coverage `cov: 2676 ft: 13879`, corpus grew from
+  7 to 431 units, throughput ~36 exec/s, peak RSS 402 MB.
+- This goes beyond initial seed replay: mutation-based exploration occurred.
+
+### Finding (reproducible)
+`fuzz-parse` trapped on `crash-cdf2344d...` (15058 bytes, mutated
+`diff-014.c`). The trap is the harness's own assertion
+`F(F(x)) == F(F(F(x)))`, i.e. a genuine non-idempotence:
+`rm` on the input gives `o1 != o2 != o3` (sizes 15065/15065/15066); the
+output contains corrupt tokens (`if (bparam->ifbrp_ctime 8` /
+`| <|`). The production CLI accepts the input (rc=0) but its output is not
+a fixed point.
+
+Reproducer saved (not wired into `bmake test`, since it currently fails):
+`tests/repro-idempotence-001.c` (sha256 16 hex above). Minimal mechanism
+not yet isolated: small synthetic variants (`return a 8\n| b;` etc.) are
+stable, so the trigger involves additional malformed structure.
+
+### Remaining
+Fix the malformed-input non-idempotence; run `-s` and full-formatter fuzz
+targets; unavailable historical corpora remain an evidence limitation.

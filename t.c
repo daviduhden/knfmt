@@ -572,7 +572,7 @@ test_parser_type_impl(struct context *ctx, const char *src, const char *exp,
 
 	(void)lexer_peek(ctx->lx, &beg);
 	act = tokens_concat(token_serialize_literal, beg, type.end, &s);
-	KS_expect_true(act != NULL);
+	KS_expect_true(act != nullptr);
 	KS_expect_str(exp, act);
 }
 
@@ -597,7 +597,7 @@ test_parser_attributes_peek_impl(struct context *ctx, const char *src,
 
 	(void)lexer_peek(ctx->lx, &beg);
 	act = tokens_concat(token_serialize_literal, beg, rparen, &s);
-	KS_expect_true(act != NULL);
+	KS_expect_true(act != nullptr);
 	KS_expect_str(exp, act);
 }
 
@@ -605,7 +605,7 @@ static void
 test_lexer_read_impl(struct context *ctx, const char *src, const char *exp,
     int lno)
 {
-	struct buffer *bf = NULL;
+	struct buffer *bf = nullptr;
 	const char *act;
 	int ntokens = 0;
 
@@ -636,8 +636,8 @@ static void
 test_token_position_after_impl(struct context *ctx,
     struct test_token_move *arg, int lno)
 {
-	struct token *after = NULL;
-	struct token *move = NULL;
+	struct token *after = nullptr;
+	struct token *move = nullptr;
 	int found;
 
 	KS_expect_scope("token_position_after", lno, e);
@@ -663,7 +663,7 @@ find_token(struct lexer *lx, int type, struct token **tk)
 	int found = 0;
 
 	lexer_peek_enter(lx, &s);
-	while (!lexer_if(lx, LEXER_EOF, NULL)) {
+	while (!lexer_if(lx, LEXER_EOF, nullptr)) {
 		if (lexer_if(lx, type, tk)) {
 			found = 1;
 			break;
@@ -777,8 +777,8 @@ test_token_branch_impl(struct context *ctx)
 	unsigned int i;
 
 	for (i = 0; i < countof(tests); i++) {
-		struct token *it = NULL;
-		struct token *prefix = NULL;
+		struct token *it = nullptr;
+		struct token *prefix = nullptr;
 		struct token *tk;
 		const char *act;
 
@@ -791,16 +791,16 @@ test_token_branch_impl(struct context *ctx)
 
 		/* Find last prefix of the given type. */
 		for (it = token_list_first(&tk->tk_prefixes);
-		    it != NULL;
+		    it != nullptr;
 		    it = token_next(it)) {
 			if (it->tk_type == tests[i].unlink)
 				prefix = it;
 		}
-		KS_expect_true(prefix != NULL);
+		KS_expect_true(prefix != nullptr);
 
 		clang_token_branch_unlink(prefix);
 		act = tokens_concat(token_serialize_no_flags,
-		    token_list_first(&tk->tk_prefixes), NULL, &s);
+		    token_list_first(&tk->tk_prefixes), nullptr, &s);
 		KS_expect_str(tests[i].exp, act);
 	}
 }
@@ -845,7 +845,7 @@ test_token_serialize(struct context *ctx)
 static void
 test_clang_token_serialize(struct context *ctx)
 {
-	struct token *tkerr = NULL;
+	struct token *tkerr = nullptr;
 	const char *act;
 
 	arena_scope(ctx->arena.eternal, s);
@@ -861,13 +861,13 @@ static void
 context_alloc(struct context *ctx)
 {
 	arenas_init(&ctx->arena);
-	ctx->bf = NULL;
+	ctx->bf = nullptr;
 }
 
 static void
 context_free(struct context *ctx)
 {
-	if (ctx == NULL)
+	if (ctx == nullptr)
 		return;
 
 	arenas_free(&ctx->arena);
@@ -887,7 +887,7 @@ context_init(struct context *ctx, const char *src,
 	ctx->st = style_parse("/dev/null", eternal_scope,
 	    ctx->arena.scratch, &ctx->op);
 	ctx->si = simple_alloc(eternal_scope, &ctx->op);
-	ctx->cl = clang_alloc(ctx->st, ctx->si, &ctx->arena, NULL, &ctx->op,
+	ctx->cl = clang_alloc(ctx->st, ctx->si, &ctx->arena, nullptr, &ctx->op,
 	    eternal_scope);
 	ctx->lx = lexer_tokenize(&(const struct lexer_arg){
 	    .path		= path,
@@ -924,7 +924,7 @@ assert_token_move(struct context *ctx, const char **want)
 			break;
 
 		LIST_FOREACH(prefix, &tk->tk_prefixes) {
-			KS_expect_true(want[i] != NULL);
+			KS_expect_true(want[i] != nullptr);
 
 			str = token_serialize_position(&s, prefix);
 			KS_expect_str(&want[i][2], str);
@@ -939,14 +939,14 @@ assert_token_move(struct context *ctx, const char **want)
 		i++;
 
 		LIST_FOREACH(suffix, &tk->tk_suffixes) {
-			KS_expect_true(want[i] != NULL);
+			KS_expect_true(want[i] != nullptr);
 
 			str = token_serialize_position(&s, suffix);
 			KS_expect_str(&want[i][2], str);
 			i++;
 		}
 	}
-	KS_expect_true(want[i] == NULL);
+	KS_expect_true(want[i] == nullptr);
 }
 
 static const char *
@@ -970,7 +970,7 @@ tokens_concat(
 		if (tk == end)
 			break;
 		tk = token_next(tk);
-		if (tk == NULL)
+		if (tk == nullptr)
 			break;
 	}
 

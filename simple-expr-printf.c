@@ -52,18 +52,18 @@ identify_function(const struct token *tk, enum format_argno *argno)
 static struct token *
 find_format_argument_inner(struct lexer *lx, enum format_argno argno)
 {
-	struct token *format = NULL;
+	struct token *format = nullptr;
 	int i;
 
-	if (!lexer_if(lx, TOKEN_IDENT, NULL) ||
-	    !lexer_if(lx, TOKEN_LPAREN, NULL))
-		return NULL;
+	if (!lexer_if(lx, TOKEN_IDENT, nullptr) ||
+	    !lexer_if(lx, TOKEN_LPAREN, nullptr))
+		return nullptr;
 
 	for (i = 0; i < (int)argno; i++) {
 		struct token *ignore;
 
-		if (!lexer_pop(lx, &ignore) || !lexer_if(lx, TOKEN_COMMA, NULL))
-			return NULL;
+		if (!lexer_pop(lx, &ignore) || !lexer_if(lx, TOKEN_COMMA, nullptr))
+			return nullptr;
 	}
 	while (lexer_if(lx, TOKEN_STRING, &format))
 		continue;
@@ -105,7 +105,7 @@ simple_expr_printf(struct lexer *lx, struct token *tk)
 	if (!identify_function(tk, &argno))
 		return;
 	format = find_format_argument(lx, tk, argno);
-	if (format == NULL)
+	if (format == nullptr)
 		return;
 	if (!string_has_line(format->tk_str, format->tk_len))
 		return;

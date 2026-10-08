@@ -27,9 +27,9 @@ struct token_range {
 
 #define TOKEN_RANGE_FOREACH(var, tr, tvar)				\
 	for ((var) = (tr)->tr_beg, (tvar) = token_next((var));		\
-	    (var) != NULL;						\
-	    (var) = (var) == (tr)->tr_end ? NULL : (tvar),		\
-	    (tvar) = (var) ? token_next((var)) : NULL)
+	    (var) != nullptr;						\
+	    (var) = (var) == (tr)->tr_end ? nullptr : (tvar),		\
+	    (tvar) = (var) ? token_next((var)) : nullptr)
 
 static const char	*token_range_str(const struct token_range *,
     struct arena_scope *);
@@ -124,9 +124,9 @@ simple_decl_enter(struct lexer *lx, struct arena_scope *eternal_scope,
 
 	sd = arena_calloc(eternal_scope, 1, sizeof(*sd));
 	if (VECTOR_INIT(sd->empty_decls))
-		err(1, NULL);
+		err(1, nullptr);
 	if (VECTOR_INIT(sd->types))
-		err(1, NULL);
+		err(1, nullptr);
 	sd->eternal_scope = eternal_scope;
 	sd->lx = lx;
 	sd->op = op;
@@ -155,9 +155,9 @@ simple_decl_leave(struct simple_decl *sd)
 			/* Sort the variables in alphabetical order. */
 			VECTOR_SORT(ds->vars, decl_var_cmp);
 
-			semi = ds->semi.kept != NULL ? ds->semi.kept :
+			semi = ds->semi.kept != nullptr ? ds->semi.kept :
 			    ds->semi.fallback;
-			assert(semi != NULL && semi->tk_type == TOKEN_SEMI);
+			assert(semi != nullptr && semi->tk_type == TOKEN_SEMI);
 			after = semi;
 
 			after = simple_decl_move_vars(sd, dt, ds, after);
@@ -178,7 +178,7 @@ simple_decl_leave(struct simple_decl *sd)
 void
 simple_decl_free(struct simple_decl *sd)
 {
-	if (sd == NULL)
+	if (sd == nullptr)
 		return;
 
 	while (!VECTOR_EMPTY(sd->empty_decls)) {
@@ -261,10 +261,10 @@ simple_decl_type(struct simple_decl *sd, struct token *beg, struct token *end)
 	dv->dv_ident.tr_beg = token_next(end);
 
 	dc = VECTOR_CALLOC(sd->empty_decls);
-	if (dc == NULL)
-		err(1, NULL);
+	if (dc == nullptr)
+		err(1, nullptr);
 	if (VECTOR_INIT(dc->slots))
-		err(1, NULL);
+		err(1, nullptr);
 	dc->tr = tr;
 }
 
@@ -290,20 +290,20 @@ simple_decl_semi(struct simple_decl *sd, struct token *semi)
 	}
 
 	simple_decl_var_init(sd);
-	sd->dt = NULL;
+	sd->dt = nullptr;
 }
 
 void
 simple_decl_comma(struct simple_decl *sd, struct token *comma)
 {
 	struct decl_var *dv;
-	struct token *delim = NULL;
+	struct token *delim = nullptr;
 
 	if (decl_var_is_empty(&sd->dv))
 		return;
 
 	dv = simple_decl_var_end(sd, comma);
-	if (dv != NULL && dv->dv_delim == NULL) {
+	if (dv != nullptr && dv->dv_delim == nullptr) {
 		dv->dv_delim = comma;
 	} else if (token_is_moveable(comma)) {
 		/*
@@ -340,7 +340,7 @@ token_range_str(const struct token_range *tr, struct arena_scope *s)
 static void
 decl_free(struct decl *dc)
 {
-	if (dc == NULL)
+	if (dc == nullptr)
 		return;
 	VECTOR_FREE(dc->slots);
 }
@@ -354,7 +354,7 @@ decl_var_cmp(const struct decl_var *a, const struct decl_var *b)
 static int
 decl_var_is_empty(const struct decl_var *dv)
 {
-	return dv->dv_ident.tr_beg == NULL;
+	return dv->dv_ident.tr_beg == nullptr;
 }
 
 static struct decl_type_vars *
@@ -364,10 +364,10 @@ decl_type_slot(struct decl_type *dt, unsigned int n)
 		struct decl_type_vars *ds;
 
 		ds = VECTOR_CALLOC(dt->dt_slots);
-		if (ds == NULL)
-			err(1, NULL);
+		if (ds == nullptr)
+			err(1, nullptr);
 		if (VECTOR_INIT(ds->vars))
-			err(1, NULL);
+			err(1, nullptr);
 	}
 	return &dt->dt_slots[n];
 }
@@ -380,27 +380,27 @@ simple_decl_type_create(struct simple_decl *sd, const char *type,
     const struct token_range *tr)
 {
 	struct decl_type *dt;
-	struct token *end = NULL;
+	struct token *end = nullptr;
 	struct token *tk, *tmp;
 
 	dt = simple_decl_type_find(sd, type);
-	if (dt != NULL)
+	if (dt != nullptr)
 		return dt;
 
 	dt = VECTOR_CALLOC(sd->types);
-	if (dt == NULL)
-		err(1, NULL);
+	if (dt == nullptr)
+		err(1, nullptr);
 	dt->dt_tr = *tr;
 	/* Pointer(s) are not part of the type. */
 	TOKEN_RANGE_FOREACH(tk, tr, tmp) {
 		if (tk->tk_type != TOKEN_STAR)
 			end = tk;
 	}
-	assert(end != NULL);
+	assert(end != nullptr);
 	dt->dt_tr.tr_end = end;
 
 	if (VECTOR_INIT(dt->dt_slots))
-		err(1, NULL);
+		err(1, nullptr);
 	dt->dt_str = type;
 	simple_trace(sd, "new type \"%s\"", dt->dt_str);
 	return dt;
@@ -417,7 +417,7 @@ simple_decl_type_find(struct simple_decl *sd, const char *type)
 		if (strcmp(dt->dt_str, type) == 0)
 			return dt;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static struct token *
@@ -437,7 +437,7 @@ simple_decl_move_vars(struct simple_decl *sd, struct decl_type *dt,
 		struct decl_var *dv = &ds->vars[i];
 		struct token *ident;
 
-		if (dv->dv_delim != NULL)
+		if (dv->dv_delim != nullptr)
 			lexer_remove(lx, dv->dv_delim);
 		if (i > 0) {
 			after = lexer_insert_after(lx, after,
@@ -469,7 +469,7 @@ simple_decl_var_end(struct simple_decl *sd, struct token *end)
 	unsigned int slot;
 	int keep = 0;
 
-	assert(dv->dv_ident.tr_end == NULL);
+	assert(dv->dv_ident.tr_end == nullptr);
 	/* The delimiter is not part of the identifier. */
 	dv->dv_ident.tr_end = token_prev(end);
 	if (!classify(&dv->dv_ident, &slot) || !token_is_moveable(end)) {
@@ -495,15 +495,15 @@ simple_decl_var_end(struct simple_decl *sd, struct token *end)
 		unsigned int *newslot;
 
 		newslot = VECTOR_ALLOC(dc->slots);
-		if (newslot == NULL)
-			err(1, NULL);
+		if (newslot == nullptr)
+			err(1, nullptr);
 		*newslot = slot;
 	}
 	if (end->tk_type == TOKEN_SEMI)
 		associate_semi(dc, sd->dt, end);
 
 	if (keep)
-		return NULL;
+		return nullptr;
 
 	/* Find the identifier token used while sorting. */
 	TOKEN_RANGE_FOREACH(sort, &dv->dv_ident, tmp) {
@@ -513,8 +513,8 @@ simple_decl_var_end(struct simple_decl *sd, struct token *end)
 	dv->dv_sort = sort;
 
 	dst = VECTOR_CALLOC(ds->vars);
-	if (dst == NULL)
-		err(1, NULL);
+	if (dst == nullptr)
+		err(1, nullptr);
 	*dst = *dv;
 
 	simple_trace(sd, "type \"%s\", slot %u, ident %s",
@@ -543,20 +543,20 @@ associate_semi(struct decl *dc, struct decl_type *dt, struct token *semi)
 	 */
 	nslots = VECTOR_LENGTH(slots);
 	for (i = 0; i < nslots; i++) {
-		struct token *newsemi = NULL;
+		struct token *newsemi = nullptr;
 		size_t j;
 
-		if (slots[i].semi.kept != NULL)
+		if (slots[i].semi.kept != nullptr)
 			continue;
 
 		for (j = i + 1; j < nslots; j++) {
 			newsemi = slots[j].semi.kept;
-			if (newsemi != NULL)
+			if (newsemi != nullptr)
 				break;
 		}
-		if (newsemi != NULL)
+		if (newsemi != nullptr)
 			slots[i].semi.kept = newsemi;
-		else if (slots[i].semi.fallback == NULL)
+		else if (slots[i].semi.fallback == nullptr)
 			slots[i].semi.fallback = semi;
 	}
 }

@@ -58,7 +58,7 @@ simple_stmt_empty_loop_no_braces(struct lexer *lx)
 {
 	struct token *after;
 
-	if (!lexer_peek_if(lx, TOKEN_SEMI, NULL) ||
+	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr) ||
 	    !lexer_back(lx, &after))
 		return;
 

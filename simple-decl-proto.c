@@ -30,7 +30,7 @@ simple_decl_proto_enter(struct lexer *lx, struct arena_scope *s)
 
 	sp = arena_calloc(s, 1, sizeof(*sp));
 	if (VECTOR_INIT(sp->arguments))
-		err(1, NULL);
+		err(1, nullptr);
 	sp->lx = lx;
 	return sp;
 }
@@ -48,7 +48,7 @@ simple_decl_proto_leave(struct simple_decl_proto *sp)
 	for (i = 0; i < VECTOR_LENGTH(sp->arguments); i++) {
 		struct argument *arg = &sp->arguments[i];
 
-		if (arg->tk == NULL)
+		if (arg->tk == nullptr)
 			nunnamed++;
 	}
 	if (nunnamed == 0 || nargs == nunnamed)
@@ -57,7 +57,7 @@ simple_decl_proto_leave(struct simple_decl_proto *sp)
 	for (i = 0; i < VECTOR_LENGTH(sp->arguments); i++) {
 		struct argument *arg = &sp->arguments[i];
 
-		if (arg->tk != NULL)
+		if (arg->tk != nullptr)
 			lexer_remove(sp->lx, arg->tk);
 	}
 }
@@ -65,7 +65,7 @@ simple_decl_proto_leave(struct simple_decl_proto *sp)
 void
 simple_decl_proto_free(struct simple_decl_proto *sp)
 {
-	if (sp == NULL)
+	if (sp == nullptr)
 		return;
 	VECTOR_FREE(sp->arguments);
 }
@@ -73,8 +73,8 @@ simple_decl_proto_free(struct simple_decl_proto *sp)
 void
 simple_decl_proto_arg(struct simple_decl_proto *sp)
 {
-	if (VECTOR_CALLOC(sp->arguments) == NULL)
-		err(1, NULL);
+	if (VECTOR_CALLOC(sp->arguments) == nullptr)
+		err(1, nullptr);
 }
 
 static int
@@ -99,7 +99,7 @@ simple_decl_proto_arg_ident(struct simple_decl_proto *sp, struct token *tk)
 	struct token *pv;
 
 	arg = VECTOR_LAST(sp->arguments);
-	assert(arg != NULL);
+	assert(arg != nullptr);
 	pv = token_prev(tk);
 	if (pv->tk_type == TOKEN_STAR ||
 	    (pv->tk_flags & TOKEN_FLAG_TYPE) ||

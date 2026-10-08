@@ -66,7 +66,7 @@ simple_stmt_enter(struct lexer *lx, const struct style *st,
 	ss = arena_calloc(eternal_scope, 1, sizeof(*ss));
 	if (VECTOR_INIT(ss->stmts) ||
 	    VECTOR_RESERVE(ss->stmts, SIMPLE_STMT_MAX))
-		err(1, NULL);
+		err(1, nullptr);
 	ss->arena.scratch = scratch;
 	ss->arena.buffer = buffer;
 	ss->lx = lx;
@@ -90,16 +90,16 @@ simple_stmt_leave(struct simple_stmt *ss)
 void
 simple_stmt_free(struct simple_stmt *ss)
 {
-	if (ss == NULL)
+	if (ss == nullptr)
 		return;
 
 	while (!VECTOR_EMPTY(ss->stmts)) {
 		struct stmt *st;
 
 		st = VECTOR_POP(ss->stmts);
-		if (st->lbrace != NULL)
+		if (st->lbrace != nullptr)
 			token_rele(st->lbrace);
-		if (st->rbrace != NULL)
+		if (st->rbrace != nullptr)
 			token_rele(st->rbrace);
 	}
 	VECTOR_FREE(ss->stmts);
@@ -116,7 +116,7 @@ simple_stmt_braces_enter(struct simple_stmt *ss, struct doc *dc,
 	if (!is_brace_moveable(ss, lbrace) || !is_brace_moveable(ss, rbrace))
 		flags |= STMT_IGNORE;
 	st = simple_stmt_alloc(ss, dc, indent, flags);
-	if (st == NULL)
+	if (st == nullptr)
 		return dc;
 	token_ref(lbrace);
 	st->lbrace = lbrace;
@@ -135,7 +135,7 @@ simple_stmt_no_braces_enter(struct simple_stmt *ss, struct doc *dc,
 	if (!is_brace_moveable(ss, lbrace))
 		flags |= STMT_IGNORE;
 	st = simple_stmt_alloc(ss, dc, indent, flags);
-	if (st == NULL)
+	if (st == nullptr)
 		return dc;
 	token_ref(lbrace);
 	st->lbrace = lbrace;
@@ -163,11 +163,11 @@ simple_stmt_alloc(struct simple_stmt *ss, struct doc *dc, unsigned int indent,
 
 	/* Prevent reallocations causing dangling pointers. */
 	if (VECTOR_LENGTH(ss->stmts) >= SIMPLE_STMT_MAX)
-		return NULL;
+		return nullptr;
 
 	st = VECTOR_CALLOC(ss->stmts);
-	if (st == NULL)
-		err(1, NULL);
+	if (st == nullptr)
+		err(1, nullptr);
 	st->root = doc_alloc(DOC_GROUP, dc);
 	st->indent = doc_indent(indent, st->root);
 	doc_alloc(DOC_HARDLINE, st->indent);
@@ -293,7 +293,7 @@ remove_braces(struct simple_stmt *ss)
 static int
 isoneline(const char *str, size_t len)
 {
-	return memchr(str, '\n', len) == NULL;
+	return memchr(str, '\n', len) == nullptr;
 }
 
 static int

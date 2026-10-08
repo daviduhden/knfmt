@@ -178,9 +178,9 @@ style_init(void)
 /* Nested style option. */
 #define N(s, t)	(s),	#t,	sizeof(#t) - 1,	(t)
 /* Enum style option value. */
-#define E(t)	0,	#t,	sizeof(#t) - 1,	(t),	NULL,	{0}
+#define E(t)	0,	#t,	sizeof(#t) - 1,	(t),	nullptr,	{0}
 /* YAML primitive. */
-#define P(t, s)	0,	(s),	sizeof(s) - 1,	(t),	NULL,	{0}
+#define P(t, s)	0,	(s),	sizeof(s) - 1,	(t),	nullptr,	{0}
 
 		{ S(AlignAfterOpenBracket), parse_enum,
 		  { Align, DontAlign, AlwaysBreak, BlockIndent } },
@@ -333,13 +333,13 @@ style_init(void)
 		unsigned char slot;
 
 		slot = (unsigned char)src->so_key[0];
-		if (keywords[slot] == NULL) {
+		if (keywords[slot] == nullptr) {
 			if (VECTOR_INIT(keywords[slot]))
-				err(1, NULL);
+				err(1, nullptr);
 		}
 		dst = VECTOR_ALLOC(keywords[slot]);
-		if (dst == NULL)
-			err(1, NULL);
+		if (dst == nullptr)
+			err(1, nullptr);
 		*dst = *src;
 	}
 }
@@ -362,7 +362,7 @@ style_dump_keywords(struct buffer *bf)
 		VECTOR(struct style_option) options = keywords[i];
 		size_t j;
 
-		if (options == NULL)
+		if (options == nullptr)
 			continue;
 		for (j = 0; j < VECTOR_LENGTH(options); j++) {
 			const struct style_option *so = &options[j];
@@ -377,29 +377,29 @@ struct style *
 style_parse(const char *path, struct arena_scope *eternal_scope,
     struct arena *scratch, const struct options *op)
 {
-	struct buffer *bf = NULL;
+	struct buffer *bf = nullptr;
 	struct style *st;
 
 	arena_scope(scratch, s);
 
-	if (path != NULL) {
+	if (path != nullptr) {
 		bf = arena_buffer_read(&s, path);
-		if (bf == NULL) {
+		if (bf == nullptr) {
 			warn("%s", path);
-			return NULL;
+			return nullptr;
 		}
 	} else {
 		int fd;
 
 		path = ".clang-format";
-		fd = searchpath(path, NULL);
+		fd = searchpath(path, nullptr);
 		if (fd != -1) {
 			bf = arena_buffer_read_fd(&s, fd);
 			close(fd);
 		}
 	}
 	st = style_parse_buffer(bf, path, eternal_scope, scratch, op);
-	if (st != NULL && options_trace_level(op, TRACE_STYLE) >= 2)
+	if (st != nullptr && options_trace_level(op, TRACE_STYLE) >= 2)
 		style_dump(st);
 	return st;
 }
@@ -417,11 +417,11 @@ style_parse_buffer(const struct buffer *bf, const char *path,
 	st->arena.scratch = scratch;
 	st->op = op;
 	if (VECTOR_INIT(st->include_categories))
-		err(1, NULL);
+		err(1, nullptr);
 	if (VECTOR_INIT(st->include_guards))
-		err(1, NULL);
+		err(1, nullptr);
 	style_defaults(st);
-	if (bf == NULL) {
+	if (bf == nullptr) {
 		 /*
 		  * Only apply default style if no clang-format configuration
 		  * file is present.
@@ -498,7 +498,7 @@ style_include_guards(const struct style *st, const char *path)
 
 	for (uint32_t i = 0; i < VECTOR_LENGTH(st->include_guards); i++) {
 		const struct include_guard *guard = &st->include_guards[i];
-		int error = regexec(&guard->regex.r, path, 0, NULL, 0);
+		int error = regexec(&guard->regex.r, path, 0, nullptr, 0);
 		if (error == 0)
 			return guard->ncomponents;
 	}
@@ -514,16 +514,16 @@ style_include_priorities(const struct style *st)
 	size_t i, n;
 
 	if (VECTOR_INIT(priorities))
-		err(1, NULL);
+		err(1, nullptr);
 
 	/* Add default min and max priorities. */
 	dst = VECTOR_ALLOC(priorities);
-	if (dst == NULL)
-		err(1, NULL);
+	if (dst == nullptr)
+		err(1, nullptr);
 	*dst = 0;
 	dst = VECTOR_ALLOC(priorities);
-	if (dst == NULL)
-		err(1, NULL);
+	if (dst == nullptr)
+		err(1, nullptr);
 	*dst = INT_MAX;
 
 	n = VECTOR_LENGTH(st->include_categories);
@@ -531,8 +531,8 @@ style_include_priorities(const struct style *st)
 		const struct include_category *ic = &st->include_categories[i];
 
 		dst = VECTOR_ALLOC(priorities);
-		if (dst == NULL)
-			err(1, NULL);
+		if (dst == nullptr)
+			err(1, nullptr);
 		*dst = ic->priority.group;
 	}
 	VECTOR_SORT(priorities, priority_cmp);
@@ -549,7 +549,7 @@ style_include_priority(const struct style *st, const char *include_path)
 		const struct include_category *ic = &st->include_categories[i];
 		int error;
 
-		error = regexec(&ic->regex.r, include_path, 0, NULL, 0);
+		error = regexec(&ic->regex.r, include_path, 0, nullptr, 0);
 		if (error == 0)
 			return ic->priority;
 	}
@@ -615,7 +615,7 @@ style_parse_yaml(struct style *st, const char *path, const struct buffer *bf)
 		.arg			= st,
 	    },
 	});
-	if (lx == NULL)
+	if (lx == nullptr)
 		return 1;
 	if (options_trace_level(st->op, TRACE_TOKEN) > 0)
 		lexer_dump(lx);
@@ -632,13 +632,13 @@ yaml_document_language(struct lexer *lx)
 
 	lexer_peek_enter(lx, &s);
 	do {
-		if (lexer_if(lx, LEXER_EOF, NULL))
+		if (lexer_if(lx, LEXER_EOF, nullptr))
 			break;
-		if (lexer_if(lx, DocumentBegin, NULL))
+		if (lexer_if(lx, DocumentBegin, nullptr))
 			break;
 
-		if (lexer_if(lx, Language, NULL) &&
-		    lexer_if(lx, Colon, NULL) &&
+		if (lexer_if(lx, Language, nullptr) &&
+		    lexer_if(lx, Colon, nullptr) &&
 		    lexer_pop(lx, &tk)) {
 			language = (enum style_keyword)tk->tk_type;
 			break;
@@ -655,8 +655,8 @@ skip_document(struct lexer *lx)
 	struct token *tk;
 
 	do {
-		if (lexer_if(lx, LEXER_EOF, NULL) ||
-		    lexer_if(lx, DocumentBegin, NULL))
+		if (lexer_if(lx, LEXER_EOF, nullptr) ||
+		    lexer_if(lx, DocumentBegin, nullptr))
 			break;
 	} while (lexer_pop(lx, &tk));
 }
@@ -674,7 +674,7 @@ is_in_scope(const struct style *st, const struct style_option *so, int nested)
 
 	/* Some options are valid in multiple scopes. */
 	slot = (unsigned char)so->so_key[0];
-	if (keywords[slot] == NULL)
+	if (keywords[slot] == nullptr)
 		return 0;
 	for (i = 0; i < VECTOR_LENGTH(keywords[slot]); i++) {
 		const struct style_option *candidate = &keywords[slot][i];
@@ -698,7 +698,7 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 
 		error = 0;
 
-		if (lexer_if(lx, LEXER_EOF, NULL))
+		if (lexer_if(lx, LEXER_EOF, nullptr))
 			break;
 
 		if (!nested) {
@@ -716,12 +716,12 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 			}
 		}
 
-		if (lexer_peek_if(lx, Sequence, NULL))
+		if (lexer_peek_if(lx, Sequence, nullptr))
 			break;
 
-		if (lexer_if(lx, DocumentBegin, NULL))
+		if (lexer_if(lx, DocumentBegin, nullptr))
 			continue;
-		if (lexer_if(lx, DocumentEnd, NULL))
+		if (lexer_if(lx, DocumentEnd, nullptr))
 			continue;
 
 		if (!lexer_peek(lx, &key)) {
@@ -729,9 +729,9 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 			break;
 		}
 		so = token_priv(key, struct yaml_token)->so;
-		if (so != NULL && !is_in_scope(st, so, nested))
+		if (so != nullptr && !is_in_scope(st, so, nested))
 			break;
-		if (so != NULL)
+		if (so != nullptr)
 			error = so->so_parse(st, lx, so);
 		if (error & (GOOD | SKIP)) {
 			continue;
@@ -742,10 +742,10 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 
 			/* Best effort, try to continue parsing. */
 			(void)lexer_pop(lx, &key);
-			(void)lexer_if(lx, Colon, NULL);
-			if (lexer_peek_if(lx, Sequence, NULL)) {
+			(void)lexer_if(lx, Colon, nullptr);
+			if (lexer_peek_if(lx, Sequence, nullptr)) {
 				/* Ignore sequences. */
-				while (lexer_if(lx, Sequence, NULL) &&
+				while (lexer_if(lx, Sequence, nullptr) &&
 				    lexer_pop(lx, &val))
 					continue;
 			} else {
@@ -845,10 +845,10 @@ yaml_read(struct lexer *lx, void *UNUSED(arg))
 	unsigned char ch;
 
 again:
-	lexer_eat_lines_and_spaces(lx, NULL);
+	lexer_eat_lines_and_spaces(lx, nullptr);
 
 	tk = yaml_read_integer(lx);
-	if (tk != NULL)
+	if (tk != nullptr)
 		return tk;
 
 	s = lexer_get_state(lx);
@@ -897,9 +897,9 @@ again:
 		tk = yaml_keyword(lx, &s);
 		if (tk->tk_type == Unknown) {
 			token_rele(tk);
-			tk = NULL;
+			tk = nullptr;
 		}
-		if (tk == NULL)
+		if (tk == nullptr)
 			tk = lexer_emit(lx, &s, String);
 		lexer_getc(lx, &ch); /* discard '\'' */
 		return tk;
@@ -909,7 +909,7 @@ again:
 	lexer_error(lx, tk, __func__, __LINE__,
 	    "unknown token %s", lexer_serialize(lx, tk));
 	token_rele(tk);
-	return NULL;
+	return nullptr;
 
 eof:
 	return lexer_emit(lx, &s, LEXER_EOF);
@@ -930,10 +930,10 @@ yaml_read_integer(struct lexer *lx)
 	s = lexer_get_state(lx);
 
 	if (lexer_getc(lx, &ch))
-		return NULL;
+		return nullptr;
 	if (ch == '\'') {
 		if (lexer_getc(lx, &ch))
-			return NULL;
+			return nullptr;
 		string = 1;
 	}
 	if (isdigit(ch)) {
@@ -948,7 +948,7 @@ yaml_read_integer(struct lexer *lx)
 		lexer_ungetc(lx);
 		if (string)
 			lexer_ungetc(lx);
-		return NULL;
+		return nullptr;
 	}
 
 	while (isdigit(ch)) {
@@ -959,7 +959,7 @@ yaml_read_integer(struct lexer *lx)
 			overflow = 1;
 
 		if (lexer_getc(lx, &ch))
-			return NULL;
+			return nullptr;
 	}
 	if (!string)
 		lexer_ungetc(lx);
@@ -989,7 +989,7 @@ yaml_token_serialize(const struct token *tk, struct arena_scope *s)
 
 	bf = arena_buffer_alloc(s, 128);
 	buffer_printf(bf, "%s", yaml_token_type_serialize(tk->tk_type, s));
-	if (tk->tk_str != NULL) {
+	if (tk->tk_str != nullptr) {
 		buffer_printf(bf, "<%u:%u>(\"", tk->tk_lno, tk->tk_cno);
 		buffer_printf(bf, "%s", KS_str_vis(tk->tk_str, tk->tk_len, s));
 		buffer_printf(bf, "\")");
@@ -1020,11 +1020,11 @@ yaml_keyword(struct lexer *lx, const struct lexer_state *st)
 	if (!lexer_buffer_slice(lx, st, &buf))
 		goto unknown;
 	so = yaml_find_keyword(buf.ptr, buf.len);
-	if (so == NULL)
+	if (so == nullptr)
 		goto unknown;
 
 	tk = lexer_emit(lx, st, so->so_type);
-	if (so->so_parse != NULL)
+	if (so->so_parse != nullptr)
 		token_priv(tk, struct yaml_token)->so = so;
 	return tk;
 
@@ -1039,15 +1039,15 @@ yaml_find_keyword(const char *str, size_t len)
 	unsigned char slot;
 
 	slot = (unsigned char)str[0];
-	if (keywords[slot] == NULL)
-		return NULL;
+	if (keywords[slot] == nullptr)
+		return nullptr;
 	for (i = 0; i < VECTOR_LENGTH(keywords[slot]); i++) {
 		struct style_option *so = &keywords[slot][i];
 
 		if (len == so->so_len && strncmp(so->so_key, str, len) == 0)
 			return so;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static int
@@ -1057,7 +1057,7 @@ parse_bool(struct style *st, struct lexer *lx, const struct style_option *so)
 
 	if (!lexer_if(lx, so->so_type, &key))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 	if (!lexer_if(lx, True, &val) && !lexer_if(lx, False, &val)) {
 		(void)lexer_pop(lx, &val);
@@ -1078,7 +1078,7 @@ parse_enum(struct style *st, struct lexer *lx, const struct style_option *so)
 
 	if (!lexer_if(lx, so->so_type, &key))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 
 	for (v = so->so_val; *v != 0; v++) {
@@ -1116,7 +1116,7 @@ parse_integer_impl(struct style *UNUSED(st), struct lexer *lx,
 {
 	if (!lexer_if(lx, so->so_type, key))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 	if (!lexer_expect(lx, Integer, val)) {
 		(void)lexer_pop(lx, val);
@@ -1136,7 +1136,7 @@ parse_string(struct style *UNUSED(st), struct lexer *lx,
 
 	if (!lexer_if(lx, so->so_type, &key))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 	if (!lexer_expect(lx, String, &val)) {
 		(void)lexer_pop(lx, &val);
@@ -1153,9 +1153,9 @@ parse_nested(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	int scope;
 
-	if (!lexer_if(lx, so->so_type, NULL))
+	if (!lexer_if(lx, so->so_type, nullptr))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 	scope = st->scope;
 	st->scope = so->so_type;
@@ -1210,7 +1210,7 @@ clang_format_dump_style(struct style *st, enum style_keyword based_on_style,
 		clang_format_style = arena_sprintf(s, "-style=%s",
 		    style_keyword_str(based_on_style));
 		execlp("clang-format", "clang-format", "-dump-config",
-		    clang_format_style, NULL);
+		    clang_format_style, (char *)nullptr);
 		_exit(1);
 	}
 
@@ -1219,16 +1219,16 @@ clang_format_dump_style(struct style *st, enum style_keyword based_on_style,
 	close(pip[0]);
 	if (waitpid(pid, &status, 0) == -1)
 		err(1, "waitpid");
-	if (bf != NULL && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
+	if (bf != nullptr && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
 		struct buffer_getline it = {0};
 		const char *line;
 
 		arena_scope(st->arena.scratch, scratch_scope);
 
 		while ((line = arena_buffer_getline(&scratch_scope, bf, &it)) !=
-		    NULL)
+		    nullptr)
 			style_trace(st, "clang-format: %s", line);
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -1248,7 +1248,7 @@ parse_BasedOnStyle(struct style *st, struct lexer *lx,
 		return error;
 
 	if (st->depth > 0) {
-		struct token *ctx = NULL;
+		struct token *ctx = nullptr;
 
 		(void)lexer_back(lx, &ctx);
 		lexer_error(lx, ctx, __func__, __LINE__,
@@ -1262,7 +1262,7 @@ parse_BasedOnStyle(struct style *st, struct lexer *lx,
 
 	style_trace(st, "based on %s style", style_keyword_str(based_on_style));
 	bf = clang_format_dump_style(st, based_on_style, &s);
-	if (bf == NULL)
+	if (bf == nullptr)
 		return SKIP;
 	st->depth++;
 	error = style_parse_yaml(st, style_keyword_str(based_on_style), bf);
@@ -1288,21 +1288,21 @@ parse_IncludeCategories(struct style *st, struct lexer *lx,
 {
 	int scope;
 
-	if (!lexer_if(lx, so->so_type, NULL))
+	if (!lexer_if(lx, so->so_type, nullptr))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 
 	scope = st->scope;
 	st->scope = so->so_type;
-	while (lexer_if(lx, Sequence, NULL)) {
+	while (lexer_if(lx, Sequence, nullptr)) {
 		struct include_category *ic = VECTOR_CALLOC(
 		    st->include_categories);
-		if (ic == NULL)
-			err(1, NULL);
+		if (ic == nullptr)
+			err(1, nullptr);
 		st->regex = &ic->regex;
 		style_parse_yaml_documents(st, lx, 1);
-		st->regex = NULL;
+		st->regex = nullptr;
 	}
 	st->scope = scope;
 	/* Only used by style_dump(). */
@@ -1317,21 +1317,21 @@ parse_IncludeGuards(struct style *st, struct lexer *lx,
 	int error = 0;
 	int scope;
 
-	if (!lexer_if(lx, so->so_type, NULL))
+	if (!lexer_if(lx, so->so_type, nullptr))
 		return NONE;
-	if (!lexer_expect(lx, Colon, NULL))
+	if (!lexer_expect(lx, Colon, nullptr))
 		return FAIL;
 
 	scope = st->scope;
 	st->scope = so->so_type;
-	while (lexer_if(lx, Sequence, NULL)) {
+	while (lexer_if(lx, Sequence, nullptr)) {
 		struct include_guard *guard = VECTOR_CALLOC(st->include_guards);
-		if (guard == NULL)
-			err(1, NULL);
+		if (guard == nullptr)
+			err(1, nullptr);
 		guard->ncomponents = 1;
 		st->regex = &guard->regex;
 		error |= style_parse_yaml_documents(st, lx, 1);
-		st->regex = NULL;
+		st->regex = nullptr;
 	}
 	st->scope = scope;
 
@@ -1353,7 +1353,7 @@ parse_PathComponents(struct style *st, struct lexer *lx,
 		return error;
 
 	guard = VECTOR_LAST(st->include_guards);
-	if (guard == NULL)
+	if (guard == nullptr)
 		return FAIL; /* UNREACHABLE */
 	ncomponents = token_priv(val, struct yaml_token)->integer.i32;
 	if (ncomponents <= 0) {
@@ -1381,7 +1381,7 @@ parse_Priority(struct style *st, struct lexer *lx,
 		return error;
 
 	ic = VECTOR_LAST(st->include_categories);
-	if (ic == NULL)
+	if (ic == nullptr)
 		return FAIL; /* UNREACHABLE */
 	priority = token_priv(val, struct yaml_token)->integer.i32;
 	if (so->so_type == Priority) {
@@ -1440,7 +1440,7 @@ yaml_type_str(enum yaml_type type)
 	}
 	if (type == LEXER_EOF)
 		return "EOF";
-	return NULL;
+	return nullptr;
 }
 
 const char *

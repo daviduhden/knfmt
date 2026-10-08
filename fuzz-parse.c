@@ -37,7 +37,7 @@ init(int UNUSED(argc), char **UNUSED(argv))
 	options_init(&c.op);
 
 	c.eternal_scope = arena_scope_enter(c.arena.eternal);
-	c.st = style_parse(NULL, &c.eternal_scope, c.arena.scratch, &c.op);
+	c.st = style_parse(nullptr, &c.eternal_scope, c.arena.scratch, &c.op);
 	c.si = simple_alloc(&c.eternal_scope, &c.op);
 	return &c;
 }
@@ -63,7 +63,7 @@ format_once(const struct test_context *c, const struct buffer *bf,
 	struct lexer *lx;
 	struct parser *pr;
 
-	clang = clang_alloc(c->st, c->si, &c->arena, NULL, &c->op, scope);
+	clang = clang_alloc(c->st, c->si, &c->arena, nullptr, &c->op, scope);
 	lx = lexer_tokenize(&(const struct lexer_arg){
 	    .path		= "test.c",
 	    .bf			= bf,
@@ -74,7 +74,7 @@ format_once(const struct test_context *c, const struct buffer *bf,
 	    },
 	    .callbacks		= clang_lexer_callbacks(clang),
 	});
-	if (lx == NULL)
+	if (lx == nullptr)
 		return 0;
 
 	pr = parser_alloc(&(struct parser_arg){
@@ -85,7 +85,7 @@ format_once(const struct test_context *c, const struct buffer *bf,
 	    .clang	= clang,
 	    .arena	= &c->arena,
 	}, scope);
-	return parser_exec(pr, NULL, dst) == 0;
+	return parser_exec(pr, nullptr, dst) == 0;
 }
 
 static void

@@ -86,8 +86,8 @@ nextline(const char *str, size_t len, const char **nx)
 	const char *p;
 
 	p = memchr(str, '\n', len);
-	if (p == NULL || p == str || p[-1] != '\\')
-		return NULL;
+	if (p == nullptr || p == str || p[-1] != '\\')
+		return nullptr;
 	*nx = &p[1];
 	p--;	/* consume '\\' */
 	while (p > str && isspace((unsigned char)p[-1]))
@@ -104,12 +104,12 @@ is_not_aligned(const struct alignment *a)
 static const struct alignment *
 max_alignment(const struct alignment *a, unsigned int len)
 {
-	const struct alignment *max = NULL;
+	const struct alignment *max = nullptr;
 	for (unsigned int i = 0; i < len; i++) {
 		const struct alignment *candidate = &a[len - i - 1];
 		if (candidate->indent_type == INDENT_TYPE_NONE)
 			continue;
-		if (max == NULL || candidate->width > max->width)
+		if (max == nullptr || candidate->width > max->width)
 			max = candidate;
 	}
 	return max;
@@ -172,7 +172,7 @@ sense_alignment(const char *str, size_t len, const struct style *st,
 		unsigned int col;
 
 		indent = nextline(str, len, &nx);
-		if (indent == NULL)
+		if (indent == nullptr)
 			break;
 
 		linelen = (size_t)(nx - str);
@@ -199,7 +199,7 @@ sense_alignment(const char *str, size_t len, const struct style *st,
 	if (nlines >= 2 && all_identical(&lines[1], nlines - 1)) {
 		unsigned int width = alignment->width;
 		const struct alignment *max = max_alignment(lines, nlines);
-		if (max != NULL && max->width < width)
+		if (max != nullptr && max->width < width)
 			width = max->width;
 		*alignment = (struct alignment){
 		    .mode		= Right,
@@ -241,8 +241,8 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 
 	str = tk->tk_str;
 	len = tk->tk_len;
-	if (nextline(str, len, &nx) == NULL)
-		return NULL;
+	if (nextline(str, len, &nx) == nullptr)
+		return nullptr;
 
 	arena_scope(arena->ruler, ruler_scope);
 
@@ -267,7 +267,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 		    &ruler_scope);
 		break;
 	default:
-		return NULL;
+		return nullptr;
 	}
 
 	arena_scope(arena->scratch, scratch_scope);
@@ -285,7 +285,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 
 		sp = str;
 		ep = nextline(sp, len, &nx);
-		if (ep == NULL)
+		if (ep == nullptr)
 			break;
 
 		cpplen = (size_t)(ep - sp);
@@ -327,7 +327,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 
 	/* Alignment only wanted for multiple lines. */
 	if (nlines <= 1 && !didtrim)
-		return NULL;
+		return nullptr;
 
 	ruler_exec(&rl);
 	buffer_reset(bf);

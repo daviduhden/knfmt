@@ -80,7 +80,7 @@ simple_leave(struct simple_cookie *cookie)
 	enum simple_pass pass = cookie->pass;
 	enum simple_state state = cookie->state;
 
-	if (si == NULL)
+	if (si == nullptr)
 		return;
 
 	*cookie = (struct simple_cookie){0};

@@ -173,3 +173,33 @@ in-process A/B/A test (not subprocesses).
   formatter); rc=0 sanity ✓
 
 State does not leak across invocations for these modes.
+
+## Update — mutable-state audit and failure-transition reentrancy
+
+Audit of all file-scope and function-local mutable state:
+
+- `clang.c`: `clang_tokens`, `clang_identifiers` (MAPs), `token_types[]`,
+  `keywords[]`/`aliases[]` — populated by `clang_init()` once, read-only
+  thereafter.
+- `style.c`: `keywords[256]` — populated by `style_init()` once.
+- `expr.c`: `table_rules[][2]` — populated by `expr_init()` once.
+- `lexer.c`/`parser-cpp.c`/`util.c`/`cpp-include.c`: `static struct
+  KS_str_match match` with `_init_once` — initialised once, read-only.
+- `simple-decl-forward.c`: `static struct token fallback` — never written
+  (permanent zero sentinel), returned by address.
+- `libks/capabilities-x86.c`, `libks/valgrind.c`: init-once detection
+  statics.
+
+Conclusion: **no per-invocation mutable global state exists**. All
+invocation state already lives in `struct main_context` and the per-file
+`struct lexer`/`struct parser`/`struct clang`/`struct doc_state`
+objects, arena/heap owned per run. `pr_decl_scan_*` is per-`struct
+parser` (per run). A monolithic `knfmt_ctx` would rename existing explicit
+ownership, not add safety, so it was not introduced. Configuration
+(`style`, `simple`, `options`) is per-`main_context`.
+
+Failure-transition reentrancy (single process, `knfmt A M A`):
+
+- normal: `A M A` output == `A A` when M is malformed; M reports a clean
+  error, rc=1, and does not contaminate the following A ✓
+- `-s`: same ✓

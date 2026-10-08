@@ -1197,6 +1197,15 @@ expr_doc_parens(struct expr *ex, struct expr_state *es, struct doc *dc)
 		    pv != NULL && token_has_line(pv, 1))
 			token_trim(pv);
 
+		/*
+		 * Release the pass before formatting the operand so that
+		 * further removable grouping and other simplifications nested
+		 * in the operand are canonicalized in the same pass, instead
+		 * of only after a second invocation. Nesting terminates
+		 * because each step descends into the expression.
+		 */
+		simple_leave(&simple);
+
 		if (ex->ex_lhs != NULL)
 			dc = expr_doc(ex->ex_lhs, es, dc);
 	} else {

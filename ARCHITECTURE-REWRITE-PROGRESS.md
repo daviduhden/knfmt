@@ -361,3 +361,19 @@ translation behaviour is as observed above.
 ### Still outstanding
 UBSan/overflow re-run after `2a8d9bd`; OpenBSD/ANONERO corpus re-runs;
 committed declaration benchmark mode; permanent architecture document.
+
+## Update — UBSan/overflow re-run, corpus, architecture doc (HEAD next)
+
+- UBSan (`-fsanitize=undefined -fno-sanitize-recover=all`, clean clang
+  build) full suite: rc=0, 0 reports.
+- Unsigned-overflow (`-fsanitize=unsigned-integer-overflow
+  -fno-sanitize-recover=all`) full suite: rc=0, 0 reports.
+- Available corpus (`/tmp/opencode/audit/corpus`, 73 files):
+  normal accepted=72 rejected=1 idempotent=72 nonidem=0; the single
+  rejection is `058-cpp_macro_frag.c` (deliberately malformed CPP macro
+  fragment). `-s` accepted=72 nonidem=0.
+  The historical 174-OpenBSD and 500+-ANONERO corpora are **not present**
+  in this environment; only these 73 files plus `/tmp/opencode/audit`
+  suites remain.
+- `docs/architecture.md` added: permanent description of the implemented
+  design and verification commands.

@@ -72,3 +72,39 @@ knfmt /tmp/ln.c
 ```
 
 `pthread.h` reproducer: copy `/usr/include/pthread.h` and run `knfmt` on it.
+
+## Update — iterative expression construction (head `a412587`)
+
+- `f983e23` `expr: construct flat binary expression documents iteratively`.
+  `expr_doc_binary_chain()` handles a homogeneous default-policy binary
+  chain with an explicit reallocatable frame array (descend creating each
+  level's group/concat, build the deepest left operand once, unwind
+  emitting operator/group/line/rhs). Produced document is identical:
+  `bmake test` green, cross-build `OK (3700)`.
+- `a412587` `doc: bound document height while rendering stays recursive`.
+  `DOC_MAX_EXEC_DEPTH = 9000` (in `doc.c`) rejects documents taller than
+  the rendering stack in both gcc and Clang+ASan. This is a **temporary**
+  guard.
+
+Effect: flat `a+a+…+a` construction no longer recurses per term, but
+**rendering (`doc_exec1`, `doc.c:783`) still recurses per term**, so:
+
+| terms | gcc | clang ASan |
+|---|---|---|
+| 2000 | ok | ok |
+| 4000 | ok | ok |
+| 5000 | reject | reject |
+| 50000 | reject (guard) | — |
+
+The gcc-only stack allowed ~50000 before the guard; the guard is set to
+the ASan-safe height. Removing it requires iterative `doc_exec1`.
+
+### Next exact action
+
+Convert `doc_exec1()` (and the recursive helpers at `doc.c:956`,
+`doc.c:1184`, `doc.c:1193`) to an explicit work/continuation stack. The
+recursive sites are `doc.c:792` (CONCAT children), `806/814` (GROUP with
+mode save/restore + diff enter/leave), `833` (NOINDENT indent
+save/restore), `906` (OPTIONAL optline save/restore), and the
+MINIMIZE/SCOPE/MAXLINES helpers. Preserve `doc_fits()`/summary use. Then
+remove `DOC_MAX_EXEC_DEPTH` and verify 100k/200k terms.

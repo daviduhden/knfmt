@@ -896,11 +896,27 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
+	struct token *tk = NULL, *first;
+	unsigned int beg_off, end_off = 0;
+	int reached_eof = 0;
 	int peek = 0;
+
+	if (!lexer_peek(lx, &first))
+		return 0;
+	beg_off = first->tk_off;
+
+	/*
+	 * A previous scan already proved that no declaration list followed by
+	 * '{' starts anywhere in [beg, end). Scans are only ever made for
+	 * increasing positions, so a cached range covers this call.
+	 */
+	if (pr->pr_decl_scan_nolbrace &&
+	    beg_off >= pr->pr_decl_scan_beg &&
+	    beg_off < pr->pr_decl_scan_end)
+		return 0;
 
 	lexer_peek_enter(lx, &s);
 	for (;;) {
-		struct token *tk;
 		int nest = 0;
 
 		if (!parser_type_peek(pr, NULL, 0))
@@ -908,9 +924,13 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 
 		/* Skip to the terminating ';' of this declaration. */
 		for (;;) {
-			if (!lexer_pop(lx, &tk) ||
-			    tk->tk_type == LEXER_EOF)
+			if (!lexer_pop(lx, &tk))
 				goto out;
+			if (tk->tk_type == LEXER_EOF) {
+				reached_eof = 1;
+				goto out;
+			}
+			end_off = tk->tk_off;
 			if (tk->tk_type == TOKEN_SEMI && nest == 0)
 				break;
 			if (tk->tk_type == TOKEN_LPAREN ||
@@ -932,6 +952,18 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 	}
 out:
 	lexer_peek_leave(lx, &s);
+
+	if (!peek) {
+		/*
+		 * Record that [beg, end) contains no declaration list followed
+		 * by '{'. Reaching EOF makes the range extend to the end of
+		 * the input.
+		 */
+		pr->pr_decl_scan_beg = beg_off;
+		pr->pr_decl_scan_end = reached_eof ? ~0U :
+		    (end_off != 0 ? end_off + 1 : beg_off + 1);
+		pr->pr_decl_scan_nolbrace = 1;
+	}
 	return peek;
 }
 

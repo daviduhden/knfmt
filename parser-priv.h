@@ -52,6 +52,17 @@ struct parser {
 
 	/* General parser recursion guard. */
 	unsigned int	pr_depth;
+
+	/*
+	 * Cached classification of the token range scanned by
+	 * parser_type_decl_list_then_lbrace(). A scan that finds no
+	 * declaration list followed by '{' proves the same for every later
+	 * start within the scanned range, so repeated annotated declarations
+	 * do not rescan the suffix.
+	 */
+	unsigned int	pr_decl_scan_beg;
+	unsigned int	pr_decl_scan_end;
+	int		pr_decl_scan_nolbrace;
 };
 
 struct parser_arena_scope_cookie {

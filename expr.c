@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <err.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "libks/arena-buffer.h"
@@ -924,6 +925,139 @@ expr_doc_unary(struct expr *ex, struct expr_state *es, struct doc *dc)
 	return dc;
 }
 
+/*
+ * Non-zero if ex is a binary operator laid out by the default
+ * (break-after-operator) policy, i.e. the only branch of expr_doc_binary()
+ * that recurses along the left spine.
+ */
+static int
+expr_binary_default(const struct expr *ex, const struct expr_state *es)
+{
+	const struct style *st = es->es_st;
+
+	if (ex->ex_type != EXPR_BINARY)
+		return 0;
+	if (ex->ex_tk->tk_flags & TOKEN_FLAG_ASSIGN)
+		return 0;
+	if (style(st, BreakBeforeBinaryOperators) == NonAssignment ||
+	    style(st, BreakBeforeBinaryOperators) == All)
+		return 0;
+	return 1;
+}
+
+struct expr_doc_chain_frame {
+	struct expr	*ex;
+	struct doc	*dc;
+};
+
+/*
+ * Lay out a homogeneous left-associative binary chain iteratively so that a
+ * flat expression such as "a + a + ... + a" does not consume process stack
+ * proportional to the number of terms. The document produced is identical to
+ * the recursive formulation: one level per operator, each level's left
+ * operand nested under the previous level's document.
+ */
+static struct doc *
+expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
+{
+	const struct style *st = es->es_st;
+	int doalign = style(st, AlignOperands) == Align;
+	struct expr_doc_chain_frame *frames;
+	struct doc *lhs;
+	size_t nframes = 0, cap = 16;
+	unsigned int entry_depth = es->es_depth;
+	size_t i;
+
+	frames = malloc(cap * sizeof(*frames));
+	if (frames == NULL)
+		err(1, NULL);
+
+	for (;;) {
+		if (doalign)
+			dc = expr_doc_align(ex, es, dc, 0);
+		token_move_prev_line(ex->ex_tk);
+
+		if (nframes == cap) {
+			struct expr_doc_chain_frame *tmp;
+
+			cap *= 2;
+			tmp = realloc(frames, cap * sizeof(*frames));
+			if (tmp == NULL)
+				err(1, NULL);
+			frames = tmp;
+		}
+		frames[nframes++] = (struct expr_doc_chain_frame){
+		    .ex	= ex,
+		    .dc	= dc,
+		};
+
+		if (ex->ex_lhs != NULL && expr_binary_default(ex->ex_lhs, es)) {
+			struct doc *group, *concat;
+
+			/*
+			 * Replicate the expr_doc() wrapper of the left operand.
+			 */
+			ex = ex->ex_lhs;
+			group = doc_alloc(DOC_GROUP, dc);
+			doc_annotate(group, expr_type_str(ex->ex_type));
+			concat = doc_alloc(DOC_CONCAT, group);
+			if ((es->es_flags & EXPR_EXEC_TEST) &&
+			    ex->ex_type != EXPR_PARENS)
+				doc_literal("(", concat);
+			dc = concat;
+			continue;
+		}
+
+		/*
+		 * Deepest node reached. Build its left operand normally. The
+		 * synthetic depth matches the recursive formulation for the
+		 * only depth-sensitive check (es_depth == 1).
+		 */
+		es->es_depth = entry_depth + (unsigned int)(nframes - 1);
+		lhs = expr_doc(ex->ex_lhs, es, dc);
+		break;
+	}
+
+	for (i = nframes; i > 0; i--) {
+		struct expr *e = frames[i - 1].ex;
+		struct doc *c = frames[i - 1].dc;
+		int dospace;
+
+		dospace = expr_doc_has_spaces(e);
+		if (dospace)
+			doc_literal(" ", lhs);
+		expr_doc_token(es, e->ex_tk, lhs);
+		dc = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, c));
+		/*
+		 * If the operator is followed by a trailing comment and a new
+		 * line, ensure that the new line is honored even when optional
+		 * new line(s) are ignored.
+		 */
+		if (token_has_suffix(e->ex_tk, TOKEN_COMMENT) &&
+		    token_has_line(e->ex_tk, 1))
+			doc_alloc(DOC_HARDLINE, lhs);
+		else if (dospace)
+			doc_alloc(DOC_LINE, dc);
+		if (e->ex_rhs != NULL) {
+			es->es_depth = entry_depth + (unsigned int)(i - 1);
+			dc = expr_doc_soft(e->ex_rhs, es, dc,
+			    soft_weights.binary);
+		}
+		/*
+		 * The outermost level's closing parenthesis is emitted by the
+		 * caller (expr_doc()); inner levels are closed here.
+		 */
+		if (i > 1 && (es->es_flags & EXPR_EXEC_TEST) &&
+		    e->ex_type != EXPR_PARENS)
+			doc_literal(")", dc);
+		lhs = dc;
+	}
+
+	es->es_depth = entry_depth;
+	free(frames);
+	return lhs;
+}
+
 static struct doc *
 expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -978,33 +1112,12 @@ expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 		if (ex->ex_rhs != NULL)
 			dc = expr_doc(ex->ex_rhs, es, dc);
 	} else {
-		struct doc *lhs;
-		int dospace;
-
-		if (doalign)
-			dc = expr_doc_align(ex, es, dc, 0);
-
-		token_move_prev_line(ex->ex_tk);
-		lhs = expr_doc(ex->ex_lhs, es, dc);
-		dospace = expr_doc_has_spaces(ex);
-		if (dospace)
-			doc_literal(" ", lhs);
-		expr_doc_token(es, ex->ex_tk, lhs);
-		dc = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 		/*
-		 * If the operator is followed by a trailing comment and a new
-		 * line, ensure that the new line is honored even when optional
-		 * new line(s) are ignored.
+		 * Default (break-after-operator) policy. Handle the whole
+		 * homogeneous binary chain iteratively to keep process-stack
+		 * usage independent of the number of terms.
 		 */
-		if (token_has_suffix(ex->ex_tk, TOKEN_COMMENT) &&
-		    token_has_line(ex->ex_tk, 1))
-			doc_alloc(DOC_HARDLINE, lhs);
-		else if (dospace)
-			doc_alloc(DOC_LINE, dc);
-		if (ex->ex_rhs != NULL) {
-			dc = expr_doc_soft(ex->ex_rhs, es, dc,
-			    soft_weights.binary);
-		}
+		return expr_doc_binary_chain(ex, es, dc);
 	}
 
 	return dc;

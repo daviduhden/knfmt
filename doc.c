@@ -89,6 +89,8 @@ struct doc {
 	 */
 	unsigned int		 dc_sum_flat;
 	unsigned int		 dc_sum_flags;
+	/* Height of the subtree rooted at this node. */
+	unsigned int		 dc_sum_depth;
 
 	LIST_ENTRY(doc_list, doc);
 };
@@ -205,6 +207,12 @@ enum {
 #define DOC_SUM_TOOWIDE		0x00000004U
 /* Saturating width sentinel; larger than any useful column limit. */
 #define DOC_WIDTH_INF		0x10000000U
+/*
+ * Temporary guard: document rendering (doc_exec1) is still recursive, so a
+ * document taller than this is rejected instead of overflowing the process
+ * stack. Remove once rendering is iterative.
+ */
+#define DOC_MAX_EXEC_DEPTH	60000U
 
 /*
  * Description of per document type specific semantics.
@@ -502,6 +510,25 @@ doc_sum_one(struct doc *dc)
 	dc->dc_sum_flags = DOC_SUM_VALID |
 	    (pure ? DOC_SUM_PURE : 0) |
 	    (flat >= DOC_WIDTH_INF ? DOC_SUM_TOOWIDE : 0);
+
+	{
+		unsigned int depth = 1;
+		const struct doc_description *desc =
+		    &doc_descriptions[dc->dc_type];
+
+		if (desc->children.many) {
+			struct doc *child;
+
+			LIST_FOREACH(child, &dc->dc_list) {
+				if (child->dc_sum_depth + 1 > depth)
+					depth = child->dc_sum_depth + 1;
+			}
+		} else if (desc->children.one) {
+			if (dc->dc_doc->dc_sum_depth + 1 > depth)
+				depth = dc->dc_doc->dc_sum_depth + 1;
+		}
+		dc->dc_sum_depth = depth;
+	}
 }
 
 /*
@@ -553,6 +580,8 @@ doc_exec(struct doc_exec_arg *arg)
 	struct doc_state st;
 
 	doc_summarize((struct doc *)dc, arg->scratch);
+	if (((struct doc *)dc)->dc_sum_depth > DOC_MAX_EXEC_DEPTH)
+		errx(1, "expression too deeply nested");
 	doc_state_init(&st, arg, BREAK);
 	doc_exec1(dc, &st);
 	if (arg->flags & DOC_EXEC_TRIM)
@@ -567,6 +596,8 @@ doc_width(struct doc_exec_arg *arg)
 	struct doc_state st;
 
 	doc_summarize((struct doc *)arg->dc, arg->scratch);
+	if (((struct doc *)arg->dc)->dc_sum_depth > DOC_MAX_EXEC_DEPTH)
+		errx(1, "expression too deeply nested");
 	doc_state_init(&st, arg, MUNGE);
 	doc_exec1(arg->dc, &st);
 	return st.st_col;

@@ -145,11 +145,11 @@ DEBUG="$(make_variable DEBUG || :)"
 
 CC=$(make_variable CC || fatal "CC: not defined")
 CFLAGS="$(unset CFLAGS DEBUG; make_variable CFLAGS || :) ${CFLAGS:-} ${DEBUG}"
-CFLAGS="${CFLAGS} -MD -MP"
+CFLAGS="${CFLAGS} -std=c23 -MD -MP"
 CXX=$(make_variable CXX || fatal "CXX: not defined")
 CXXFLAGS="$(unset CXXFLAGS DEBUG; make_variable CXXFLAGS || :) ${CXXFLAGS:-} ${DEBUG}"
 CXXFLAGS="${CXXFLAGS} -MD -MP -std=c++20"
-CPPFLAGS="$(make_variable CPPFLAGS || :)"
+CPPFLAGS="$(make_variable CPPFLAGS || :) -D_DEFAULT_SOURCE"
 AFLAGS="$(make_variable AFLAGS || :) -MD -MP"
 ASFLAGS="$(make_variable ASFLAGS || :) -MD -MP"
 LDFLAGS="$(unset DEBUG; make_variable LDFLAGS || :)"

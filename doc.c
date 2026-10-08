@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "libks/arena-buffer.h"
@@ -207,12 +208,6 @@ enum {
 #define DOC_SUM_TOOWIDE		0x00000004U
 /* Saturating width sentinel; larger than any useful column limit. */
 #define DOC_WIDTH_INF		0x10000000U
-/*
- * Temporary guard: document rendering (doc_exec1) is still recursive, so a
- * document taller than this is rejected instead of overflowing the process
- * stack. Remove once rendering is iterative.
- */
-#define DOC_MAX_EXEC_DEPTH	9000U
 
 /*
  * Description of per document type specific semantics.
@@ -580,8 +575,6 @@ doc_exec(struct doc_exec_arg *arg)
 	struct doc_state st;
 
 	doc_summarize((struct doc *)dc, arg->scratch);
-	if (((struct doc *)dc)->dc_sum_depth > DOC_MAX_EXEC_DEPTH)
-		errx(1, "expression too deeply nested");
 	doc_state_init(&st, arg, BREAK);
 	doc_exec1(dc, &st);
 	if (arg->flags & DOC_EXEC_TRIM)
@@ -596,8 +589,6 @@ doc_width(struct doc_exec_arg *arg)
 	struct doc_state st;
 
 	doc_summarize((struct doc *)arg->dc, arg->scratch);
-	if (((struct doc *)arg->dc)->dc_sum_depth > DOC_MAX_EXEC_DEPTH)
-		errx(1, "expression too deeply nested");
 	doc_state_init(&st, arg, MUNGE);
 	doc_exec1(arg->dc, &st);
 	return st.st_col;
@@ -810,151 +801,242 @@ doc_annotate(struct doc *dc, const char *suffix)
 	dc->dc_suffix = suffix;
 }
 
+/*
+ * Explicit continuation frames for doc_exec1(). The renderer descends a
+ * linear document iteratively so that a flat document of any length consumes
+ * O(1) process stack; only genuinely nested nodes (indentation, scopes,
+ * minimizers) recurse, bounded by nesting depth rather than document length.
+ */
+enum doc_exec_frame_kind {
+	DOC_EXEC_NODE,		/* process frame->dc */
+	DOC_EXEC_CONCAT,	/* resume iteration over a concat's children */
+	DOC_EXEC_GROUP,		/* restore group mode/diff after its child */
+};
+
+struct doc_exec_frame {
+	enum doc_exec_frame_kind	 kind;
+	const struct doc		*dc;
+	/* DOC_EXEC_CONCAT */
+	const struct doc		*next;
+	/* DOC_EXEC_GROUP */
+	unsigned int			 oldmode;
+	int				 diff;
+	int				 has_mode;
+};
+
 static void
-doc_exec1(const struct doc *dc, struct doc_state *st)
+doc_exec1(const struct doc *root, struct doc_state *st)
 {
-	doc_trace_enter(dc, st);
+	struct doc_exec_frame *stack;
+	size_t n = 0, cap = 32;
 
-	switch (dc->dc_type) {
-	case DOC_CONCAT: {
-		struct doc *concat;
+	stack = malloc(cap * sizeof(*stack));
+	if (stack == NULL)
+		err(1, NULL);
 
-		LIST_FOREACH(concat, &dc->dc_list)
-			doc_exec1(concat, st);
+#define PUSH_EXEC_FRAME(frame) do {					\
+	if (n == cap) {							\
+		struct doc_exec_frame *_tmp;				\
+		cap *= 2;						\
+		_tmp = realloc(stack, cap * sizeof(*stack));		\
+		if (_tmp == NULL)					\
+			err(1, NULL);					\
+		stack = _tmp;						\
+	}								\
+	stack[n++] = (frame);						\
+} while (0)
 
-		break;
-	}
+	PUSH_EXEC_FRAME(((struct doc_exec_frame){
+	    .kind = DOC_EXEC_NODE,
+	    .dc = root,
+	}));
 
-	case DOC_GROUP: {
-		unsigned int oldmode;
-		int diff;
+	for (;;) {
+		struct doc_exec_frame *fr;
+		const struct doc *dc;
 
-		diff = doc_diff_group_enter(dc, st, 0);
-		switch (st->st_mode) {
-		case MUNGE:
-			if (st->st_refit == 0 &&
-			    !doc_leads_with_break(dc->dc_doc)) {
-				doc_exec1(dc->dc_doc, st);
+		if (n == 0)
+			break;
+		fr = &stack[n - 1];
+
+		if (fr->kind == DOC_EXEC_CONCAT) {
+			if (fr->next == NULL) {
+				doc_trace_leave(fr->dc, st);
+				n--;
+				continue;
+			}
+			dc = fr->next;
+			fr->next = LIST_NEXT(dc);
+			PUSH_EXEC_FRAME(((struct doc_exec_frame){
+			    .kind = DOC_EXEC_NODE,
+			    .dc = dc,
+			}));
+			continue;
+		}
+		if (fr->kind == DOC_EXEC_GROUP) {
+			if (fr->has_mode)
+				st->st_mode = fr->oldmode;
+			doc_diff_group_leave(fr->dc, st, fr->diff);
+			doc_trace_leave(fr->dc, st);
+			n--;
+			continue;
+		}
+
+		dc = fr->dc;
+		doc_trace_enter(dc, st);
+
+		if (dc->dc_type == DOC_CONCAT) {
+			fr->kind = DOC_EXEC_CONCAT;
+			fr->next = LIST_FIRST(&dc->dc_list);
+			continue;
+		}
+		if (dc->dc_type == DOC_GROUP) {
+			unsigned int oldmode = 0;
+			int diff, has_mode = 0;
+
+			diff = doc_diff_group_enter(dc, st, 0);
+			switch (st->st_mode) {
+			case MUNGE:
+				if (st->st_refit == 0 &&
+				    !doc_leads_with_break(dc->dc_doc))
+					break;
+				FALLTHROUGH;
+			case BREAK:
+				st->st_refit = 0;
+				oldmode = st->st_mode;
+				has_mode = 1;
+				st->st_mode = doc_fits(dc, st) ?
+				    MUNGE : BREAK;
 				break;
 			}
-			FALLTHROUGH;
-		case BREAK:
-			st->st_refit = 0;
-			oldmode = st->st_mode;
-			st->st_mode = doc_fits(dc, st) ? MUNGE : BREAK;
+			fr->kind = DOC_EXEC_GROUP;
+			fr->diff = diff;
+			fr->oldmode = oldmode;
+			fr->has_mode = has_mode;
+			PUSH_EXEC_FRAME(((struct doc_exec_frame){
+			    .kind = DOC_EXEC_NODE,
+			    .dc = dc->dc_doc,
+			}));
+			continue;
+		}
+
+		switch (dc->dc_type) {
+		case DOC_INDENT:
+			doc_exec_indent(dc, st, dc->dc_int);
+			break;
+
+		case DOC_NOINDENT: {
+			struct doc_state_indent oldindent;
+
+			doc_trim_spaces(dc, st);
+			oldindent = st->st_indent;
+			memset(&st->st_indent, 0, sizeof(st->st_indent));
 			doc_exec1(dc->dc_doc, st);
-			st->st_mode = oldmode;
+			st->st_indent = oldindent;
 			break;
 		}
-		doc_diff_group_leave(dc, st, diff);
 
-		break;
-	}
-
-	case DOC_INDENT:
-		doc_exec_indent(dc, st, dc->dc_int);
-		break;
-
-	case DOC_NOINDENT: {
-		struct doc_state_indent oldindent;
-
-		doc_trim_spaces(dc, st);
-		oldindent = st->st_indent;
-		memset(&st->st_indent, 0, sizeof(st->st_indent));
-		doc_exec1(dc->dc_doc, st);
-		st->st_indent = oldindent;
-		break;
-	}
-
-	case DOC_ALIGN:
-		doc_exec_align(dc, st);
-		break;
-
-	case DOC_LITERAL:
-		doc_diff_literal(dc, st);
-		doc_print(dc, st, dc->dc_str, dc->dc_len, DOC_PRINT_INDENT);
-		break;
-
-	case DOC_VERBATIM:
-		doc_exec_verbatim(dc, st);
-		break;
-
-	case DOC_LINE:
-		switch (st->st_mode) {
-		case BREAK:
-			if (st->st_col > style(st->st_st, ColumnLimit))
-				doc_print(dc, st, " ", 1, DOC_PRINT_INDENT);
-			else
-				doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
+		case DOC_ALIGN:
+			doc_exec_align(dc, st);
 			break;
-		case MUNGE:
-			if (doc_print(dc, st, " ", 1, DOC_PRINT_INDENT)) {
-				doc_trace(dc, st, "%s: refit %u -> %d",
-				    __func__, st->st_refit, 1);
-				st->st_refit = 1;
+
+		case DOC_LITERAL:
+			doc_diff_literal(dc, st);
+			doc_print(dc, st, dc->dc_str, dc->dc_len,
+			    DOC_PRINT_INDENT);
+			break;
+
+		case DOC_VERBATIM:
+			doc_exec_verbatim(dc, st);
+			break;
+
+		case DOC_LINE:
+			switch (st->st_mode) {
+			case BREAK:
+				if (st->st_col > style(st->st_st, ColumnLimit))
+					doc_print(dc, st, " ", 1,
+					    DOC_PRINT_INDENT);
+				else
+					doc_print(dc, st, "\n", 1,
+					    DOC_PRINT_INDENT);
+				break;
+			case MUNGE:
+				if (doc_print(dc, st, " ", 1, DOC_PRINT_INDENT)) {
+					doc_trace(dc, st, "%s: refit %u -> %d",
+					    __func__, st->st_refit, 1);
+					st->st_refit = 1;
+				}
+				break;
 			}
 			break;
-		}
-		break;
 
-	case DOC_SOFTLINE:
-		switch (st->st_mode) {
-		case BREAK:
+		case DOC_SOFTLINE:
+			switch (st->st_mode) {
+			case BREAK:
+				doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
+				break;
+			case MUNGE:
+				break;
+			}
+			break;
+
+		case DOC_HARDLINE:
 			doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
+			/*
+			 * A hard line starts a new line; make the next group
+			 * re-evaluate whether it fits instead of inheriting the
+			 * surrounding mode.
+			 */
+			st->st_refit = 1;
 			break;
-		case MUNGE:
+
+		case DOC_OPTLINE:
+			/*
+			 * Instruct the next doc_print() invocation to emit a new
+			 * line. Necessary in order to get indentation right.
+			 */
+			if (st->st_optline)
+				st->st_newline = 1;
+			break;
+
+		case DOC_MUTE:
+		case DOC_UNMUTE:
+			doc_exec_mute(dc, st);
+			break;
+
+		case DOC_OPTIONAL: {
+			int oldoptline = st->st_optline;
+
+			st->st_optline = 1;
+			doc_exec1(dc->dc_doc, st);
+			/* Note, could already be cleared by doc_print(). */
+			if (st->st_optline)
+				st->st_optline = oldoptline;
 			break;
 		}
-		break;
 
-	case DOC_HARDLINE:
-		doc_print(dc, st, "\n", 1, DOC_PRINT_INDENT);
-		/*
-		 * A hard line starts a new line; make the next group re-evaluate
-		 * whether it fits instead of inheriting the surrounding mode.
-		 */
-		st->st_refit = 1;
-		break;
+		case DOC_MINIMIZE:
+			doc_exec_minimize(dc, st);
+			break;
 
-	case DOC_OPTLINE:
-		/*
-		 * Instruct the next doc_print() invocation to emit a new line.
-		 * Necessary in order to get indentation right.
-		 */
-		if (st->st_optline)
-			st->st_newline = 1;
-		break;
+		case DOC_SCOPE:
+			doc_exec_scope(dc, st);
+			break;
 
-	case DOC_MUTE:
-	case DOC_UNMUTE:
-		doc_exec_mute(dc, st);
-		break;
+		case DOC_MAXLINES:
+			doc_exec_maxlines(dc, st);
+			break;
 
-	case DOC_OPTIONAL: {
-		int oldoptline = st->st_optline;
+		default:
+			break;
+		}
 
-		st->st_optline = 1;
-		doc_exec1(dc->dc_doc, st);
-		/* Note, could already be cleared by doc_print(). */
-		if (st->st_optline)
-			st->st_optline = oldoptline;
-		break;
+		doc_trace_leave(dc, st);
+		n--;
 	}
 
-	case DOC_MINIMIZE:
-		doc_exec_minimize(dc, st);
-		break;
-
-	case DOC_SCOPE:
-		doc_exec_scope(dc, st);
-		break;
-
-	case DOC_MAXLINES:
-		doc_exec_maxlines(dc, st);
-		break;
-	}
-
-	doc_trace_leave(dc, st);
+#undef PUSH_EXEC_FRAME
+	free(stack);
 }
 
 static void

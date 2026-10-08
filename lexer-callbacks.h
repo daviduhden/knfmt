@@ -8,7 +8,7 @@ struct lexer_callbacks {
 	/*
 	 * Read callback with the following semantics:
 	 *
-	 *     1. In case of encountering an error, NULL must be
+	 *     1. In case of encountering an error, nullptr must be
 	 *        returned.
 	 *     2. Signalling the reach of end of file is done by
 	 *        returning a token with type LEXER_EOF.

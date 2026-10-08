@@ -94,13 +94,13 @@ parser_stmt1(struct parser *pr, struct doc *dc)
 	};
 
 	/* C23 standard attributes may prefix a statement. */
-	while (parser_attributes_std_peek(pr, NULL)) {
+	while (parser_attributes_std_peek(pr, nullptr)) {
 		struct doc *concat;
 
 		concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 		if (parser_attributes_std(pr, concat) & FAIL)
 			return parser_fail(pr);
-		if (!lexer_peek_if(pr->pr_lx, TOKEN_SEMI, NULL))
+		if (!lexer_peek_if(pr->pr_lx, TOKEN_SEMI, nullptr))
 			doc_alloc(DOC_LINE, concat);
 	}
 
@@ -176,7 +176,7 @@ parser_stmt_block(struct parser *pr, struct parser_stmt_block_arg *arg)
 	 * optional lines.
 	 */
 	nx = token_next(rbrace);
-	if (nx != NULL && nx->tk_type == TOKEN_SEMI)
+	if (nx != nullptr && nx->tk_type == TOKEN_SEMI)
 		lexer_remove(lx, nx);
 
 	if (doindent)
@@ -240,11 +240,11 @@ parser_stmt_block(struct parser *pr, struct parser_stmt_block_arg *arg)
 	 */
 	concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, arg->tail));
 	if (lexer_expect(lx, TOKEN_RBRACE, &tk)) {
-		if (lexer_peek_if(lx, TOKEN_ELSE, NULL))
+		if (lexer_peek_if(lx, TOKEN_ELSE, nullptr))
 			parser_token_trim_after(pr, tk);
 		parser_doc_token(pr, tk, concat);
 	}
-	if (lexer_peek_if(lx, TOKEN_SEMI, NULL))
+	if (lexer_peek_if(lx, TOKEN_SEMI, nullptr))
 		parser_semi(pr, concat);
 	arg->rbrace = concat;
 
@@ -278,10 +278,10 @@ has_if_stmt_braces(struct parser *pr, int elseif)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &ls);
-	if ((elseif ? lexer_if(lx, TOKEN_ELSE, NULL) : 1) &&
-	    lexer_if(lx, TOKEN_IF, NULL) &&
-	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, NULL) &&
-	    lexer_if(lx, TOKEN_LBRACE, NULL))
+	if ((elseif ? lexer_if(lx, TOKEN_ELSE, nullptr) : 1) &&
+	    lexer_if(lx, TOKEN_IF, nullptr) &&
+	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, nullptr) &&
+	    lexer_if(lx, TOKEN_LBRACE, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &ls);
 	return peek;
@@ -291,11 +291,11 @@ static int
 has_line_before_comment(const struct token *tk)
 {
 	const struct token *comment = token_list_find(&tk->tk_prefixes, TOKEN_COMMENT, 0);
-	if (comment == NULL)
+	if (comment == nullptr)
 		return 0;
 
 	const struct token *pv = token_prev(tk);
-	if (pv == NULL)
+	if (pv == nullptr)
 		return 0;
 
 	return token_has_line(pv, 1) && (comment->tk_lno - pv->tk_lno) > 1;
@@ -308,7 +308,7 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 	struct token *nx;
 	int has_braces;
 
-	if (!lexer_peek_if(lx, TOKEN_IF, NULL))
+	if (!lexer_peek_if(lx, TOKEN_IF, nullptr))
 		return parser_none(pr);
 
 	has_braces = has_if_stmt_braces(pr, 0);
@@ -339,12 +339,12 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 			parser_doc_token(pr, tkelse, dc);
 			doc_literal(" ", dc);
 
-			if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+			if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 				int error = parser_stmt(pr, dc);
 				if (error & FAIL)
 					return parser_fail(pr);
 			} else {
-				void *simple = NULL;
+				void *simple = nullptr;
 
 				dc = doc_indent(style(pr->pr_st, IndentWidth),
 				    dc);
@@ -370,11 +370,11 @@ static int
 parser_stmt_for(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *expr = NULL;
+	struct doc *expr = nullptr;
 	struct doc *indent, *loop;
-	struct token *semi = NULL;
+	struct token *semi = nullptr;
 	struct token *tk;
-	void *simple = NULL;
+	void *simple = nullptr;
 	unsigned int w;
 	int error;
 
@@ -441,13 +441,13 @@ parser_stmt_for(struct parser *pr, struct doc *dc)
 
 	simple_cookie(cookie);
 	if (simple_enter(pr->pr_si, SIMPLE_STMT_EMPTY_LOOP, 0, &cookie)) {
-		if (lexer_peek_if(lx, TOKEN_LBRACE, NULL))
+		if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr))
 			simple_stmt_empty_loop_braces(lx);
 		else
 			simple_stmt_empty_loop_no_braces(lx);
 	}
 
-	if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+	if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 		doc_literal(" ", expr);
 		return parser_stmt(pr, dc);
 	}
@@ -479,7 +479,7 @@ parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 		return parser_none(pr);
 
 	parser_doc_token(pr, tk, concat);
-	if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+	if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 		doc_literal(" ", concat);
 		error = parser_stmt_block(pr, &ps);
 		if (error & HALT)
@@ -502,7 +502,7 @@ parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 	if (error & HALT)
 		return parser_fail(pr);
 
-	if (lexer_peek_if(lx, TOKEN_WHILE, NULL)) {
+	if (lexer_peek_if(lx, TOKEN_WHILE, nullptr)) {
 		return parser_stmt_kw_expr(pr, concat, TOKEN_WHILE,
 		    PARSER_STMT_EXPR_DOWHILE);
 	}
@@ -517,7 +517,7 @@ static int
 parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
     unsigned int flags)
 {
-	struct doc *expr = NULL;
+	struct doc *expr = nullptr;
 	struct doc *stmt;
 	struct lexer *lx = pr->pr_lx;
 	struct token *kw, *lparen, *prefix, *rparen;
@@ -560,7 +560,7 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 		w = parser_width(pr, dc) + 1;
 	}
 
-	if (lexer_expect(lx, TOKEN_LPAREN, NULL)) {
+	if (lexer_expect(lx, TOKEN_LPAREN, nullptr)) {
 		struct doc *optional = stmt;
 
 		if (token_has_suffix(lparen, TOKEN_COMMENT)) {
@@ -601,13 +601,13 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 	simple_cookie(cookie);
 	if (is_loop_stmt(kw) &&
 	    simple_enter(pr->pr_si, SIMPLE_STMT_EMPTY_LOOP, 0, &cookie)) {
-		if (lexer_peek_if(lx, TOKEN_LBRACE, NULL))
+		if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr))
 			simple_stmt_empty_loop_braces(lx);
 		else
 			simple_stmt_empty_loop_no_braces(lx);
 	}
 
-	if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+	if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 		unsigned int parser_stmt_flags = 0;
 
 		doc_literal(" ", expr);
@@ -622,7 +622,7 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 		});
 	} else {
 		struct doc *indent;
-		void *simple = NULL;
+		void *simple = nullptr;
 
 		indent = doc_indent(style(pr->pr_st, IndentWidth), dc);
 		doc_alloc(DOC_HARDLINE, indent);
@@ -643,13 +643,13 @@ parser_stmt_label(struct parser *pr, struct doc *dc)
 	struct lexer_state s;
 	struct doc *noindent;
 	struct lexer *lx = pr->pr_lx;
-	struct token *colon = NULL;
+	struct token *colon = nullptr;
 	struct token *ident;
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, NULL) &&
-	    lexer_if(lx, TOKEN_COLON, NULL))
+	if (lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	    lexer_if(lx, TOKEN_COLON, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	if (!peek)
@@ -703,13 +703,13 @@ parser_stmt_case(struct parser *pr, struct doc *dc)
 
 	lhs = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 	parser_doc_token(pr, kw, lhs);
-	if (!lexer_peek_until(lx, TOKEN_COLON, NULL))
+	if (!lexer_peek_until(lx, TOKEN_COLON, nullptr))
 		return parser_fail(pr);
 	if (kw->tk_type == TOKEN_CASE) {
 		int error;
 
 		doc_alloc(DOC_LINE, lhs);
-		error = parser_expr(pr, NULL, &(struct parser_expr_arg){
+		error = parser_expr(pr, nullptr, &(struct parser_expr_arg){
 		    .dc	= lhs,
 		});
 		if (error & HALT)
@@ -720,7 +720,7 @@ parser_stmt_case(struct parser *pr, struct doc *dc)
 	parser_token_trim_after(pr, tk);
 	parser_doc_token(pr, tk, lhs);
 
-	if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+	if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 		doc_alloc(DOC_LINE, lhs);
 		if (parser_stmt(pr, dc) & FAIL)
 			return parser_fail(pr);
@@ -736,8 +736,8 @@ parser_stmt_case(struct parser *pr, struct doc *dc)
 		struct doc *line;
 		struct token *nx;
 
-		if (lexer_peek_if(lx, TOKEN_CASE, NULL) ||
-		    lexer_peek_if(lx, TOKEN_DEFAULT, NULL) ||
+		if (lexer_peek_if(lx, TOKEN_CASE, nullptr) ||
+		    lexer_peek_if(lx, TOKEN_DEFAULT, nullptr) ||
 		    !lexer_peek(lx, &nx))
 			break;
 
@@ -784,7 +784,7 @@ parser_stmt_switch(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
 
-	if (!lexer_peek_if(lx, TOKEN_SWITCH, NULL))
+	if (!lexer_peek_if(lx, TOKEN_SWITCH, nullptr))
 		return parser_none(pr);
 	return parser_stmt_kw_expr(pr, dc, TOKEN_SWITCH, 0);
 }
@@ -794,7 +794,7 @@ parser_stmt_while(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
 
-	if (!lexer_peek_if(lx, TOKEN_WHILE, NULL))
+	if (!lexer_peek_if(lx, TOKEN_WHILE, nullptr))
 		return parser_none(pr);
 	return parser_stmt_kw_expr(pr, dc, TOKEN_WHILE, 0);
 }
@@ -805,7 +805,7 @@ parser_stmt_break(struct parser *pr, struct doc *dc)
 	struct lexer *lx = pr->pr_lx;
 	struct token *tk;
 
-	if (!lexer_peek_if(lx, TOKEN_BREAK, NULL))
+	if (!lexer_peek_if(lx, TOKEN_BREAK, nullptr))
 		return parser_none(pr);
 
 	if (lexer_expect(lx, TOKEN_BREAK, &tk))
@@ -840,7 +840,7 @@ parser_stmt_return(struct parser *pr, struct doc *dc)
 	concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 	parser_token_trim_after(pr, tk);
 	parser_doc_token(pr, tk, concat);
-	if (!lexer_peek_if(lx, TOKEN_SEMI, NULL)) {
+	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr)) {
 		int error;
 
 		doc_literal(" ", concat);
@@ -861,7 +861,7 @@ parser_stmt_semi(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
 
-	if (!lexer_peek_if(lx, TOKEN_SEMI, NULL))
+	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr))
 		return parser_none(pr);
 	return parser_semi(pr, dc);
 }
@@ -877,8 +877,8 @@ parser_stmt_cpp(struct parser *pr, struct doc *dc)
 	/* Statement hidden behind cpp, such as loop construct from queue(3). */
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, &ident) &&
-	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, NULL) &&
-	    !lexer_if(lx, TOKEN_SEMI, NULL))
+	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, nullptr) &&
+	    !lexer_if(lx, TOKEN_SEMI, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	if (peek)
@@ -929,7 +929,7 @@ parser_simple_stmt_enter(struct parser *pr, struct simple_cookie *simple)
 	if (error & GOOD)
 		simple_stmt_leave(pr->pr_simple.stmt);
 	simple_stmt_free(pr->pr_simple.stmt);
-	pr->pr_simple.stmt = NULL;
+	pr->pr_simple.stmt = nullptr;
 	simple_leave(simple);
 
 	return parser_good(pr);
@@ -958,7 +958,7 @@ parser_simple_stmt_no_braces_leave(struct parser *pr, void *cookie)
 	struct lexer *lx = pr->pr_lx;
 	struct token *rbrace;
 
-	if (cookie == NULL || !lexer_peek(lx, &rbrace))
+	if (cookie == nullptr || !lexer_peek(lx, &rbrace))
 		return;
 	simple_stmt_no_braces_leave(pr->pr_simple.stmt, rbrace, cookie);
 }
@@ -1002,7 +1002,7 @@ peek_simple_stmt(struct parser *pr)
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_pop(lx, &tk) && is_simple_stmt(tk) &&
-	    lexer_if(lx, TOKEN_LPAREN, NULL))
+	    lexer_if(lx, TOKEN_LPAREN, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 

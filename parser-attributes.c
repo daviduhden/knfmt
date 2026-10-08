@@ -24,15 +24,15 @@ parser_attributes_peek(struct parser *pr, struct token **rparen,
 	for (;;) {
 		struct token *tmp;
 
-		if (lexer_if(lx, TOKEN_ATTRIBUTE, NULL) &&
-		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+		if (lexer_if(lx, TOKEN_ATTRIBUTE, nullptr) &&
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr,
 		    rparen)) {
 			/* nothing */
 		} else if ((flags & PARSER_ATTRIBUTES_FUNC) &&
-		    lexer_if(lx, TOKEN_IDENT, NULL) &&
-		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, &tmp) &&
-		    lexer_if(lx, TOKEN_IDENT, NULL) &&
-		    lexer_if(lx, TOKEN_LPAREN, NULL)) {
+		    lexer_if(lx, TOKEN_IDENT, nullptr) &&
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &tmp) &&
+		    lexer_if(lx, TOKEN_IDENT, nullptr) &&
+		    lexer_if(lx, TOKEN_LPAREN, nullptr)) {
 			/* Possible attribute hidden behind cpp macro. */
 			*rparen = tmp;
 		} else {
@@ -75,7 +75,7 @@ parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
 		 * back to the enclosing document so that a subsequent append
 		 * never dereferences an indeterminate pointer.
 		 */
-		if (out != NULL && *out == NULL)
+		if (out != nullptr && *out == nullptr)
 			*out = dc;
 
 		if (lexer_peek_if(lx, TOKEN_RPAREN, &nx) && nx == rparen)
@@ -103,7 +103,7 @@ parser_attributes(struct parser *pr, struct doc *dc, struct doc **out,
 	if (!parser_attributes_peek(pr, &end, flags))
 		return parser_none(pr);
 
-	if (out == NULL)
+	if (out == nullptr)
 		out = &def;
 	linetype = lexer_back(lx, &pv) && token_has_line(pv, 1) ?
 	    DOC_HARDLINE : DOC_LINE;
@@ -127,7 +127,7 @@ parser_attributes(struct parser *pr, struct doc *dc, struct doc **out,
 		if (lexer_expect(lx, TOKEN_LPAREN, &tk))
 			parser_doc_token(pr, tk, concat);
 		if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
-		    NULL, &rparen) && lexer_if(lx, TOKEN_LPAREN, &lparen))
+		    nullptr, &rparen) && lexer_if(lx, TOKEN_LPAREN, &lparen))
 			parser_doc_token(pr, lparen, concat);
 		error = parser_attributes_expr(pr, concat, out, attribute,
 		    rparen);
@@ -159,8 +159,8 @@ parser_attributes_std_peek(struct parser *pr, struct token **end)
 	int nest, peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_LSQUARE, NULL) &&
-	    lexer_if(lx, TOKEN_LSQUARE, NULL)) {
+	if (lexer_if(lx, TOKEN_LSQUARE, nullptr) &&
+	    lexer_if(lx, TOKEN_LSQUARE, nullptr)) {
 		nest = 2;
 		while (lexer_pop(lx, &t)) {
 			if (t->tk_type == LEXER_EOF)
@@ -169,7 +169,7 @@ parser_attributes_std_peek(struct parser *pr, struct token **end)
 				nest++;
 			} else if (t->tk_type == TOKEN_RSQUARE) {
 				if (--nest == 0) {
-					if (end != NULL)
+					if (end != nullptr)
 						*end = t;
 					peek = 1;
 					break;
@@ -188,8 +188,8 @@ peek_colon_colon(struct lexer *lx)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_COLON, NULL) &&
-	    lexer_if(lx, TOKEN_COLON, NULL))
+	if (lexer_if(lx, TOKEN_COLON, nullptr) &&
+	    lexer_if(lx, TOKEN_COLON, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	return peek;
@@ -204,7 +204,7 @@ int
 parser_attributes_std(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct token *end, *name = NULL, *t;
+	struct token *end, *name = nullptr, *t;
 	int error, nattributes = 0;
 
 	if (!parser_attributes_std_peek(pr, &end))
@@ -239,16 +239,16 @@ parser_attributes_std(struct parser *pr, struct doc *dc)
 		}
 
 		/* Optional attribute argument clause. */
-		if (lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+		if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr)) {
 			struct token *rparen;
 
 			if (!lexer_peek_if_pair(lx, TOKEN_LPAREN,
-			    TOKEN_RPAREN, NULL, &rparen))
+			    TOKEN_RPAREN, nullptr, &rparen))
 				return parser_fail(pr);
 			if (!lexer_if(lx, TOKEN_LPAREN, &t))
 				return parser_fail(pr);
 			parser_doc_token(pr, t, dc);
-			if (!lexer_peek_if(lx, TOKEN_RPAREN, NULL)) {
+			if (!lexer_peek_if(lx, TOKEN_RPAREN, nullptr)) {
 				error = parser_attributes_expr(pr, dc, &dc,
 				    name, rparen);
 				if (error & HALT)
@@ -260,7 +260,7 @@ parser_attributes_std(struct parser *pr, struct doc *dc)
 
 		nattributes++;
 
-		if (!lexer_peek_if(lx, TOKEN_COMMA, NULL))
+		if (!lexer_peek_if(lx, TOKEN_COMMA, nullptr))
 			break;
 		if (!lexer_if(lx, TOKEN_COMMA, &t))
 			break;

@@ -60,8 +60,8 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 	Parser_Type_Context c = {.previous_token_type = TOKEN_NONE};
 	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
-	struct token *align = NULL;
-	struct token *args = NULL;
+	struct token *align = nullptr;
+	struct token *args = nullptr;
 	struct token *beg, *end;
 	int peek = 0;
 	int nkeywords = 0;
@@ -72,8 +72,8 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 
 	if (!lexer_peek(lx, &beg))
 		return 0;
-	issizeof = lexer_back_if(lx, TOKEN_SIZEOF, NULL) ||
-	    lexer_back_if(lx, TOKEN_ALIGNOF, NULL);
+	issizeof = lexer_back_if(lx, TOKEN_SIZEOF, nullptr) ||
+	    lexer_back_if(lx, TOKEN_ALIGNOF, nullptr);
 
 	/*
 	 * Recognize function argument consisting of a single type and no
@@ -90,7 +90,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 	for (;;) {
 		struct token *rparen, *rsquare;
 
-		if (lexer_peek_if(lx, LEXER_EOF, NULL))
+		if (lexer_peek_if(lx, LEXER_EOF, nullptr))
 			break;
 
 		c.previous_token_type = c.token_type;
@@ -102,9 +102,9 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			 * followed by a parenthesized type name, a type
 			 * specifier.
 			 */
-			if (lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+			if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr)) {
 				if (!lexer_if_pair(lx, TOKEN_LPAREN,
-				    TOKEN_RPAREN, NULL, &rparen))
+				    TOKEN_RPAREN, nullptr, &rparen))
 					return 0;
 				end = rparen;
 			} else {
@@ -113,15 +113,15 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			peek = 1;
 		} else if (lexer_if(lx, TOKEN_BITINT, &end)) {
 			if (!lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
-			    NULL, &rparen))
+			    nullptr, &rparen))
 				return 0;
 			end = rparen;
 			peek = 1;
 		} else if (peek_type_paren_ident(lx, CLANG_TOKEN_TYPEOF, &end) ||
 		    peek_type_paren_ident(lx, CLANG_TOKEN_TYPEOF_UNQUAL, &end)) {
-			if (!lexer_if(lx, TOKEN_IDENT, NULL) ||
+			if (!lexer_if(lx, TOKEN_IDENT, nullptr) ||
 			    !lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
-			    NULL, NULL))
+			    nullptr, nullptr))
 				return 0;
 			peek = 1;
 		} else if (peek_type_alignas(lx, &end)) {
@@ -163,7 +163,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			 * A pointer is expected to only be followed by another
 			 * pointer or a known type.
 			 */
-			if (lexer_peek_if(lx, TOKEN_IDENT, NULL)) {
+			if (lexer_peek_if(lx, TOKEN_IDENT, nullptr)) {
 				/*
 				 * Also allow an implicit int pointer
 				 * declaration, e.g. `static *p;'.
@@ -181,7 +181,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 				return 0;
 			end = rparen;
 			peek = 1;
-		} else if (lexer_peek_if(lx, TOKEN_IDENT, NULL)) {
+		} else if (lexer_peek_if(lx, TOKEN_IDENT, nullptr)) {
 			/* Ensure this is not the identifier after the type. */
 			if ((flags & PARSER_TYPE_CAST) == 0 &&
 			    (flags & PARSER_TYPE_EXPR) == 0 &&
@@ -220,7 +220,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			peek = 1;
 			break;
 		} else if (ntokens > 0 && nkeywords > 0 &&
-		    lexer_peek_if(lx, TOKEN_LPAREN, NULL) &&
+		    lexer_peek_if(lx, TOKEN_LPAREN, nullptr) &&
 		    parser_type_implicit_int(pr)) {
 			/*
 			 * Implicit int declaration with a parenthesized
@@ -305,7 +305,7 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 	}
 
 out:
-	if (type != NULL) {
+	if (type != nullptr) {
 		*type = (struct parser_type){
 		    .beg	= beg,
 		    .end	= end,
@@ -326,7 +326,7 @@ find_align_token(const struct parser_type *type, unsigned int *nspaces)
 	 * Find the first non pointer token starting from the end, this is where
 	 * the ruler alignment must be performed.
 	 */
-	align = type->align != NULL ? type->align : type->end;
+	align = type->align != nullptr ? type->align : type->end;
 	while (align->tk_type == TOKEN_STAR) {
 		nstars++;
 		if (align == type->beg)
@@ -335,14 +335,14 @@ find_align_token(const struct parser_type *type, unsigned int *nspaces)
 	}
 
 	nx = token_next(align);
-	if (nx != NULL) {
+	if (nx != nullptr) {
 		/* No alignment wanted if the first non-pointer token is
 		 * followed by a semi. */
 		if (nx->tk_type == TOKEN_SEMI)
-			return NULL;
+			return nullptr;
 		/* No alignment wanted for function pointer types. */
 		if (align->tk_type == TOKEN_RPAREN && nx->tk_type == TOKEN_LPAREN)
-			return NULL;
+			return nullptr;
 	}
 
 	*nspaces = nstars;
@@ -354,11 +354,11 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
     struct ruler *rl)
 {
 	struct lexer *lx = pr->pr_lx;
-	const struct token *align = NULL;
+	const struct token *align = nullptr;
 	const struct token *end = type->end;
 	unsigned int nspaces = 0;
 
-	if (rl != NULL)
+	if (rl != nullptr)
 		align = find_align_token(type, &nspaces);
 
 	for (;;) {
@@ -368,11 +368,11 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 		int didalign = 0;
 
 		if (parser_attributes_peek(pr, &pending, 0)) {
-			struct token *before = NULL;
+			struct token *before = nullptr;
 
 			(void)lexer_back(lx, &before);
 			concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
-			if ((parser_attributes(pr, concat, NULL, 0) & FAIL) || !lexer_back(lx, &tk))
+			if ((parser_attributes(pr, concat, nullptr, 0) & FAIL) || !lexer_back(lx, &tk))
 				return parser_fail(pr);
 			if (tk == before) {
 				/* No progress, bail out to avoid looping forever. */
@@ -384,8 +384,8 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 			continue;
 		}
 
-		if (parser_attributes_std_peek(pr, NULL)) {
-			struct token *before = NULL;
+		if (parser_attributes_std_peek(pr, nullptr)) {
+			struct token *before = nullptr;
 			struct token *first;
 
 			(void)lexer_back(lx, &before);
@@ -397,11 +397,11 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 				return parser_fail(pr);
 			if (tk == before || tk->tk_type == LEXER_EOF)
 				return parser_fail(pr);
-			if (!lexer_peek_if(lx, TOKEN_RPAREN, NULL) &&
-			    !lexer_peek_if(lx, TOKEN_RSQUARE, NULL) &&
-			    !lexer_peek_if(lx, TOKEN_COMMA, NULL) &&
-			    !lexer_peek_if(lx, TOKEN_SEMI, NULL) &&
-			    !lexer_peek_if(lx, TOKEN_LSQUARE, NULL))
+			if (!lexer_peek_if(lx, TOKEN_RPAREN, nullptr) &&
+			    !lexer_peek_if(lx, TOKEN_RSQUARE, nullptr) &&
+			    !lexer_peek_if(lx, TOKEN_COMMA, nullptr) &&
+			    !lexer_peek_if(lx, TOKEN_SEMI, nullptr) &&
+			    !lexer_peek_if(lx, TOKEN_LSQUARE, nullptr))
 				doc_alloc(DOC_LINE, concat);
 			if (tk == end)
 				break;
@@ -434,9 +434,9 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 			 * list's own closing parenthesis as the stop token.
 			 */
 			arg_rparen = matching_rparen(lparen);
-			if (arg_rparen == NULL)
+			if (arg_rparen == nullptr)
 				return parser_fail(pr);
-			while (parser_func_arg(pr, indent, NULL, arg_rparen) & GOOD)
+			while (parser_func_arg(pr, indent, nullptr, arg_rparen) & GOOD)
 				continue;
 			if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
 				parser_doc_token(pr, rparen, dc);
@@ -498,7 +498,7 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 			    tk->tk_type != TOKEN_LSQUARE &&
 			    lexer_pop(lx, &nx) &&
 			    (nx->tk_type != TOKEN_LPAREN ||
-			     lexer_if(lx, TOKEN_STAR, NULL)) &&
+			     lexer_if(lx, TOKEN_STAR, nullptr)) &&
 			    nx->tk_type != TOKEN_LSQUARE &&
 			    nx->tk_type != TOKEN_RSQUARE &&
 			    nx->tk_type != TOKEN_RPAREN &&
@@ -562,7 +562,7 @@ scan_declarator1(struct parser *pr, struct lexer *lx, struct token **args,
 		while (parser_attributes_std_peek(pr, &attr) &&
 		    lexer_seek_after(lx, attr))
 			continue;
-		while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, NULL))
+		while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, nullptr))
 			nqual++;
 		if (nqual > 0)
 			*flags |= SCAN_QUALIFIER;
@@ -579,7 +579,7 @@ scan_declarator1(struct parser *pr, struct lexer *lx, struct token **args,
 		 * declarator out of the type range so the return type is
 		 * recognized, e.g. int (*f(void))(void).
 		 */
-		if (lexer_peek_if(lx, TOKEN_LPAREN, NULL))
+		if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr))
 			return 0;
 		*flags |= SCAN_IDENT;
 		*end = tk;
@@ -598,7 +598,7 @@ scan_declarator1(struct parser *pr, struct lexer *lx, struct token **args,
 	for (;;) {
 		struct token *lparen, *rparen;
 
-		if (lexer_if_pair(lx, TOKEN_LSQUARE, TOKEN_RSQUARE, NULL,
+		if (lexer_if_pair(lx, TOKEN_LSQUARE, TOKEN_RSQUARE, nullptr,
 		    &rparen)) {
 			*flags |= SCAN_SUFFIX;
 			*end = rparen;
@@ -650,7 +650,7 @@ scan_function_declarator1(struct parser *pr, struct lexer *lx,
 		while (parser_attributes_std_peek(pr, &attr) &&
 		    lexer_seek_after(lx, attr))
 			continue;
-		while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, NULL))
+		while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER, nullptr))
 			continue;
 		if (!lexer_if(lx, TOKEN_STAR, &tk))
 			break;
@@ -659,7 +659,7 @@ scan_function_declarator1(struct parser *pr, struct lexer *lx,
 
 	if (lexer_if(lx, TOKEN_IDENT, &tk)) {
 		*end = tk;
-		if (!lexer_peek_if(lx, TOKEN_LPAREN, NULL))
+		if (!lexer_peek_if(lx, TOKEN_LPAREN, nullptr))
 			return 0;	/* Not a function. */
 		if (!lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
 		    func_lparen, &tk))
@@ -689,20 +689,20 @@ static int
 is_declarator_paren(struct parser *pr, struct lexer *lx)
 {
 	struct lexer_state s;
-	struct token *args = NULL, *end = NULL;
+	struct token *args = nullptr, *end = nullptr;
 	unsigned int flags = 0;
 	int ok = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (scan_declarator(pr, lx, &args, &end, &flags) &&
-	    lexer_peek_if(lx, TOKEN_RPAREN, NULL))
+	    lexer_peek_if(lx, TOKEN_RPAREN, nullptr))
 		ok = 1;
 	lexer_peek_leave(lx, &s);
 
 	if (!ok) {
 		lexer_peek_enter(lx, &s);
 		if (scan_function_declarator(pr, lx, &args, &end) &&
-		    lexer_peek_if(lx, TOKEN_RPAREN, NULL))
+		    lexer_peek_if(lx, TOKEN_RPAREN, nullptr))
 			ok = 1;
 		lexer_peek_leave(lx, &s);
 	}
@@ -711,7 +711,7 @@ is_declarator_paren(struct parser *pr, struct lexer *lx)
 
 /*
  * Returns the closing parenthesis matching the given opening parenthesis, or
- * NULL if there is none.
+ * nullptr if there is none.
  */
 static struct token *
 matching_rparen(struct token *lparen)
@@ -719,13 +719,13 @@ matching_rparen(struct token *lparen)
 	struct token *tk = token_next(lparen);
 	int depth = 1;
 
-	for (; tk != NULL; tk = token_next(tk)) {
+	for (; tk != nullptr; tk = token_next(tk)) {
 		if (tk->tk_type == TOKEN_LPAREN)
 			depth++;
 		else if (tk->tk_type == TOKEN_RPAREN && --depth == 0)
 			return tk;
 	}
-	return NULL;
+	return nullptr;
 }
 
 /*
@@ -745,12 +745,12 @@ peek_type_declarator(struct parser *pr, struct token **args, struct token **end)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
-	struct token *a = NULL, *e = NULL;
+	struct token *a = nullptr, *e = nullptr;
 	unsigned int flags = 0;
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_peek_if(lx, TOKEN_LPAREN, NULL) &&
+	if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr) &&
 	    scan_declarator(pr, lx, &a, &e, &flags)) {
 		if ((flags & (SCAN_QUALIFIER | SCAN_SUFFIX)) != 0 ||
 		    (flags & SCAN_IDENT) == 0) {
@@ -774,14 +774,14 @@ parser_type_func_declarator(struct parser *pr, struct parser_type *type)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
-	struct token *lparen = NULL, *end = NULL;
+	struct token *lparen = nullptr, *end = nullptr;
 	int ok = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (scan_function_declarator(pr, lx, &lparen, &end)) {
 		type->end = end;
 		type->args = lparen;
-		type->align = NULL;
+		type->align = nullptr;
 		type->func_decl = 1;
 		ok = 1;
 	}
@@ -798,20 +798,20 @@ peek_type_ident_after_type(struct parser *pr, const Parser_Type_Context *c)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, NULL) &&
-	    (lexer_if_flags(lx, TOKEN_FLAG_ASSIGN, NULL) ||
-	     lexer_if(lx, TOKEN_LSQUARE, NULL) ||
+	if (lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	    (lexer_if_flags(lx, TOKEN_FLAG_ASSIGN, nullptr) ||
+	     lexer_if(lx, TOKEN_LSQUARE, nullptr) ||
 	     (!peek_paren_pair_then_lparen(lx) &&
-	      lexer_if(lx, TOKEN_LPAREN, NULL) &&
-	      !lexer_peek_if(lx, TOKEN_STAR, NULL)) ||
-	     lexer_if(lx, TOKEN_RPAREN, NULL) ||
-	     lexer_if(lx, TOKEN_SEMI, NULL) ||
-	     lexer_if(lx, TOKEN_COMMA, NULL) ||
-	     lexer_if(lx, TOKEN_COLON, NULL) ||
-	     lexer_if(lx, TOKEN_ASSEMBLY, NULL) ||
+	      lexer_if(lx, TOKEN_LPAREN, nullptr) &&
+	      !lexer_peek_if(lx, TOKEN_STAR, nullptr)) ||
+	     lexer_if(lx, TOKEN_RPAREN, nullptr) ||
+	     lexer_if(lx, TOKEN_SEMI, nullptr) ||
+	     lexer_if(lx, TOKEN_COMMA, nullptr) ||
+	     lexer_if(lx, TOKEN_COLON, nullptr) ||
+	     lexer_if(lx, TOKEN_ASSEMBLY, nullptr) ||
 	     (parser_attributes_peek(pr, &rparen, 0) &&
 	      lexer_seek_after(lx, rparen) &&
-	      !lexer_if(lx, TOKEN_IDENT, NULL)) ||
+	      !lexer_if(lx, TOKEN_IDENT, nullptr)) ||
 	     c->previous_token_type == TOKEN_ATTRIBUTE))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
@@ -826,16 +826,16 @@ peek_type_ident_after_type(struct parser *pr, const Parser_Type_Context *c)
 static int
 peek_param_content(struct lexer *lx)
 {
-	if (!lexer_if(lx, TOKEN_IDENT, NULL))
+	if (!lexer_if(lx, TOKEN_IDENT, nullptr))
 		return 0;
-	if (lexer_if(lx, TOKEN_RPAREN, NULL))
+	if (lexer_if(lx, TOKEN_RPAREN, nullptr))
 		return 1;	/* single K&R identifier */
-	if (lexer_if(lx, TOKEN_COMMA, NULL)) {
+	if (lexer_if(lx, TOKEN_COMMA, nullptr)) {
 		/* Must be a pure comma-separated identifier list. */
-		while (lexer_if(lx, TOKEN_IDENT, NULL)) {
-			if (lexer_if(lx, TOKEN_RPAREN, NULL))
+		while (lexer_if(lx, TOKEN_IDENT, nullptr)) {
+			if (lexer_if(lx, TOKEN_RPAREN, nullptr))
 				return 1;
-			if (!lexer_if(lx, TOKEN_COMMA, NULL))
+			if (!lexer_if(lx, TOKEN_COMMA, nullptr))
 				return 0;
 		}
 		return 0;
@@ -845,11 +845,11 @@ peek_param_content(struct lexer *lx)
 	 * Require a plausible declarator continuation to reject expressions
 	 * such as `a + b' that could otherwise be mistaken for a declaration.
 	 */
-	if (lexer_peek_if(lx, TOKEN_IDENT, NULL) ||
-	    lexer_peek_if(lx, TOKEN_STAR, NULL) ||
-	    lexer_peek_if(lx, TOKEN_LSQUARE, NULL) ||
-	    lexer_peek_if(lx, TOKEN_LPAREN, NULL) ||
-	    lexer_peek_if(lx, TOKEN_COLON, NULL))
+	if (lexer_peek_if(lx, TOKEN_IDENT, nullptr) ||
+	    lexer_peek_if(lx, TOKEN_STAR, nullptr) ||
+	    lexer_peek_if(lx, TOKEN_LSQUARE, nullptr) ||
+	    lexer_peek_if(lx, TOKEN_LPAREN, nullptr) ||
+	    lexer_peek_if(lx, TOKEN_COLON, nullptr))
 		return 1;
 	return 0;
 }
@@ -866,17 +866,17 @@ peek_param_list_valid(struct lexer *lx)
 	int valid = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr,
 	    &rparen)) {
 		lexer_peek_enter(lx, &s2);
-		(void)lexer_if(lx, TOKEN_LPAREN, NULL);
-		valid = lexer_if(lx, TOKEN_RPAREN, NULL) ||
-		    (lexer_if(lx, TOKEN_VOID, NULL) &&
-		     lexer_if(lx, TOKEN_RPAREN, NULL)) ||
-		    lexer_if(lx, TOKEN_ELLIPSIS, NULL) ||
+		(void)lexer_if(lx, TOKEN_LPAREN, nullptr);
+		valid = lexer_if(lx, TOKEN_RPAREN, nullptr) ||
+		    (lexer_if(lx, TOKEN_VOID, nullptr) &&
+		     lexer_if(lx, TOKEN_RPAREN, nullptr)) ||
+		    lexer_if(lx, TOKEN_ELLIPSIS, nullptr) ||
 		    lexer_peek_if_flags(lx,
 		    TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER |
-		    TOKEN_FLAG_STORAGE, NULL) ||
+		    TOKEN_FLAG_STORAGE, nullptr) ||
 		    peek_param_content(lx);
 		lexer_peek_leave(lx, &s2);
 	}
@@ -896,7 +896,7 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
-	struct token *tk = NULL, *first;
+	struct token *tk = nullptr, *first;
 	unsigned int beg_off, end_off = 0;
 	int reached_eof = 0;
 	int peek = 0;
@@ -919,7 +919,7 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 	for (;;) {
 		int nest = 0;
 
-		if (!parser_type_peek(pr, NULL, 0))
+		if (!parser_type_peek(pr, nullptr, 0))
 			break;
 
 		/* Skip to the terminating ';' of this declaration. */
@@ -945,7 +945,7 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 				goto out;
 		}
 
-		if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+		if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 			peek = 1;
 			break;
 		}
@@ -982,27 +982,27 @@ classify_implicit_int(struct parser *pr, int *is_func)
 
 	*is_func = 0;
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, NULL)) {
-		if (!lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+	if (lexer_if(lx, TOKEN_IDENT, nullptr)) {
+		if (!lexer_peek_if(lx, TOKEN_LPAREN, nullptr)) {
 			/* Plain variable declarator. */
 			kind = PARSER_IMPLICIT_DECL;
 		} else if (peek_param_list_valid(lx) &&
-		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr,
 		    &rparen)) {
 			*is_func = 1;
-			if (lexer_if(lx, TOKEN_SEMI, NULL))
+			if (lexer_if(lx, TOKEN_SEMI, nullptr))
 				kind = PARSER_IMPLICIT_DECL;
-			else if (lexer_if(lx, TOKEN_LBRACE, NULL))
+			else if (lexer_if(lx, TOKEN_LBRACE, nullptr))
 				kind = PARSER_IMPLICIT_IMPL;
 			else if (parser_type_decl_list_then_lbrace(pr))
 				kind = PARSER_IMPLICIT_IMPL;
 		}
-	} else if (lexer_peek_if(lx, TOKEN_LPAREN, NULL)) {
+	} else if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr)) {
 		/*
 		 * Parenthesized declarator, e.g. the C23 inferred declaration
 		 * `auto (*p) = init;' or `static (*p);'.
 		 */
-		struct token *args = NULL, *end = NULL;
+		struct token *args = nullptr, *end = nullptr;
 		unsigned int flags = 0;
 
 		if (scan_declarator(pr, lx, &args, &end, &flags))
@@ -1054,8 +1054,8 @@ peek_paren_pair_then_lparen(struct lexer *lx)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, &rparen) &&
-	    lexer_peek_if(lx, TOKEN_LPAREN, NULL))
+	if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &rparen) &&
+	    lexer_peek_if(lx, TOKEN_LPAREN, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	return peek;
@@ -1071,7 +1071,7 @@ peek_type_abstract_func(struct lexer *lx, struct token **args,
     struct token **end)
 {
 	struct lexer_state s, s2;
-	struct token *lparen = NULL, *rparen = NULL;
+	struct token *lparen = nullptr, *rparen = nullptr;
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
@@ -1080,13 +1080,13 @@ peek_type_abstract_func(struct lexer *lx, struct token **args,
 		int content = 0;
 
 		lexer_peek_enter(lx, &s2);
-		(void)lexer_if(lx, TOKEN_LPAREN, NULL);
-		content = lexer_if(lx, TOKEN_RPAREN, NULL) ||
-		    lexer_if(lx, TOKEN_VOID, NULL) ||
-		    lexer_if(lx, TOKEN_ELLIPSIS, NULL) ||
+		(void)lexer_if(lx, TOKEN_LPAREN, nullptr);
+		content = lexer_if(lx, TOKEN_RPAREN, nullptr) ||
+		    lexer_if(lx, TOKEN_VOID, nullptr) ||
+		    lexer_if(lx, TOKEN_ELLIPSIS, nullptr) ||
 		    lexer_peek_if_flags(lx,
 		    TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER |
-		    TOKEN_FLAG_STORAGE, NULL);
+		    TOKEN_FLAG_STORAGE, nullptr);
 		lexer_peek_leave(lx, &s2);
 
 		if (content &&
@@ -1109,8 +1109,8 @@ peek_type_noident(struct lexer *lx, struct token **tk)
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, tk) &&
-	    (lexer_if(lx, TOKEN_RPAREN, NULL) ||
-	     lexer_if(lx, TOKEN_COMMA, NULL)))
+	    (lexer_if(lx, TOKEN_RPAREN, nullptr) ||
+	     lexer_if(lx, TOKEN_COMMA, nullptr)))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	return peek;
@@ -1123,9 +1123,9 @@ peek_type_unknown_array(struct lexer *lx, struct token **tk)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, NULL) &&
-	    lexer_if(lx, TOKEN_LSQUARE, NULL)) {
-		(void)lexer_if(lx, TOKEN_LITERAL, NULL);
+	if (lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	    lexer_if(lx, TOKEN_LSQUARE, nullptr)) {
+		(void)lexer_if(lx, TOKEN_LITERAL, nullptr);
 		if (lexer_if(lx, TOKEN_RSQUARE, tk))
 			peek = 1;
 	}
@@ -1141,8 +1141,8 @@ peek_type_unknown_bitfield(struct lexer *lx, struct token **tk)
 
 	lexer_peek_enter(lx, &s);
 	peek = lexer_if(lx, TOKEN_IDENT, tk) &&
-	    lexer_if(lx, TOKEN_COLON, NULL) &&
-	    lexer_if(lx, TOKEN_LITERAL, NULL);
+	    lexer_if(lx, TOKEN_COLON, nullptr) &&
+	    lexer_if(lx, TOKEN_LITERAL, nullptr);
 	lexer_peek_leave(lx, &s);
 	return peek;
 }
@@ -1154,8 +1154,8 @@ peek_type_squares(struct lexer *lx, struct token **rsquare)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &ls);
-	if (lexer_if(lx, TOKEN_LSQUARE, NULL)) {
-		(void)lexer_if(lx, TOKEN_LITERAL, NULL);
+	if (lexer_if(lx, TOKEN_LSQUARE, nullptr)) {
+		(void)lexer_if(lx, TOKEN_LITERAL, nullptr);
 		if (lexer_if(lx, TOKEN_RSQUARE, rsquare))
 			peek = 1;
 	}
@@ -1180,7 +1180,7 @@ peek_type_paren_ident(struct lexer *lx, enum clang_token_type clang_type,
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, &tk) &&
 	    clang_token_type(tk) == clang_type &&
-	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL, &end)) {
+	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &end)) {
 		*rparen = end;
 		peek = 1;
 	}
@@ -1206,7 +1206,7 @@ peek_type_alignas(struct lexer *lx, struct token **rparen)
 	    lexer_if(lx, TOKEN_IDENT, &tk)) {
 		if ((tk->tk_type == TOKEN_ALIGNAS ||
 		    clang_token_type(tk) == CLANG_TOKEN_ALIGNAS) &&
-		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr,
 		    &end)) {
 			*rparen = end;
 			peek = 1;

@@ -38,8 +38,8 @@ comment_trim(const struct token *tk, const struct style *st,
 	size_t len = tk->tk_len;
 	int iscrlf;
 
-	if (len == 0 || memchr(sp, '\n', len) == NULL)
-		return NULL;
+	if (len == 0 || memchr(sp, '\n', len) == nullptr)
+		return nullptr;
 
 	arena_scope(scratch, scratch_scope);
 
@@ -50,7 +50,7 @@ comment_trim(const struct token *tk, const struct style *st,
 		size_t commlen;
 
 		ep = skipws(sp, len);
-		if (ep != NULL && (*ep == '*' || *ep == '/')) {
+		if (ep != nullptr && (*ep == '*' || *ep == '/')) {
 			size_t wslen;
 
 			wslen = (size_t)(ep - sp);
@@ -60,7 +60,7 @@ comment_trim(const struct token *tk, const struct style *st,
 			sp += wslen;
 		}
 		ep = nextline(sp, len);
-		if (ep == NULL) {
+		if (ep == nullptr) {
 			/*
 			 * Last line without a trailing new line, e.g. a merged
 			 * block of C99 comments. Trim and emit it too.
@@ -80,7 +80,7 @@ comment_trim(const struct token *tk, const struct style *st,
 	}
 
 	if (!is_comment_trimmed(tk, bf))
-		return NULL;
+		return nullptr;
 	return arena_strdup(s, buffer_str(bf));
 }
 
@@ -90,8 +90,8 @@ nextline(const char *str, size_t len)
 	const char *p;
 
 	p = memchr(str, '\n', len);
-	if (p == NULL)
-		return NULL;
+	if (p == nullptr)
+		return nullptr;
 	return &p[1];
 }
 
@@ -103,7 +103,7 @@ skipws(const char *str, size_t len)
 	for (; len > 0 && (str[i] == ' ' || str[i] == '\t'); i++, len--)
 		continue;
 	if (i == 0)
-		return NULL;
+		return nullptr;
 	return &str[i];
 }
 

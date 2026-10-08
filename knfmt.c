@@ -47,12 +47,12 @@ main(int argc, char *argv[])
 {
 	struct main_context c = {0};
 	struct files files = {0};
-	const char *clang_format = NULL;
+	const char *clang_format = nullptr;
 	size_t i;
 	int error = 0;
 	int ch;
 
-	if (pledge("stdio rpath wpath cpath fattr chown proc exec", NULL) == -1)
+	if (pledge("stdio rpath wpath cpath fattr chown proc exec", nullptr) == -1)
 		err(1, "pledge");
 
 	options_init(&c.options);
@@ -95,26 +95,26 @@ main(int argc, char *argv[])
 		diff_init();
 
 	if (VECTOR_INIT(files.fs_vc))
-		err(1, NULL);
+		err(1, nullptr);
 
 	arenas_init(&c.arena);
 	arena_scope(c.arena.eternal, eternal_scope);
 	arena_scope(c.arena.buffer, buffer_scope);
 	c.style = style_parse(clang_format, &eternal_scope, c.arena.scratch,
 	    &c.options);
-	if (c.style == NULL) {
+	if (c.style == nullptr) {
 		error = 1;
 		goto out;
 	}
 
 	if (c.options.diff) {
-		if (pledge("stdio rpath wpath cpath proc exec", NULL) == -1)
+		if (pledge("stdio rpath wpath cpath proc exec", nullptr) == -1)
 			err(1, "pledge");
 	} else if (c.options.inplace) {
-		if (pledge("stdio rpath wpath cpath fattr chown", NULL) == -1)
+		if (pledge("stdio rpath wpath cpath fattr chown", nullptr) == -1)
 			err(1, "pledge");
 	} else {
-		if (pledge("stdio rpath", NULL) == -1)
+		if (pledge("stdio rpath", nullptr) == -1)
 			err(1, "pledge");
 	}
 
@@ -199,7 +199,7 @@ format_buffer(struct main_context *c, struct file *fe,
 	    },
 	    .callbacks		= clang_lexer_callbacks(clang),
 	});
-	if (lx == NULL)
+	if (lx == nullptr)
 		return 1;
 	if (options_trace_level(&c->options, TRACE_TOKEN) > 0)
 		lexer_dump(lx);

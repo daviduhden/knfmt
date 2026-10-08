@@ -7,7 +7,7 @@ struct expr_exec_arg {
 
 	/*
 	 * Reaching this token causes the expression parser to stop.
-	 * Passing NULL instructs the parser to continue until reaching
+	 * Passing nullptr instructs the parser to continue until reaching
 	 * something unknown.
 	 */
 	const struct token	*stop;
@@ -40,14 +40,14 @@ struct expr_exec_arg {
 	struct {
 		/*
 		 * Invoked when an invalid expression is encountered.
-		 * Returning anything other than NULL implies that the
+		 * Returning anything other than nullptr implies that the
 		 * expression parser can continue.
 		 */
 		struct doc	*(*recover)(const struct expr_exec_arg *, void *);
 
 		/*
 		 * Expected to consume a type as part of a cast expression.
-		 * Returning anything other than NULL implies that the
+		 * Returning anything other than nullptr implies that the
 		 * expression parser can continue.
 		 */
 		struct doc	*(*recover_cast)(const struct expr_exec_arg *,
@@ -55,7 +55,7 @@ struct expr_exec_arg {
 
 		/*
 		 * Expected to consume a _Generic selection. Returning
-		 * anything other than NULL implies that the expression parser
+		 * anything other than nullptr implies that the expression parser
 		 * can continue.
 		 */
 		struct doc	*(*recover_generic)(const struct expr_exec_arg *,

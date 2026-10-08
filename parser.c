@@ -30,8 +30,8 @@ clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 	unsigned int beg;
 
 	off = pr->pr_token.clang_format_off;
-	pr->pr_token.clang_format_off = NULL;
-	if (off == NULL)
+	pr->pr_token.clang_format_off = nullptr;
+	if (off == nullptr)
 		return;
 	beg = off->tk_lno + token_lines(off);
 	/*
@@ -63,7 +63,7 @@ static void
 clang_format_on(struct parser *pr, struct token *comment, struct doc *dc)
 {
 	/* Ignore while peeking and branching. */
-	if (lexer_get_peek(pr->pr_lx) || pr->pr_token.unmute != NULL)
+	if (lexer_get_peek(pr->pr_lx) || pr->pr_token.unmute != nullptr)
 		return;
 
 	parser_trace(pr, "%s", lexer_serialize(pr->pr_lx, comment));
@@ -76,8 +76,8 @@ clang_format_off(struct parser *pr, struct token *comment, struct doc *dc)
 {
 	/* Ignore while peeking, branching and already off. */
 	if (lexer_get_peek(pr->pr_lx) ||
-	    pr->pr_token.unmute != NULL ||
-	    pr->pr_token.clang_format_off != NULL)
+	    pr->pr_token.unmute != nullptr ||
+	    pr->pr_token.clang_format_off != nullptr)
 		return;
 
 	parser_trace(pr, "%s", lexer_serialize(pr->pr_lx, comment));
@@ -85,7 +85,7 @@ clang_format_off(struct parser *pr, struct token *comment, struct doc *dc)
 	doc_alloc_impl(DOC_MUTE, dc, 1, __func__, __LINE__);
 
 	/* Must account for more than one trailing hard line(s). */
-	if (pr->pr_token.clang_format_off != NULL)
+	if (pr->pr_token.clang_format_off != nullptr)
 		token_rele(pr->pr_token.clang_format_off);
 	token_ref(comment);
 	pr->pr_token.clang_format_off = comment;
@@ -177,9 +177,9 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 		doc_flags |= DOC_EXEC_TRACE;
 	doc_exec(&(struct doc_exec_arg){
 	    .dc			= dc,
-	    .lx			= pr->pr_op->diffparse ? pr->pr_lx : NULL,
+	    .lx			= pr->pr_op->diffparse ? pr->pr_lx : nullptr,
 	    .scratch		= pr->pr_arena.scratch,
-	    .diff_chunks	= pr->pr_op->diffparse ? diff_chunks : NULL,
+	    .diff_chunks	= pr->pr_op->diffparse ? diff_chunks : nullptr,
 	    .bf			= bf,
 	    .st			= pr->pr_st,
 	    .flags		= doc_flags,
@@ -221,7 +221,7 @@ parser_fail_impl(struct parser *pr, const char *fun, int lno)
 {
 	struct token fallback = {.tk_lno = 1, .tk_cno = 1};
 	struct lexer *lx = pr->pr_lx;
-	struct token *tk = NULL;
+	struct token *tk = nullptr;
 
 	/*
 	 * A pending preprocessor branch is not an error: a retry continues the
@@ -255,7 +255,7 @@ parser_token_trim_before(const struct parser *UNUSED(pr), struct token *tk)
 	if (!token_is_moveable(tk))
 		return;
 	pv = token_prev(tk);
-	if (pv != NULL)
+	if (pv != nullptr)
 		token_trim(pv);
 }
 
@@ -311,11 +311,11 @@ parser_reset(struct parser *pr)
 	lexer_error_reset(pr->pr_lx);
 
 	/* Remove last clang-format off if about to be traversed again. */
-	if (pr->pr_token.clang_format_off != NULL &&
+	if (pr->pr_token.clang_format_off != nullptr &&
 	    lexer_peek(pr->pr_lx, &nx) &&
 	    token_cmp(nx, pr->pr_token.clang_format_off) < 0) {
 		token_rele(pr->pr_token.clang_format_off);
-		pr->pr_token.clang_format_off = NULL;
+		pr->pr_token.clang_format_off = nullptr;
 	}
 }
 
@@ -328,7 +328,7 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 
 	if (tk == pr->pr_token.unmute) {
 		if (!lexer_get_peek(pr->pr_lx))
-			pr->pr_token.unmute = NULL;
+			pr->pr_token.unmute = nullptr;
 		doc_alloc_impl(DOC_MUTE, dc, -1, __func__, __LINE__);
 	}
 
@@ -355,7 +355,7 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 
 	/* Mute if we're about to branch. */
 	nx = token_next(tk);
-	if (nx != NULL && (nx->tk_flags & TOKEN_FLAG_BRANCH))
+	if (nx != nullptr && (nx->tk_flags & TOKEN_FLAG_BRANCH))
 		doc_alloc_impl(DOC_MUTE, dc, 1, __func__, __LINE__);
 
 	return out;
@@ -366,7 +366,7 @@ parser_semi(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
 	struct lexer *lx = pr->pr_lx;
-	struct token *last = NULL;
+	struct token *last = nullptr;
 	struct token *nx, *semi;
 
 	if (!lexer_expect(lx, TOKEN_SEMI, &semi))
@@ -382,7 +382,7 @@ parser_semi(struct parser *pr, struct doc *dc)
 	    lexer_pop(lx, &nx))
 		last = nx;
 	lexer_peek_leave(lx, &s);
-	if (last != NULL) {
+	if (last != nullptr) {
 		while (lexer_pop(lx, &semi) && semi != last)
 			lexer_remove(lx, semi);
 	}

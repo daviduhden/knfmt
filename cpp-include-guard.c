@@ -56,8 +56,8 @@ path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 	char *resolved_path;
 
 	resolved_path = arena_malloc(s, PATH_MAX);
-	if (realpath(path, resolved_path) == NULL)
-		return NULL;
+	if (realpath(path, resolved_path) == nullptr)
+		return nullptr;
 	sliced_path = path_slice(resolved_path, ncomponents, s);
 
 	bf = arena_buffer_alloc(s, PATH_MAX);
@@ -87,11 +87,11 @@ sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
 	c->endif.parent = eof;
 
 	ifndef = token_list_find(&first->tk_prefixes, TOKEN_CPP_IFNDEF, 0);
-	if (ifndef == NULL)
+	if (ifndef == nullptr)
 		return 0;
 
 	define = token_list_find(&first->tk_prefixes, TOKEN_CPP_DEFINE, 0);
-	if (define == NULL ||
+	if (define == nullptr ||
 	    token_next(ifndef) != define ||
 	    !is_guard_define(define))
 		return 0;
@@ -168,13 +168,13 @@ is_comment(const struct token *prefix, const struct token *parent)
 static struct token *
 emit_ifndef(struct lexer *lx, struct token *tk, const char *cpp)
 {
-	struct token *comment = NULL;
+	struct token *comment = nullptr;
 	struct token *ifndef, *prefix;
 
 	ifndef = emit_cpp(lx, TOKEN_CPP, cpp);
 
 	/* Allow one or many comments before the include guard. */
-	for (prefix = token_list_first(&tk->tk_prefixes); prefix != NULL;
+	for (prefix = token_list_first(&tk->tk_prefixes); prefix != nullptr;
 	    prefix = token_next(prefix)) {
 		if (is_comment(prefix, tk))
 			comment = prefix;
@@ -182,7 +182,7 @@ emit_ifndef(struct lexer *lx, struct token *tk, const char *cpp)
 			break;
 	}
 
-	if (comment != NULL) {
+	if (comment != nullptr) {
 		if (token_has_verbatim_line(comment, 2)) {
 			token_list_append_after(&tk->tk_prefixes, comment,
 			    ifndef);
@@ -208,13 +208,13 @@ ensure_line(struct lexer *lx, struct token *eof)
 		struct token *last;
 
 		last = token_list_last(&eof->tk_prefixes);
-		if (last != NULL && !token_has_verbatim_line(last, 2))
+		if (last != nullptr && !token_has_verbatim_line(last, 2))
 			token_list_append(&eof->tk_prefixes, emit_line(lx));
 	} else {
 		struct token *pv;
 
 		pv = token_prev(eof);
-		if (pv != NULL)
+		if (pv != nullptr)
 			token_trim(pv);
 		token_list_append(&eof->tk_prefixes, emit_line(lx));
 	}
@@ -252,7 +252,7 @@ cpp_include_guard(const struct style *st, struct lexer *lx,
 	eternal_scope = lexer_get_arena_scope(lx);
 
 	guard = path_to_guard(path, ncomponents > 0 ? ncomponents : 1, &s);
-	if (guard == NULL)
+	if (guard == nullptr)
 		return;
 	cpp_ifndef = arena_sprintf(eternal_scope, "#ifndef %s\n", guard);
 	cpp_define = arena_sprintf(eternal_scope, "#define %s\n\n", guard);
@@ -268,17 +268,17 @@ cpp_include_guard(const struct style *st, struct lexer *lx,
 	 * Intentionally not creating a cpp branch as recovering from it won't
 	 * make a difference.
 	 */
-	if (c.ifndef.tk != NULL)
+	if (c.ifndef.tk != nullptr)
 		remove_branch_token(c.ifndef.tk, c.ifndef.parent);
 	ifndef = emit_ifndef(lx, c.ifndef.parent, cpp_ifndef);
 
-	if (c.define.tk != NULL)
+	if (c.define.tk != nullptr)
 		token_list_remove(&c.define.parent->tk_prefixes, c.define.tk);
 	define = emit_cpp(lx, TOKEN_CPP_DEFINE, cpp_define);
 	token_list_append_after(&c.define.parent->tk_prefixes, ifndef,
 	    define);
 
-	if (c.endif.tk != NULL)
+	if (c.endif.tk != nullptr)
 		remove_branch_token(c.endif.tk, c.endif.parent);
 	else
 		ensure_line(lx, c.endif.parent);

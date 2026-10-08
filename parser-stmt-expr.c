@@ -32,11 +32,11 @@ is_loop_stmt(struct parser *pr, const struct token *semi)
 int
 parser_stmt_expr(struct parser *pr, struct doc *dc)
 {
-	struct doc *expr = NULL;
+	struct doc *expr = nullptr;
 	struct token *nx, *semi;
 	int error;
 
-	if (parser_type_peek(pr, NULL, 0) || !parser_expr_peek(pr, &nx))
+	if (parser_type_peek(pr, nullptr, 0) || !parser_expr_peek(pr, &nx))
 		return parser_none(pr);
 	nx = token_next(nx);
 	if (nx->tk_type != TOKEN_SEMI)

@@ -20,7 +20,7 @@ find_token(int token_type, struct token *beg, struct token *end)
 			break;
 		tk = token_next(tk);
 	}
-	return NULL;
+	return nullptr;
 }
 
 static int
@@ -28,7 +28,7 @@ move_storage_token(struct lexer *lx, int token_type, struct token *beg, struct t
     struct token **out)
 {
 	struct token *tk = find_token(token_type, beg, end);
-	if (tk == NULL || tk == beg || !token_is_moveable(tk))
+	if (tk == nullptr || tk == beg || !token_is_moveable(tk))
 		return 0;
 
 	*out = tk == end ? token_prev(end) : end;

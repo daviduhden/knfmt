@@ -19,11 +19,11 @@ files_alloc(struct files *files, const char *path,
 	struct file *fe;
 
 	fe = VECTOR_CALLOC(files->fs_vc);
-	if (fe == NULL)
-		err(1, NULL);
+	if (fe == nullptr)
+		err(1, nullptr);
 	fe->fe_path = arena_strdup(eternal_scope, path);
 	if (VECTOR_INIT(fe->fe_diff))
-		err(1, NULL);
+		err(1, nullptr);
 	fe->fe_fd = -1;
 	return fe;
 }

@@ -85,17 +85,17 @@ diff_parse(struct files *files, struct arena_scope *eternal_scope,
 {
 	struct buffer *bf;
 	struct buffer_getline it = {0};
-	struct file *fe = NULL;
+	struct file *fe = nullptr;
 	const char *line;
 	int error = 0;
 
 	arena_scope(scratch, s);
 
 	bf = arena_buffer_read(&s, "/dev/stdin");
-	if (bf == NULL)
+	if (bf == nullptr)
 		return 1;
 
-	while ((line = arena_buffer_getline(&s, bf, &it)) != NULL) {
+	while ((line = arena_buffer_getline(&s, bf, &it)) != nullptr) {
 		const char *path;
 		unsigned int el, sl;
 
@@ -103,14 +103,14 @@ diff_parse(struct files *files, struct arena_scope *eternal_scope,
 			fe = files_alloc(files, path, eternal_scope);
 		} else if (matchchunk(line, &sl, &el)) {
 			/* Chunks cannot be present before the path. */
-			if (fe == NULL) {
+			if (fe == nullptr) {
 				error = 1;
 				goto out;
 			}
 
 			while (sl <= el) {
 				line = arena_buffer_getline(&s, bf, &it);
-				if (line == NULL) {
+				if (line == nullptr) {
 					error = 1;
 					goto out;
 				}
@@ -154,7 +154,7 @@ diff_get_chunk(const struct diffchunk *chunks, unsigned int lno)
 		if (lno >= du->du_beg && lno <= du->du_end)
 			return du;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static void
@@ -163,7 +163,7 @@ diff_end(struct diffchunk *chunks, unsigned int lno)
 	struct diffchunk *du;
 
 	du = VECTOR_LAST(chunks);
-	if (du != NULL && du->du_end == 0)
+	if (du != nullptr && du->du_end == 0)
 		du->du_end = lno;
 }
 
@@ -206,7 +206,7 @@ strtou(const char *str)
 	unsigned long n;
 
 	errno = 0;
-	n = strtoul(str, NULL, 10);
+	n = strtoul(str, nullptr, 10);
 	if (n == 0 || n > UINT_MAX || errno != 0)
 		return 0;
 	return (unsigned int)n;
@@ -248,10 +248,10 @@ matchline(const char *str, unsigned int lno, struct file *fe)
 
 	du = VECTOR_LAST(fe->fe_diff);
 	if (str[0] == '+') {
-		if (du == NULL || (du->du_beg > 0 && du->du_end > 0)) {
+		if (du == nullptr || (du->du_beg > 0 && du->du_end > 0)) {
 			du = VECTOR_CALLOC(fe->fe_diff);
-			if (du == NULL)
-				err(1, NULL);
+			if (du == nullptr)
+				err(1, nullptr);
 			du->du_beg = lno;
 		}
 	} else {
@@ -266,7 +266,7 @@ trimprefix(const char *str, size_t *len)
 	const char *p;
 
 	p = memchr(str, '/', *len);
-	if (p == NULL)
+	if (p == nullptr)
 		return str;
 	*len -= (size_t)((p - str) + 1);
 	return &p[1];

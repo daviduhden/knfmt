@@ -94,7 +94,7 @@ static int
 parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 {
 	struct ruler rl;
-	struct doc *line = NULL;
+	struct doc *line = nullptr;
 	struct doc *decl;
 	struct lexer *lx = pr->pr_lx;
 	int ndecl = 0;
@@ -112,7 +112,7 @@ parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 			line = doc_alloc(DOC_HARDLINE, decl);
 		error = parser_decl2(pr, decl, &rl, flags);
 		if (error & (FAIL | NONE)) {
-			if (line != NULL)
+			if (line != nullptr)
 				doc_remove(line, decl);
 			break;
 		}
@@ -133,7 +133,7 @@ parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 			 * of declarations.
 			 */
 			if (lexer_peek_if_prefix_flags(lx, TOKEN_FLAG_CPP,
-			    NULL))
+			    nullptr))
 				break;
 		}
 	}
@@ -156,7 +156,7 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 {
 	struct parser_type type = {0};
 	struct lexer *lx = pr->pr_lx;
-	struct doc *out = NULL;
+	struct doc *out = nullptr;
 	struct doc *concat;
 	struct token *beg, *end, *semi, *attr_end;
 	int iscpp = 0;
@@ -170,7 +170,7 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 		return parser_good(pr);
 	/* C23 attribute declaration, i.e. [[ ... ]] ; */
 	if (parser_attributes_std_peek(pr, &attr_end) &&
-	    token_next(attr_end) != NULL &&
+	    token_next(attr_end) != nullptr &&
 	    token_next(attr_end)->tk_type == TOKEN_SEMI) {
 		concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 		if (parser_attributes_std(pr, concat) & FAIL)
@@ -226,7 +226,7 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 		return parser_fail(pr);
 
 	/* Presence of semicolon implies that this declaration is done. */
-	if (lexer_peek_if(lx, TOKEN_SEMI, NULL))
+	if (lexer_peek_if(lx, TOKEN_SEMI, nullptr))
 		goto out;
 
 	if (token_is_decl(end, TOKEN_STRUCT)) {
@@ -265,13 +265,13 @@ parser_decl2(struct parser *pr, struct doc *dc, struct ruler *rl,
 		.rl	= rl,
 		.semi	= semi,
 		.indent	= style(pr->pr_st, IndentWidth),
-		.flags	= iscpp && lexer_peek_if(lx, TOKEN_EQUAL, NULL) ? 0 :
+		.flags	= iscpp && lexer_peek_if(lx, TOKEN_EQUAL, nullptr) ? 0 :
 			PARSER_DECL_INIT_SPACE_BEFORE_EQUAL,
 	};
 	error = parser_decl_init(pr, &out, &arg);
 	if (error & (FAIL | NONE))
 		return parser_fail(pr);
-	if (out != NULL)
+	if (out != nullptr)
 		concat = out;
 
 out:
@@ -306,7 +306,7 @@ parser_decl_init(struct parser *pr, struct doc **out,
 {
 	struct doc *concat, *dc, *indent;
 	struct lexer *lx = pr->pr_lx;
-	struct ruler_indent *cookie = NULL;
+	struct ruler_indent *cookie = nullptr;
 	int ninit = 0;
 
 	indent = ruler_indent(arg->rl, arg->dc, &cookie);
@@ -361,9 +361,9 @@ parser_decl_peek_parens_or_squares(struct parser *pr, struct token **lhs)
 {
 	struct lexer *lx = pr->pr_lx;
 
-	if (lexer_peek_if_pair(lx, TOKEN_LSQUARE, TOKEN_RSQUARE, lhs, NULL))
+	if (lexer_peek_if_pair(lx, TOKEN_LSQUARE, TOKEN_RSQUARE, lhs, nullptr))
 		return 1;
-	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, lhs, NULL))
+	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, lhs, nullptr))
 		return 1;
 	return 0;
 }
@@ -379,7 +379,7 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 	 * before parenthesized or square declarators as [[...]] would
 	 * otherwise be mistaken for a pair of square brackets.
 	 */
-	if (parser_attributes_std_peek(pr, NULL)) {
+	if (parser_attributes_std_peek(pr, nullptr)) {
 		doc_literal(" ", dc);
 		if (parser_attributes_std(pr, dc) & FAIL)
 			return parser_fail(pr);
@@ -388,12 +388,12 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 
 	if (lexer_if(lx, TOKEN_IDENT, &tk)) {
 		parser_doc_token(pr, tk, dc);
-		if (lexer_peek_if(lx, TOKEN_IDENT, NULL))
+		if (lexer_peek_if(lx, TOKEN_IDENT, nullptr))
 			doc_literal(" ", dc);
 		*out = dc;
 		return parser_good(pr);
 	} else if (parser_decl_peek_parens_or_squares(pr, &lhs)) {
-		struct doc *expr = NULL;
+		struct doc *expr = nullptr;
 		int rhs = lhs->tk_type == TOKEN_LSQUARE ?
 		    TOKEN_RSQUARE : TOKEN_RPAREN;
 		int error;
@@ -409,7 +409,7 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 			expr = dc;
 		if (lexer_expect(lx, rhs, &tk))
 			parser_doc_token(pr, tk, expr);
-		if (lexer_peek_if(lx, TOKEN_IDENT, NULL))
+		if (lexer_peek_if(lx, TOKEN_IDENT, nullptr))
 			doc_literal(" ", dc);
 		return parser_good(pr);
 	} else if (parser_decl_bitfield(pr, dc) & GOOD) {
@@ -424,8 +424,8 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 		return parser_good(pr);
 	} else if (parser_attributes(pr, dc, out,
 	    PARSER_ATTRIBUTES_LINE) & GOOD) {
-		if (!lexer_peek_if(lx, TOKEN_SEMI, NULL) &&
-		    !lexer_peek_if(lx, TOKEN_EQUAL, NULL))
+		if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr) &&
+		    !lexer_peek_if(lx, TOKEN_EQUAL, nullptr))
 			doc_literal(" ", dc);
 		return parser_good(pr);
 	} else if (parser_asm_peek(pr)) {
@@ -453,8 +453,8 @@ parser_decl_init_assign(struct parser *pr, struct doc *dc, struct doc **out,
 	parser_doc_token(pr, equal, dc);
 	doc_literal(" ", dc);
 
-	dedent = doc_alloc(DOC_CONCAT, ruler_dedent(arg->rl, dc, NULL));
-	if (lexer_peek_if(lx, TOKEN_LBRACE, NULL)) {
+	dedent = doc_alloc(DOC_CONCAT, ruler_dedent(arg->rl, dc, nullptr));
+	if (lexer_peek_if(lx, TOKEN_LBRACE, nullptr)) {
 		error = parser_braces(pr, arg->dc, dedent, arg->indent, 0);
 		if (error & (FAIL | NONE))
 			return parser_fail(pr);
@@ -464,7 +464,7 @@ parser_decl_init_assign(struct parser *pr, struct doc *dc, struct doc **out,
 		unsigned int expr_flags = 0;
 
 		/* Never break before the assignment operator. */
-		if ((pv = token_prev(equal)) != NULL &&
+		if ((pv = token_prev(equal)) != nullptr &&
 		    token_has_line(pv, 1))
 			token_move_suffixes(pv, equal);
 
@@ -509,7 +509,7 @@ parser_static_assert_peek(struct parser *pr)
 	if (lexer_if(lx, TOKEN_STATIC_ASSERT, &tk) ||
 	    (lexer_if(lx, TOKEN_IDENT, &tk) &&
 	     clang_token_type(tk) == CLANG_TOKEN_STATIC_ASSERT)) {
-		if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, NULL,
+		if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr,
 		    &rparen) &&
 		    lexer_if(lx, TOKEN_SEMI, &semi))
 			peek = 1;
@@ -537,7 +537,7 @@ parser_static_assert(struct parser *pr, struct doc *dc)
 	concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 
 	/* Emit any leading C23 standard attributes. */
-	while (parser_attributes_std_peek(pr, NULL)) {
+	while (parser_attributes_std_peek(pr, nullptr)) {
 		if (parser_attributes_std(pr, concat) & FAIL)
 			return parser_fail(pr);
 		doc_alloc(DOC_LINE, concat);
@@ -555,7 +555,7 @@ parser_static_assert(struct parser *pr, struct doc *dc)
 	parser_doc_token(pr, tk, concat);
 
 	(void)lexer_peek_until_comma(lx, rparen, &stop);
-	error = parser_expr(pr, NULL, &(struct parser_expr_arg){
+	error = parser_expr(pr, nullptr, &(struct parser_expr_arg){
 	    .dc		= concat,
 	    .stop	= stop,
 	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
@@ -611,7 +611,7 @@ parser_decl_braces(struct parser *pr, struct doc *dc, int break_before_braces)
 	    &lbrace, &rbrace))
 		return parser_fail(pr);
 	parser_token_trim_before(pr, rbrace);
-	if (lexer_expect(lx, TOKEN_LBRACE, NULL)) {
+	if (lexer_expect(lx, TOKEN_LBRACE, nullptr)) {
 		parser_token_trim_after(pr, lbrace);
 		if (break_before_braces)
 			doc_alloc(DOC_HARDLINE, dc);
@@ -627,9 +627,9 @@ parser_decl_braces(struct parser *pr, struct doc *dc, int break_before_braces)
 	if (lexer_expect(lx, TOKEN_RBRACE, &rbrace))
 		parser_doc_token(pr, rbrace, dc);
 
-	if (!lexer_peek_if(lx, TOKEN_SEMI, NULL) &&
-	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, NULL) &&
-	    !parser_attributes_std_peek(pr, NULL))
+	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr) &&
+	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, nullptr) &&
+	    !parser_attributes_std_peek(pr, nullptr))
 		doc_literal(" ", dc);
 
 	return parser_good(pr);
@@ -662,7 +662,7 @@ parser_simple_decl_enter(struct parser *pr, unsigned int flags,
 	if (error & GOOD)
 		simple_decl_leave(pr->pr_simple.decl);
 	simple_decl_free(pr->pr_simple.decl);
-	pr->pr_simple.decl = NULL;
+	pr->pr_simple.decl = nullptr;
 	simple_leave(simple);
 
 	return parser_good(pr);
@@ -696,7 +696,7 @@ parser_simple_decl_forward_enter(struct parser *pr, unsigned int flags,
 	if (error & GOOD)
 		simple_decl_forward_leave(pr->pr_simple.decl_forward);
 	simple_decl_forward_free(pr->pr_simple.decl_forward);
-	pr->pr_simple.decl_forward = NULL;
+	pr->pr_simple.decl_forward = nullptr;
 	simple_leave(simple);
 
 	return parser_good(pr);

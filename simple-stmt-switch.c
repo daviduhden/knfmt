@@ -24,9 +24,9 @@ simple_stmt_switch(struct lexer *lx, struct token *tkcase)
 
 	lexer_peek_enter(lx, &ls);
 	lexer_seek(lx, tkcase);
-	peek = lexer_if(lx, TOKEN_DEFAULT, NULL) &&
+	peek = lexer_if(lx, TOKEN_DEFAULT, nullptr) &&
 	    lexer_if(lx, TOKEN_COLON, &colon) &&
-	    lexer_if(lx, TOKEN_SEMI, NULL);
+	    lexer_if(lx, TOKEN_SEMI, nullptr);
 	lexer_peek_leave(lx, &ls);
 	if (!peek)
 		return;

@@ -16,9 +16,9 @@ parser_extern(struct parser *pr, struct doc *dc)
 	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_EXTERN, NULL) &&
-	    lexer_if(lx, TOKEN_STRING, NULL) &&
-	    lexer_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, NULL, &rbrace))
+	if (lexer_if(lx, TOKEN_EXTERN, nullptr) &&
+	    lexer_if(lx, TOKEN_STRING, nullptr) &&
+	    lexer_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, nullptr, &rbrace))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	if (!peek)

@@ -33,7 +33,7 @@ simple_decl_forward_enter(struct lexer *lx, struct arena_scope *eternal_scope,
 
 	sd = arena_calloc(eternal_scope, 1, sizeof(*sd));
 	if (VECTOR_INIT(sd->decls))
-		err(1, NULL);
+		err(1, nullptr);
 	sd->op = op;
 	sd->lx = lx;
 	return sd;
@@ -49,7 +49,7 @@ static void
 simple_decl_forward_reset(struct simple_decl_forward *sd)
 {
 	VECTOR_CLEAR(sd->decls);
-	sd->after = NULL;
+	sd->after = nullptr;
 }
 
 static struct token *
@@ -59,7 +59,7 @@ first_token(struct simple_decl_forward *sd)
 	struct decl_forward *df;
 
 	df = VECTOR_FIRST(sd->decls);
-	return df != NULL ? df->beg : &fallback;
+	return df != nullptr ? df->beg : &fallback;
 }
 
 static struct token *
@@ -69,7 +69,7 @@ last_token(struct simple_decl_forward *sd)
 	struct decl_forward *df;
 
 	df = VECTOR_LAST(sd->decls);
-	return df != NULL ? df->semi : &fallback;
+	return df != nullptr ? df->semi : &fallback;
 }
 
 void
@@ -115,7 +115,7 @@ out:
 void
 simple_decl_forward_free(struct simple_decl_forward *sd)
 {
-	if (sd == NULL)
+	if (sd == nullptr)
 		return;
 	VECTOR_FREE(sd->decls);
 }
@@ -153,7 +153,7 @@ find_ident(struct token *tk)
 		tk = token_next(tk);
 	if (tk->tk_type == TOKEN_STRUCT)
 		return token_next(tk);
-	return NULL; /* UNREACHABLE */
+	return nullptr; /* UNREACHABLE */
 }
 
 static int
@@ -185,12 +185,12 @@ simple_decl_forward(struct simple_decl_forward *sd, struct token *beg,
 		return;
 
 	df = VECTOR_ALLOC(sd->decls);
-	if (df == NULL)
-		err(1, NULL);
+	if (df == nullptr)
+		err(1, nullptr);
 	df->beg = beg;
 	df->ident = find_ident(beg);
 	df->semi = semi;
 
-	if (sd->after == NULL)
+	if (sd->after == nullptr)
 		sd->after = semi;
 }

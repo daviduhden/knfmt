@@ -64,9 +64,9 @@ cpp_include_alloc(const struct style *st, struct simple *si,
 	ci = arena_calloc(eternal_scope, 1, sizeof(*ci));
 	arena_cleanup(eternal_scope, cpp_include_free, ci);
 	if (VECTOR_INIT(ci->includes))
-		err(1, NULL);
+		err(1, nullptr);
 	if (MAP_INIT(ci->groups))
-		err(1, NULL);
+		err(1, nullptr);
 	ci->prefixes = prefixes;
 	ci->st = st;
 	ci->si = si;
@@ -80,14 +80,14 @@ cpp_include_alloc(const struct style *st, struct simple *si,
 	for (i = 0; i < VECTOR_LENGTH(priorities); i++) {
 		struct include_group *group;
 
-		if (MAP_FIND(ci->groups, priorities[i]) != NULL)
+		if (MAP_FIND(ci->groups, priorities[i]) != nullptr)
 			continue;
 
 		group = MAP_INSERT(ci->groups, priorities[i]);
-		if (group == NULL)
-			err(1, NULL);
+		if (group == nullptr)
+			err(1, nullptr);
 		if (VECTOR_INIT(group->includes))
-			err(1, NULL);
+			err(1, nullptr);
 	}
 	VECTOR_FREE(priorities);
 
@@ -147,8 +147,8 @@ cpp_include_add(struct cpp_include *ci, struct lexer *lx, struct token *tk)
 		if (VECTOR_EMPTY(ci->includes))
 			ci->after = token_prev(tk);
 		include = VECTOR_ALLOC(ci->includes);
-		if (include == NULL)
-			err(1, NULL);
+		if (include == nullptr)
+			err(1, nullptr);
 		token_ref(tk);
 		include->tk = tk;
 		if (ci->regroup || !token_has_verbatim_line(tk, 2))
@@ -167,8 +167,8 @@ add_to_include_group(struct cpp_include *ci, struct include *include)
 
 	group = MAP_FIND(ci->groups, include->priority.group);
 	dst = VECTOR_ALLOC(group->includes);
-	if (dst == NULL)
-		err(1, NULL);
+	if (dst == nullptr)
+		err(1, nullptr);
 	*dst = include;
 }
 
@@ -212,7 +212,7 @@ is_main_include(const char *include_path, const char *path,
 
 	/* Transform path "a/b.c" into "a/b.h". */
 	str = VECTOR_FIRST(split_on_period(path, &s));
-	if (str == NULL)
+	if (str == nullptr)
 		return 0; /* UNREACHABLE */
 	basename = *str;
 	include_main = arena_sprintf(&s, "\"%s.h\"", basename);
@@ -221,11 +221,11 @@ is_main_include(const char *include_path, const char *path,
 
 	/* Transform path "a/b.c" into "b.h". */
 	str = VECTOR_LAST(split_on_slash(path, &s));
-	if (str == NULL)
+	if (str == nullptr)
 		return 0; /* UNREACHABLE */
 	filename = *str;
 	str = VECTOR_FIRST(split_on_period(filename, &s));
-	if (str == NULL)
+	if (str == nullptr)
 		return 0; /* UNREACHABLE */
 	basename = *str;
 	include_main = arena_sprintf(&s, "\"%s.h\"", basename);
@@ -269,7 +269,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 		const char *include_path;
 
 		include_path = findpath(tk->tk_str, tk->tk_len, &s);
-		if (include_path == NULL)
+		if (include_path == nullptr)
 			return;
 
 		if (ci->regroup) {
@@ -282,7 +282,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 				nbrackets++;
 			if (include_path[0] == '"')
 				nquotes++;
-			if (strchr(include_path, '/') != NULL)
+			if (strchr(include_path, '/') != nullptr)
 				nslashes++;
 			if ((nbrackets > 0 && nquotes > 0) ||
 			    (nbrackets > 0 && nslashes > 0))
@@ -297,14 +297,14 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 		add_to_include_group(ci, include);
 	}
 
-	struct include *last = NULL;
+	struct include *last = nullptr;
 	while (MAP_ITERATE(ci->groups, &it)) {
 		struct include_group *group = it.val;
 		struct include **p;
 		int doline;
 
 		p = VECTOR_LAST(group->includes);
-		if (p == NULL)
+		if (p == nullptr)
 			continue;
 		last = *p;
 		doline = !ci->merge && (ci->regroup || token_has_verbatim_line(last->tk, 2));
@@ -318,7 +318,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 			token_trim_verbatim_line(include->tk);
 			token_list_remove(ci->prefixes, include->tk);
 			token_ref(include->tk);
-			if (after != NULL) {
+			if (after != nullptr) {
 				token_list_append_after(ci->prefixes, after,
 				    include->tk);
 			} else {
@@ -329,7 +329,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 		if (doline)
 			after = add_line(ci, lx, after);
 	}
-	if (ci->merge && (last == NULL || !has_trailing_comment(last->tk)))
+	if (ci->merge && (last == nullptr || !has_trailing_comment(last->tk)))
 		add_line(ci, lx, after);
 }
 
@@ -349,7 +349,7 @@ cpp_include_reset(struct cpp_include *ci)
 
 		VECTOR_CLEAR(group->includes);
 	}
-	ci->after = NULL;
+	ci->after = nullptr;
 	ci->ignore = 0;
 }
 
@@ -374,15 +374,15 @@ findpath(const char *str, size_t len, struct arena_scope *s)
 	char c;
 
 	so = memchr(str, '"', len);
-	if (so == NULL)
+	if (so == nullptr)
 		so = memchr(str, '<', len);
-	if (so == NULL)
-		return NULL;
+	if (so == nullptr)
+		return nullptr;
 	c = so[0] == '"' ? '"' : '>';
 	len -= (size_t)(so - str);
 	eo = memchr(&so[1], c, len - 1);
-	if (eo == NULL)
-		return NULL;
+	if (eo == nullptr)
+		return nullptr;
 	return arena_strndup(s, so, (size_t)(eo - so) + 1);
 }
 

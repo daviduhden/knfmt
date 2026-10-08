@@ -469,17 +469,17 @@ doc_sum_one(struct doc *dc)
 		break;
 	case DOC_LITERAL:
 		/* Tab stops and new lines make the width context dependent. */
-		if (dc->dc_str != NULL &&
-		    (memchr(dc->dc_str, '\n', dc->dc_len) != NULL ||
-		     memchr(dc->dc_str, '\t', dc->dc_len) != NULL))
+		if (dc->dc_str != nullptr &&
+		    (memchr(dc->dc_str, '\n', dc->dc_len) != nullptr ||
+		     memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
 			pure = 0;
 		else
 			flat = (unsigned int)dc->dc_len;
 		break;
 	case DOC_VERBATIM:
-		if (dc->dc_str != NULL &&
-		    (memchr(dc->dc_str, '\n', dc->dc_len) != NULL ||
-		     memchr(dc->dc_str, '\t', dc->dc_len) != NULL))
+		if (dc->dc_str != nullptr &&
+		    (memchr(dc->dc_str, '\n', dc->dc_len) != nullptr ||
+		     memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
 			pure = 0;
 		else
 			flat = (unsigned int)dc->dc_len;
@@ -608,7 +608,7 @@ doc_remove_tail(struct doc *parent)
 
 	assert(doc_has_list(parent));
 	dc = LIST_LAST(&parent->dc_list);
-	if (dc == NULL)
+	if (dc == nullptr)
 		return 0;
 	LIST_REMOVE(&parent->dc_list, dc);
 	return 1;
@@ -638,7 +638,7 @@ doc_append(struct doc *dc, struct doc *parent)
 	if (doc_has_list(parent)) {
 		LIST_INSERT_TAIL(&parent->dc_list, dc);
 	} else {
-		assert(parent->dc_doc == NULL);
+		assert(parent->dc_doc == nullptr);
 		parent->dc_doc = dc;
 	}
 }
@@ -727,15 +727,15 @@ doc_minimize_impl(const struct doc_minimize *minimizers, size_t nminimizers,
 	dc = doc_alloc_impl(DOC_MINIMIZE, parent, 0, fun, lno);
 	arena_cleanup(dc->dc_scope, doc_minimize_free, dc);
 	if (VECTOR_INIT(dc->dc_minimizers))
-		err(1, NULL);
+		err(1, nullptr);
 	if (VECTOR_RESERVE(dc->dc_minimizers, nminimizers))
-		err(1, NULL);
+		err(1, nullptr);
 	for (i = 0; i < nminimizers; i++) {
 		struct doc_minimize *dst;
 
 		dst = VECTOR_ALLOC(dc->dc_minimizers);
-		if (dst == NULL)
-			err(1, NULL);
+		if (dst == nullptr)
+			err(1, nullptr);
 		*dst = minimizers[i];
 	}
 	return doc_alloc_impl(DOC_CONCAT, dc, 0, fun, lno);
@@ -831,16 +831,16 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 	size_t n = 0, cap = 32;
 
 	stack = malloc(cap * sizeof(*stack));
-	if (stack == NULL)
-		err(1, NULL);
+	if (stack == nullptr)
+		err(1, nullptr);
 
 #define PUSH_EXEC_FRAME(frame) do {					\
 	if (n == cap) {							\
 		struct doc_exec_frame *_tmp;				\
 		cap *= 2;						\
 		_tmp = realloc(stack, cap * sizeof(*stack));		\
-		if (_tmp == NULL)					\
-			err(1, NULL);					\
+		if (_tmp == nullptr)					\
+			err(1, nullptr);					\
 		stack = _tmp;						\
 	}								\
 	stack[n++] = (frame);						\
@@ -860,7 +860,7 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 		fr = &stack[n - 1];
 
 		if (fr->kind == DOC_EXEC_CONCAT) {
-			if (fr->next == NULL) {
+			if (fr->next == nullptr) {
 				doc_trace_leave(fr->dc, st);
 				n--;
 				continue;
@@ -1124,7 +1124,7 @@ doc_exec_verbatim(const struct doc *dc, struct doc_state *st)
 
 	/* Unmute in diff mode. */
 	if (DOC_DIFF(st) && st->st_diff.verbatim == tk)
-		st->st_diff.verbatim = NULL;
+		st->st_diff.verbatim = nullptr;
 
 	/* Restore indentation after emitting a verbatim block or new line. */
 	if (isblock || isnewline) {
@@ -1377,7 +1377,7 @@ doc_leads_with_break(const struct doc *dc)
 		}
 		if (desc->children.many) {
 			dc = LIST_FIRST(&dc->dc_list);
-			if (dc == NULL)
+			if (dc == nullptr)
 				return 0;
 		} else if (desc->children.one) {
 			dc = dc->dc_doc;
@@ -1400,7 +1400,7 @@ doc_fits(const struct doc *dc, struct doc_state *st)
 
 	memcpy(&fst, st, sizeof(fst));
 	/* Should not perform any printing. */
-	fst.st_bf = NULL;
+	fst.st_bf = nullptr;
 	fst.st_mode = MUNGE;
 	doc_walk(dc, &fst, doc_fits1, &fits);
 	col = fst.st_col;
@@ -1687,10 +1687,10 @@ doc_diff_find_chunk(const struct doc_state *st, const struct token *tk)
 		const struct diffchunk *du;
 
 		du = diff_get_chunk(st->st_diff_chunks, tk->tk_lno + i);
-		if (du != NULL)
+		if (du != nullptr)
 			return du;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static int
@@ -1707,7 +1707,7 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 	 * Only relevant while entering the first group. Unless the group above
 	 * us was ignored or if the group covers many diff chunks, see below.
 	 */
-	if (st->st_diff.group != NULL && !nested)
+	if (st->st_diff.group != nullptr && !nested)
 		return 0;
 
 	/*
@@ -1785,7 +1785,7 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 	 * the fact that the token can span multiple lines.
 	 */
 	du = doc_diff_find_chunk(st, dd.dd_tk);
-	assert(du != NULL);
+	assert(du != nullptr);
 
 	/*
 	 * Signal to doc_diff_leave() that this group covers more than one diff
@@ -1812,7 +1812,7 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 	 */
 	st->st_diff.mute = st->st_mute;
 	st->st_mute = 0;
-	if (dd.dd_verbatim != NULL) {
+	if (dd.dd_verbatim != nullptr) {
 		const struct token *tk = dd.dd_verbatim;
 
 		/*
@@ -1848,8 +1848,8 @@ doc_diff_group_leave(const struct doc *UNUSED(dc), struct doc_state *st,
 {
 	if (enter == 0 || !DOC_DIFF(st))
 		return;
-	assert(st->st_diff.group != NULL);
-	st->st_diff.group = NULL;
+	assert(st->st_diff.group != nullptr);
+	st->st_diff.group = nullptr;
 	st->st_diff.group_has_many_chunks = 0;
 }
 
@@ -1897,11 +1897,11 @@ doc_diff_literal(const struct doc *dc, struct doc_state *st)
 
 	if (!DOC_DIFF(st))
 		return;
-	if (dc->dc_tk == NULL || st->st_diff.end == 0)
+	if (dc->dc_tk == nullptr || st->st_diff.end == 0)
 		return;
 
 	lno = dc->dc_tk->tk_lno;
-	if (st->st_diff.group != NULL) {
+	if (st->st_diff.group != nullptr) {
 		if (lno > st->st_diff.end) {
 			/*
 			 * The current group spans beyond the diff chunk, adjust
@@ -1924,7 +1924,7 @@ doc_diff_verbatim(const struct doc *dc, struct doc_state *st)
 	if (!DOC_DIFF(st))
 		return 0;
 
-	assert(dc->dc_tk != NULL);
+	assert(dc->dc_tk != nullptr);
 	lno = dc->dc_tk->tk_lno;
 	if (lno == 0 || st->st_diff.end == 0)
 		return 0;
@@ -2008,11 +2008,11 @@ doc_diff_covers(const struct doc *dc, struct doc_state *UNUSED(st), void *arg)
 			dd->dd_verbatim = dc->dc_tk;
 		FALLTHROUGH;
 	case DOC_LITERAL:
-		if (dc->dc_tk != NULL) {
+		if (dc->dc_tk != nullptr) {
 			unsigned int lno = dc->dc_tk->tk_lno;
 
 			if (lno < dd->dd_threshold) {
-				dd->dd_verbatim = NULL;
+				dd->dd_verbatim = nullptr;
 				return dd->dd_below_threshold;
 			}
 
@@ -2045,7 +2045,7 @@ static int
 doc_diff_is_mute(const struct doc_state *st)
 {
 	return DOC_DIFF(st) &&
-	    (st->st_diff.end == 0 || st->st_diff.verbatim != NULL);
+	    (st->st_diff.end == 0 || st->st_diff.verbatim != nullptr);
 }
 
 static void
@@ -2056,7 +2056,7 @@ doc_diff_leave_impl(const struct doc *dc, struct doc_state *st,
 		return;
 
 	assert(st->st_diff.end > 0);
-	assert(st->st_diff.verbatim == NULL);
+	assert(st->st_diff.verbatim == nullptr);
 	st->st_diff.beg = st->st_diff.end + end;
 	st->st_diff.end = 0;
 	st->st_mute = st->st_diff.mute;
@@ -2335,7 +2335,7 @@ static const char *
 docstr(const struct doc *dc, struct arena_scope *s)
 {
 	const char *name;
-	int suffix = dc->dc_suffix != NULL;
+	int suffix = dc->dc_suffix != nullptr;
 
 	name = doc_descriptions[dc->dc_type].name;
 	return arena_sprintf(s, "%s<%s:%d%s%s%s>",
@@ -2413,7 +2413,7 @@ count_verbatim_lines(const char *str, size_t len, unsigned int fallback)
 		size_t linelen;
 
 		p = memchr(str, '\n', len);
-		if (p == NULL)
+		if (p == nullptr)
 			break;
 		nlines++;
 		linelen = (size_t)(p - str);

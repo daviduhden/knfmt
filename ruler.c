@@ -132,7 +132,7 @@ ruler_indent_impl(struct ruler *rl, struct doc *dc,
 	if (VECTOR_LENGTH(rc->rc_datums) == 0)
 		goto err;
 
-	if (rl->rl_indent == NULL) {
+	if (rl->rl_indent == nullptr) {
 		ARENA_VECTOR_INIT(rl->rl_arena.ruler_scope, rl->rl_indent,
 		    1 << 6);
 	}
@@ -140,7 +140,7 @@ ruler_indent_impl(struct ruler *rl, struct doc *dc,
 	ri->ri_rd = VECTOR_LENGTH(rc->rc_datums) - 1;
 	ri->ri_sign = sign;
 	ri->ri_dc = doc_alloc_impl(DOC_INDENT, dc, 0, fun, lno);
-	if (cookie != NULL)
+	if (cookie != nullptr)
 		*cookie = ri;
 	return ri->ri_dc;
 
@@ -151,7 +151,7 @@ err:
 void
 ruler_indent_remove(struct ruler *rl, const struct ruler_indent *ri)
 {
-	if (ri == NULL)
+	if (ri == nullptr)
 		return;
 	VECTOR_POP(rl->rl_indent);
 }
@@ -208,7 +208,7 @@ ruler_exec_indent(struct ruler *rl)
 	struct ruler_column *rc;
 	size_t i;
 
-	if (rl->rl_indent == NULL)
+	if (rl->rl_indent == nullptr)
 		return;
 
 	assert(VECTOR_LENGTH(rl->rl_columns) == 1);
@@ -270,7 +270,7 @@ sense_column_spaces(const struct ruler_column *rc)
 		if (!token_has_tabs(rd->rd_tk))
 			continue;
 		suffix = token_find_suffix_spaces(rd->rd_tk);
-		if (suffix == NULL)
+		if (suffix == nullptr)
 			continue;
 
 		n = count_trailing_spaces(suffix->tk_str,
@@ -293,7 +293,7 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 		return 0;
 
 	nx = token_next(tk);
-	if (nx == NULL || token_cmp(tk, nx) != 0)
+	if (nx == nullptr || token_cmp(tk, nx) != 0)
 		return 0;
 	/*
 	 * An alignment datum is a declarator or a designator. When the
@@ -327,15 +327,15 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 static const struct ruler_datum *
 sense_column_longest_datum(const struct ruler_column *rc)
 {
-	const struct ruler_datum *rd = NULL;
+	const struct ruler_datum *rd = nullptr;
 	unsigned int i;
 
 	for (i = 0; i < VECTOR_LENGTH(rc->rc_datums); i++) {
 		const struct ruler_datum *candidate = &rc->rc_datums[i];
-		if (rd == NULL || candidate->rd_len > rd->rd_len)
+		if (rd == nullptr || candidate->rd_len > rd->rd_len)
 			rd = candidate;
 	}
-	assert(rd != NULL);
+	assert(rd != nullptr);
 
 	return rd;
 }

@@ -24,7 +24,7 @@ trace_impl(enum trace_type type, const char *fun, const char *fmt, ...)
 	va_list ap;
 
 	fprintf(stderr, "[%c]", trace_type_str(type));
-	if (fun != NULL)
+	if (fun != nullptr)
 		fprintf(stderr, " %s:", fun);
 	fprintf(stderr, " ");
 	va_start(ap, fmt);

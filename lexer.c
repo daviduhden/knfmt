@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "libks/arena-vector.h"
+#include "libks/arithmetic.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/list.h"
@@ -1007,6 +1008,7 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 	size_t *map;
 	unsigned int *pline;
 	size_t i, j;
+	size_t nbytes, mapsize, plinesize;
 	unsigned int lno = 1;
 
 	/* Physical line table, mapping line number to physical offset. */
@@ -1027,10 +1029,13 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 		}
 	}
 
-	lg = arena_malloc(lx->lx_arena.eternal_scope, n + 1);
-	map = arena_malloc(lx->lx_arena.eternal_scope, (n + 1) * sizeof(*map));
-	pline = arena_malloc(lx->lx_arena.eternal_scope,
-	    (n + 1) * sizeof(*pline));
+	if (KS_size_add_overflow(n, 1, &nbytes) ||
+	    KS_size_mul_overflow(nbytes, sizeof(*map), &mapsize) ||
+	    KS_size_mul_overflow(nbytes, sizeof(*pline), &plinesize))
+		errx(1, "%s: input too large", __func__);
+	lg = arena_malloc(lx->lx_arena.eternal_scope, nbytes);
+	map = arena_malloc(lx->lx_arena.eternal_scope, mapsize);
+	pline = arena_malloc(lx->lx_arena.eternal_scope, plinesize);
 
 	j = 0;
 	for (i = 0; i < n;) {

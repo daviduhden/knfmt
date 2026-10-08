@@ -108,3 +108,37 @@ mode save/restore + diff enter/leave), `833` (NOINDENT indent
 save/restore), `906` (OPTIONAL optline save/restore), and the
 MINIMIZE/SCOPE/MAXLINES helpers. Preserve `doc_fits()`/summary use. Then
 remove `DOC_MAX_EXEC_DEPTH` and verify 100k/200k terms.
+
+## Update — iterative rendering, guard removed (head `5e58398`)
+
+- `5e58398` `doc: render documents iteratively`. `doc_exec1()` now uses an
+  explicit continuation-frame stack for `DOC_CONCAT` (resumable child
+  iteration) and `DOC_GROUP` (mode/diff restore). `INDENT`/`NOINDENT`/
+  `OPTIONAL`/`MINIMIZE`/`SCOPE`/`MAXLINES` still delegate to helpers but
+  their child is rendered by the same iterative traversal (bounded
+  nesting).
+- Removed `DOC_MAX_EXEC_DEPTH` and its rejection logic.
+
+Results (flat `a+a+…+a`), guard removed:
+
+| terms | gcc | gcc time | clang ASan |
+|---|---|---|---|
+| 10,000 | ok | 0.16 s | ok |
+| 50,000 | ok | — | ok |
+| 100,000 | ok | 2.2 s | ok |
+| 200,000 | ok | 5.5 s | ok |
+
+One-pass idempotent at 200k. `bmake test` green; cross-build `OK (3700)`.
+
+### Remaining (in order)
+
+1. Residual O(N²) in `parser_type_decl_list_then_lbrace()`: repeated
+   `int f() A B;` decls scale ≈3.8× per doubling (N=320 0.21 s, 640 0.78 s,
+   1280 2.9 s). `pthread.h` itself is fast (0.03 s).
+2. `DOC_SEQ` n-ary sequence representation (current CONCAT is a list node,
+   not left-nested, so this is now lower priority).
+3. Per-run `knfmt_ctx`; mutable-global audit.
+4. In-process A/B/A reentrancy harness (normal/`-s`/`-D`/`-d`).
+5. Parser result/checkpoint contracts.
+6. 183-byte fuzz finding; raw-byte policy; malformed self-reparse.
+7. Benchmarks/tests committed; RSS scaling.

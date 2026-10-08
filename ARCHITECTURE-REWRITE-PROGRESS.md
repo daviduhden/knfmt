@@ -221,3 +221,29 @@ Failure-transition reentrancy (single process, `knfmt A M A`):
   → `parser_exec`), i.e. it follows the real initialization contract, so
   prior failures were not caused by an artificially uninitialized API use
   in the current harness.
+
+## Update — self-reparse harness and `-s` non-idempotence finding
+
+- Added `tests/reparse.sh` (development tool): for every `tests/*.c`/`*.h`
+  and options `""`/`-s`, if formatting succeeds it formats the output again
+  and requires byte-identical output.
+
+Result over the fixture corpus: `accepted=1686 rejected=164 fail=2`.
+
+Two `-s` self-reparse failures (first pass != second pass):
+
+- `tests/simple-expr-parens-002.c`: `while (((0) != 0))` → pass1
+  `while ((0) != 0)` → pass2 `while (0 != 0)`.
+- `tests/simple-expr-sizeof-002.c`: `return ((sizeof int));` → pass1
+  `return (sizeof(int));` → pass2 `return sizeof(int);`.
+
+Root cause: nested redundant parentheses are removed one level per pass.
+`expr_doc_parens()` removes a paren pair only when
+`simple_enter(SIMPLE_EXPR_PARENS, ...)` succeeds, and `simple_enter()`
+suppresses re-entry while the same pass is already `ENABLE` (the
+`state != DISABLE` check, in addition to `is_pass_mutually_exclusive`).
+Allowing self-nesting in the exception table alone did not change the
+output. Fixing this requires permitting nested same-pass simplification
+in `simple.c`, which was not completed.
+
+Normal-mode (non `-s`) self-reparse: no failures.

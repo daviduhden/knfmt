@@ -23,10 +23,10 @@ count=0
 for f in "${src}"/tests/*.c "${src}"/tests/*.h; do
 	[ -f "${f}" ] || continue
 	for opts in "" "-s" "-D" "-d"; do
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086,SC2248
 		"${bin1}" ${opts} "${f}" >"${tmp}/o1" 2>"${tmp}/e1" || r1=$?
 		r1=${r1:-0}
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086,SC2248
 		"${bin2}" ${opts} "${f}" >"${tmp}/o2" 2>"${tmp}/e2" || r2=$?
 		r2=${r2:-0}
 		count=$((count + 1))

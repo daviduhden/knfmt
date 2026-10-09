@@ -71,6 +71,10 @@ OBJS_knfmt:=	${OBJS_knfmt:.S=.o}
 DEPS_knfmt=	${OBJS_knfmt:.o=.d}
 PROG_knfmt=	knfmt
 
+OBJS_fault=	${OBJS_knfmt} tests/fault-wrap.o
+DEPS_fault=	tests/fault-wrap.d
+PROG_fault=	knfmt-fault
+
 SRCS_test+=	${SRCS}
 SRCS_test+=	t.c
 OBJS_test:=	${SRCS_test:.c=.o}
@@ -460,6 +464,7 @@ SHLINT+=	tests/cross-build.sh
 SHLINT+=	tests/diff.sh
 SHLINT+=	tests/enoent.sh
 SHLINT+=	tests/fd.sh
+SHLINT+=	tests/fault.sh
 SHLINT+=	tests/git.sh
 SHLINT+=	tests/idempotence.sh
 SHLINT+=	tests/include-categories.sh
@@ -482,6 +487,10 @@ all: ${PROG_knfmt}
 ${PROG_knfmt}: ${OBJS_knfmt}
 	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_knfmt} ${OBJS_knfmt} ${LDFLAGS}
 
+${PROG_fault}: ${OBJS_fault}
+	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_fault} ${OBJS_fault} ${LDFLAGS} \
+		-Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc
+
 ${PROG_test}: ${OBJS_test}
 	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_test} ${OBJS_test} ${LDFLAGS}
 
@@ -491,6 +500,7 @@ ${PROG_benchmark}: ${OBJS_benchmark}
 
 clean:
 	rm -f ${DEPS_knfmt} ${OBJS_knfmt} ${PROG_knfmt} \
+		${DEPS_fault} ${OBJS_fault} ${PROG_fault} \
 		${DEPS_test} ${OBJS_test} ${PROG_test} \
 		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
 		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
@@ -511,6 +521,10 @@ dist:
 format: ${PROG_knfmt}
 	cd ${.CURDIR} && ${.OBJDIR}/${PROG_knfmt} -is ${KNFMT}
 .PHONY: format
+
+fault: ${PROG_fault}
+	KFAULT=${.OBJDIR}/${PROG_fault} sh ${.CURDIR}/tests/fault.sh
+.PHONY: fault
 
 fuzz: ${PROG_fuzz-style} ${PROG_fuzz-parse}
 

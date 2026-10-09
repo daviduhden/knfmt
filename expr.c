@@ -1674,6 +1674,17 @@ token_move_prev_line(struct token *tk)
 	unsigned int lno;
 
 	pv = token_prev(tk);
+	/*
+	 * Only honor a line break that precedes the operator on its own.
+	 * When recovering malformed input such as `a <newline> | < | b`, the
+	 * token preceding an operator may itself be an operator. Moving the
+	 * break in that case would place it in front of the next operator,
+	 * which the following pass would then move again, so the layout would
+	 * never reach a fixed point. Operators that follow another operator
+	 * are left untouched.
+	 */
+	if (pv->tk_flags & TOKEN_FLAG_BINARY)
+		return;
 	lno = tk->tk_lno - pv->tk_lno;
 	if (token_has_line(pv, 1) && lno == 1)
 		token_move_suffixes(pv, tk);

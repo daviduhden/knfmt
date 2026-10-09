@@ -47,7 +47,7 @@ static void
 KS_init(void)
 {
 	const struct KS_x86_capabilites *caps = KS_x86_capabilites();
-	if (caps == NULL)
+	if (caps == nullptr)
 		return;
 
 	if (caps->avx >= 512 && caps->avx512.bw && caps->bmi >= 1 /* TZCNT */)

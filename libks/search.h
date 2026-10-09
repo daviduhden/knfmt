@@ -21,7 +21,7 @@
 #include "libks/arithmetic.h"
 
 #define KS_binary_search(v, n, cmp, needle) __extension__ ({		\
-	__typeof__(*(v)) *_out = NULL;					\
+	__typeof__(*(v)) *_out = nullptr;					\
 	if ((n) > 0) {							\
 		size_t _l = 0;						\
 		size_t _r = (size_t)(n) - 1;				\

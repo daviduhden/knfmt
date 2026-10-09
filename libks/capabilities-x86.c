@@ -374,27 +374,27 @@ const struct KS_x86_capabilites *
 KS_x86_capabilites(void)
 {
 	static struct KS_x86_capabilites storage = {0};
-	static struct KS_x86_capabilites *caps = NULL;
+	static struct KS_x86_capabilites *caps = nullptr;
 	static int first = 1;
 	if (!first)
 		return caps;
 	first = 0;
 
 	if (!KS_x86_capabilites_impl(&storage))
-		return NULL;
+		return nullptr;
 	caps = &storage;
 	return caps;
 }
 
 #else
 
-#include <stddef.h>	/* NULL */
+#include <stddef.h>	/* nullptr */
 #include "libks/compiler.h"
 
 const struct KS_x86_capabilites *
 KS_x86_capabilites(void)
 {
-	return NULL;
+	return nullptr;
 }
 
 #endif

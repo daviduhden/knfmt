@@ -76,7 +76,7 @@ vector_init_impl(enum vector_type type, void **vv, size_t stride,
 	struct vector *vc;
 
 	vc = callbacks->calloc(1, sizeof(*vc), callbacks->arg);
-	if (vc == NULL)
+	if (vc == nullptr)
 		return 1;
 	vc->vc_callbacks = *callbacks;
 	vc->p.stride = stride;
@@ -90,11 +90,11 @@ vector_free(void **vv)
 {
 	struct vector *vc;
 
-	if (*vv == NULL)
+	if (*vv == nullptr)
 		return;
 	vc = ptov(*vv);
 	vc->vc_callbacks.free(vc, sizeof(*vc) + (vc->p.len * vc->p.stride), vc->vc_callbacks.arg);
-	*vv = NULL;
+	*vv = nullptr;
 }
 
 void *
@@ -104,10 +104,10 @@ vector_copy(void *v)
 
 	void *dst;
 	if (vector_init_impl(src->p.type, &dst, src->p.stride, &src->vc_callbacks))
-		return NULL;
+		return nullptr;
 	if (vector_reserve(&dst, src->p.len)) {
 		vector_free(&dst);
-		return NULL;
+		return nullptr;
 	}
 	memcpy(dst, v, src->p.len * src->p.stride);
 	ptov(dst)->p.len = src->p.len;
@@ -235,7 +235,7 @@ vector_reserve1(struct vector **vv, size_t len)
 
 	newvc = vc->vc_callbacks.realloc(vc, oldlen, totlen,
 	    vc->vc_callbacks.arg);
-	if (newvc == NULL)
+	if (newvc == nullptr)
 		return VECTOR_ERROR;
 	newvc->vc_siz = newsiz;
 	*vv = newvc;

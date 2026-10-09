@@ -48,7 +48,7 @@ KS_expect_scope_leave(const void *arg)
 	KS_expect_current_scope.lno = (l)
 
 #define KS_expect_func()						\
-	(KS_expect_current_scope.fun != NULL ? KS_expect_current_scope.fun :\
+	(KS_expect_current_scope.fun != nullptr ? KS_expect_current_scope.fun :\
 	 __func__)
 #define KS_expect_line()						\
 	(KS_expect_current_scope.lno != 0 ? KS_expect_current_scope.lno :\

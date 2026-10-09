@@ -53,7 +53,7 @@ KS_exec_diff(const char *path, const char *src, size_t srclen, const char *dst,
 	if (pid == 0) {
 		execlp("diff", "diff", "-u",
 		    "-L", label, "-L", path,
-		    srcpath, dstpath, NULL);
+		    srcpath, dstpath, nullptr);
 		_exit(1);
 	}
 

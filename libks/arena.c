@@ -317,11 +317,11 @@ arena_push_impl(struct arena *a, struct arena_frame *frame, size_t size,
 
 	if (KS_size_add_overflow(frame->len, size, &newlen)) {
 		errno = EOVERFLOW;
-		return NULL;
+		return nullptr;
 	}
 	if (newlen > frame->size) {
 		errno = ENOMEM;
-		return NULL;
+		return nullptr;
 	}
 
 	frame_unpoison(frame, size, poison);
@@ -360,15 +360,15 @@ arena_frame_alloc(struct arena *a, size_t frame_size)
 	struct arena_frame *frame;
 
 	frame = malloc(frame_size);
-	if (frame == NULL)
+	if (frame == nullptr)
 		return 0;
 	frame->ptr = (char *)frame;
 	frame->size = frame_size;
 	frame->len = 0;
-	frame->next = NULL;
+	frame->next = nullptr;
 	const void *ptr = arena_push_internal(a, frame, sizeof(*frame),
 	    POISON_DEFINED);
-	if (ptr == NULL) {
+	if (ptr == nullptr) {
 		free(frame);
 		return 0;
 	}
@@ -394,7 +394,7 @@ arena_alloc(const char *name)
 		err(1, "sysconf");
 
 	a = calloc(1, sizeof(*a));
-	if (a == NULL)
+	if (a == nullptr)
 		err(1, "%s", __func__);
 	a->trace.fd = -1;
 	a->frame_size = 16 * (size_t)page_size;
@@ -404,9 +404,9 @@ arena_alloc(const char *name)
 		err(1, "%s", __func__);
 
 	const char *path = getenv("ARENA_TRACE");
-	if (path != NULL) {
+	if (path != nullptr) {
 		a->trace.fd = open(path, O_WRONLY | O_CLOEXEC);
-		if (name != NULL)
+		if (name != nullptr)
 			arena_trace_name(a, name);
 	}
 
@@ -416,7 +416,7 @@ arena_alloc(const char *name)
 void
 arena_free(struct arena *a)
 {
-	if (a == NULL)
+	if (a == nullptr)
 		return;
 
 	arena_trace_stats(a, ARENA_TRACE_STATS_BYTES,
@@ -445,21 +445,21 @@ arena_scope_leave(struct arena_scope *s)
 	if (idx < MAX_SOURCE_LOCATIONS)
 		a->scope_locations[idx] = (struct source_location){0};
 
-	for (ac = s->cleanup; ac != NULL; ac = ac->next)
+	for (ac = s->cleanup; ac != nullptr; ac = ac->next)
 		ac->fun(ac->ptr);
-	s->cleanup = NULL;
+	s->cleanup = nullptr;
 
 	/* Free all frames if the arena is already freed. */
 	if (a->refs == 1)
-		last_frame = NULL;
+		last_frame = nullptr;
 
-	while (a->frame != NULL && a->frame != last_frame) {
+	while (a->frame != nullptr && a->frame != last_frame) {
 		struct arena_frame *frame = a->frame;
 
 		a->frame = frame->next;
 		free(frame);
 	}
-	if (a->frame != NULL) {
+	if (a->frame != nullptr) {
 		a->frame->len = s->frame_len <= a->frame->len ?
 		    s->frame_len : 0;
 		frame_poison(a->frame);
@@ -541,7 +541,7 @@ arena_malloc(struct arena_scope *s, size_t size)
 	arena_scope_validate(a, s, size);
 
 	ptr = arena_push(a, a->frame, size, POISON_UNDEFINED);
-	if (ptr != NULL)
+	if (ptr != nullptr)
 		return ptr;
 
 	/* Must account for first arena_push() representing the actual frame. */
@@ -564,7 +564,7 @@ arena_malloc(struct arena_scope *s, size_t size)
 		err(1, "%s", __func__);
 
 	ptr = arena_push(a, a->frame, size, POISON_UNDEFINED);
-	if (ptr == NULL)
+	if (ptr == nullptr)
 		err(1, "%s", __func__);
 	return ptr;
 }
@@ -608,7 +608,7 @@ arena_realloc_fast(struct arena_scope *s, char *ptr, size_t old_size,
 	/* Check if the new size still fits within the current frame. */
 	frame = *a->frame;
 	frame.len = (size_t)(ptr - frame.ptr);
-	if (arena_push(a, &frame, new_size, POISON_DEFINED) == NULL)
+	if (arena_push(a, &frame, new_size, POISON_DEFINED) == nullptr)
 		return 0;
 	*a->frame = frame;
 	return 1;
@@ -626,12 +626,12 @@ arena_realloc(struct arena_scope *s, void *ptr, size_t old_size,
 		errx(1, "%s: Misaligned pointer", __func__);
 
 	/* Fast path while reallocating last allocated object. */
-	if (ptr != NULL && arena_realloc_fast(s, ptr, old_size, new_size))
+	if (ptr != nullptr && arena_realloc_fast(s, ptr, old_size, new_size))
 		return ptr;
 	arena_trace_realloc_spill(s->arena, old_size);
 
 	new_ptr = arena_malloc(s, new_size);
-	if (ptr != NULL)
+	if (ptr != nullptr)
 		memcpy(new_ptr, ptr, old_size);
 	arena_poison(ptr, old_size);
 	return new_ptr;
@@ -648,7 +648,7 @@ arena_sprintf(struct arena_scope *s, const char *fmt, ...)
 	va_start(ap, fmt);
 
 	va_copy(cp, ap);
-	n = vsnprintf(NULL, 0, fmt, cp);
+	n = vsnprintf(nullptr, 0, fmt, cp);
 	va_end(cp);
 	if (n < 0) {
 		errno = ENAMETOOLONG;

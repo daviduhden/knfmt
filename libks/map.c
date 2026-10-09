@@ -326,6 +326,9 @@ pointer_align(size_t size, size_t *out)
 #define HASH_INITIAL_NUM_BUCKETS_LOG2 5U /* lg2 of initial number of buckets */
 #define HASH_BKT_CAPACITY_THRESH 10U     /* expand when bucket count reaches */
 
+static_assert(HASH_INITIAL_NUM_BUCKETS == (1U << HASH_INITIAL_NUM_BUCKETS_LOG2),
+    "HASH_INITIAL_NUM_BUCKETS_LOG2 must be log2 of HASH_INITIAL_NUM_BUCKETS");
+
 struct UT_hash_bucket {
 	struct map_element *hh_head;
 	unsigned int count;

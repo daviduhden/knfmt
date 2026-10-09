@@ -57,12 +57,12 @@ buffer_alloc_impl(size_t init_size, int overshoot,
 	struct buffer *bf;
 
 	bf = callbacks->alloc(sizeof(*bf), callbacks->arg);
-	if (bf == NULL)
-		return NULL;
+	if (bf == nullptr)
+		return nullptr;
 	bf->bf_callbacks = *callbacks;
 	if (buffer_reserve(bf, init_size, overshoot)) {
 		buffer_free(bf);
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -86,11 +86,11 @@ buffer_read(const char *path)
 	struct buffer *bf;
 
 	bf = buffer_alloc(1 << 13);
-	if (bf == NULL)
-		return NULL;
+	if (bf == nullptr)
+		return nullptr;
 	if (buffer_read_impl(bf, path)) {
 		buffer_free(bf);
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -101,11 +101,11 @@ buffer_read_fd(int fd)
 	struct buffer *bf;
 
 	bf = buffer_alloc(1 << 13);
-	if (bf == NULL)
-		return NULL;
+	if (bf == nullptr)
+		return nullptr;
 	if (buffer_read_fd_impl(bf, fd)) {
 		buffer_free(bf);
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -144,7 +144,7 @@ buffer_read_fd_impl(struct buffer *bf, int fd)
 void
 buffer_free(struct buffer *bf)
 {
-	if (bf == NULL)
+	if (bf == nullptr)
 		return;
 	bf->bf_callbacks.free(bf->bf_ptr, bf->bf_siz, bf->bf_callbacks.arg);
 	bf->bf_callbacks.free(bf, sizeof(*bf), bf->bf_callbacks.arg);
@@ -153,7 +153,7 @@ buffer_free(struct buffer *bf)
 int
 buffer_puts(struct buffer *bf, const char *str, size_t len)
 {
-	if (str == NULL || len == 0)
+	if (str == nullptr || len == 0)
 		return 0;
 	if (buffer_reserve(bf, len, 1))
 		return -1;
@@ -197,14 +197,14 @@ buffer_vprintf(struct buffer *bf, const char *fmt, va_list ap)
 		const char *str;
 
 		str = va_arg(ap, const char *);
-		if (str == NULL)
+		if (str == nullptr)
 			str = "(null)";
 		return buffer_puts(bf, str, strlen(str));
 	}
 
 	va_copy(cp, ap);
 
-	n = vsnprintf(NULL, 0, fmt, ap);
+	n = vsnprintf(nullptr, 0, fmt, ap);
 	if (n < 0 || buffer_reserve(bf, (size_t)n + 1, 1)) {
 		va_end(cp);
 		return -1;
@@ -226,7 +226,7 @@ buffer_release(struct buffer *bf)
 	char *ptr;
 
 	ptr = bf->bf_ptr;
-	bf->bf_ptr = NULL;
+	bf->bf_ptr = nullptr;
 	bf->bf_siz = 0;
 	bf->bf_len = 0;
 	return ptr;
@@ -237,7 +237,7 @@ buffer_str(struct buffer *bf)
 {
 	if (bf->bf_len == 0 || bf->bf_ptr[bf->bf_len - 1] != '\0') {
 		if (buffer_putc(bf, '\0') == -1)
-			return NULL;
+			return nullptr;
 	}
 	return buffer_release(bf);
 }
@@ -288,10 +288,10 @@ buffer_get_size(const struct buffer *bf)
 const char *
 buffer_getline(const struct buffer *bf, struct buffer_getline *getline)
 {
-	if (getline->bf == NULL) {
+	if (getline->bf == nullptr) {
 		getline->bf = buffer_alloc(1 << 10);
-		if (getline->bf == NULL)
-			return NULL;
+		if (getline->bf == nullptr)
+			return nullptr;
 	}
 
 	return buffer_getline_impl(bf, getline);
@@ -308,7 +308,7 @@ buffer_getline_impl(const struct buffer *bf, struct buffer_getline *getline)
 
 	line = &bf->bf_ptr[getline->off];
 	newline = memchr(line, '\n', bf->bf_len - getline->off);
-	if (newline == NULL)
+	if (newline == nullptr)
 		newline = &bf->bf_ptr[bf->bf_len];
 	linelen = (size_t)(newline - line);
 	buffer_reset(getline->bf);
@@ -319,7 +319,7 @@ buffer_getline_impl(const struct buffer *bf, struct buffer_getline *getline)
 
 done:
 	buffer_getline_free(getline);
-	return NULL;
+	return nullptr;
 }
 
 void
@@ -353,7 +353,7 @@ buffer_reserve(struct buffer *bf, size_t len, int overshoot)
 	}
 	ptr = bf->bf_callbacks.realloc(bf->bf_ptr, bf->bf_siz, newsiz,
 	    bf->bf_callbacks.arg);
-	if (ptr == NULL)
+	if (ptr == nullptr)
 		return 1;
 	bf->bf_ptr = ptr;
 	bf->bf_siz = newsiz;

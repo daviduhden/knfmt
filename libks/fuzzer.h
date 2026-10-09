@@ -83,14 +83,14 @@ __attribute__((NO_SANITIZE_UNDEFINED))
 static inline void *
 fuzzer_init(int argc, char *argv[])
 {
-	union fuzzer_callback *it = NULL;
+	union fuzzer_callback *it = nullptr;
 	while (SECTION_ITERATE(it, fz_init)) {
 		/* Suppress cppcheck nullPointer false positive. */
-		assert(it != NULL);
-		if (it->init != NULL)
+		assert(it != nullptr);
+		if (it->init != nullptr)
 			return it->init(argc, argv);
 	}
-	return NULL;
+	return nullptr;
 }
 
 /* Work around what seems to be a GCC UBSan bug. */
@@ -98,11 +98,11 @@ __attribute__((NO_SANITIZE_UNDEFINED))
 static inline void
 fuzzer_teardown(void *userdata)
 {
-	union fuzzer_callback *it = NULL;
+	union fuzzer_callback *it = nullptr;
 	while (SECTION_ITERATE(it, fz_teardown)) {
 		/* Suppress cppcheck nullPointer false positive. */
-		assert(it != NULL);
-		if (it->teardown != NULL)
+		assert(it != nullptr);
+		if (it->teardown != nullptr)
 			it->teardown(userdata);
 	}
 }
@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 		struct buffer *bf;
 
 		bf = buffer_read("/dev/stdin");
-		if (bf == NULL)
+		if (bf == nullptr)
 			__builtin_trap();
 		fuzzer_target.buffer_cb(bf, userdata);
 		buffer_free(bf);
@@ -152,7 +152,7 @@ LLVMFuzzerTestOneInput(const uint8_t *buf, size_t buflen)
 		struct buffer *bf;
 
 		bf = buffer_alloc(buflen);
-		if (bf == NULL)
+		if (bf == nullptr)
 			__builtin_trap();
 		buffer_puts(bf, (const char *)buf, buflen);
 		fuzzer_target.buffer_cb(bf, fuzzer_llvm_userdata);

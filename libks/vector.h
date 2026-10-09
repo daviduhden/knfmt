@@ -59,17 +59,17 @@ int	vector_reserve(void **, size_t);
 
 #define VECTOR_ALLOC(vc) __extension__ ({				\
 	size_t _i = vector_alloc((void **)&(vc), 0);			\
-	_i == ULONG_MAX ? NULL : (vc) + _i;				\
+	_i == ULONG_MAX ? nullptr : (vc) + _i;				\
 })
 #define VECTOR_CALLOC(vc) __extension__ ({				\
 	size_t _i = vector_alloc((void **)&(vc), 1);			\
-	_i == ULONG_MAX ? NULL : (vc) + _i;				\
+	_i == ULONG_MAX ? nullptr : (vc) + _i;				\
 })
 size_t	vector_alloc(void **, int);
 
 #define VECTOR_POP(vc) __extension__ ({					\
 	size_t _i = vector_pop((void *)(vc));				\
-	_i == ULONG_MAX ? NULL : (vc) + _i;				\
+	_i == ULONG_MAX ? nullptr : (vc) + _i;				\
 })
 size_t	vector_pop(void *);
 
@@ -89,13 +89,13 @@ void	vector_sort(void *, int (*)(const void *, const void *));
 
 #define VECTOR_FIRST(vc) __extension__ ({				\
 	size_t _i = vector_first((void *)(vc));				\
-	_i == ULONG_MAX ? NULL : (vc) + _i;				\
+	_i == ULONG_MAX ? nullptr : (vc) + _i;				\
 })
 size_t	vector_first(void *);
 
 #define VECTOR_LAST(vc) __extension__ ({				\
 	size_t _i = vector_last((void *)(vc));				\
-	_i == ULONG_MAX ? NULL : (vc) + _i;				\
+	_i == ULONG_MAX ? nullptr : (vc) + _i;				\
 })
 size_t	vector_last(void *);
 

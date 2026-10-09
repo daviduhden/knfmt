@@ -34,7 +34,7 @@ construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 	int n;
 
 	p = strrchr(path, '/');
-	if (p != NULL) {
+	if (p != nullptr) {
 		size_t len;
 
 		len = (size_t)(&p[1] - path);

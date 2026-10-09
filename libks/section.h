@@ -38,7 +38,7 @@
 	__typeof__(it) _start = &__start_##s [0];			\
 	extern __typeof__(*(it)) __stop_##s [] SECTION_STOP(s);		\
 	__typeof__(it) _stop = &__stop_##s [0];				\
-	if ((it) == NULL)						\
+	if ((it) == nullptr)						\
 		(it) = _start;						\
 	else								\
 		(it)++;							\

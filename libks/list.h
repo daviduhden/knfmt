@@ -82,41 +82,41 @@ struct {								\
 #define	LIST_NEXT(elm)			(LIST_FIELD(elm).tqe_next)
 
 #define	LIST_EMPTY(head)						\
-	(LIST_FIRST(head) == NULL)
+	(LIST_FIRST(head) == nullptr)
 
 #define	LIST_LINKED(elm)						\
-	(LIST_FIELD(elm).tqe_next != NULL || LIST_FIELD(elm).tqe_prev.ptr != NULL)
+	(LIST_FIELD(elm).tqe_next != nullptr || LIST_FIELD(elm).tqe_prev.ptr != nullptr)
 
 #define LIST_FOREACH(var, head)						\
 	for((var) = LIST_FIRST(head);					\
-	    (var) != NULL;						\
+	    (var) != nullptr;						\
 	    (var) = LIST_NEXT(var))
 
 #define	LIST_FOREACH_SAFE(var, head, tvar)				\
 	for ((var) = LIST_FIRST(head);					\
-	    (var) != NULL &&						\
+	    (var) != nullptr &&						\
 	    ((tvar) = LIST_NEXT(var), 1);				\
 	    (var) = (tvar))
 
 #define LIST_FOREACH_REVERSE(var, head)					\
 	for((var) = LIST_LAST(head);					\
-	    (var) != NULL;						\
+	    (var) != nullptr;						\
 	    (var) = LIST_PREV(var))
 
 #define	LIST_FOREACH_REVERSE_SAFE(var, head, tvar)			\
 	for ((var) = LIST_LAST(head);					\
-	    (var) != NULL &&						\
+	    (var) != nullptr &&						\
 	    ((tvar) = LIST_PREV(var), 1);				\
 	    (var) = (tvar))
 
 #define	LIST_INIT(head) do {						\
-	(head)->tqh_first = NULL;					\
+	(head)->tqh_first = nullptr;					\
 	(head)->tqh_last = &(head)->tqh_first;				\
 } while (0)
 
 #define LIST_INSERT_HEAD(head, elm) do {				\
 	LIST_FIELD(elm).tqe_next = (head)->tqh_first;			\
-	if (LIST_FIELD(elm).tqe_next != NULL)				\
+	if (LIST_FIELD(elm).tqe_next != nullptr)				\
 		LIST_FIELD((head)->tqh_first).tqe_prev.ptr =		\
 		    &LIST_FIELD(elm).tqe_next;				\
 	else								\
@@ -126,7 +126,7 @@ struct {								\
 } while (0)
 
 #define LIST_INSERT_TAIL(head, elm) do {				\
-	LIST_FIELD(elm).tqe_next = NULL;				\
+	LIST_FIELD(elm).tqe_next = nullptr;				\
 	LIST_FIELD(elm).tqe_prev.ptr = (head)->tqh_last;		\
 	*(head)->tqh_last = (elm);					\
 	(head)->tqh_last = &LIST_FIELD(elm).tqe_next;			\
@@ -134,7 +134,7 @@ struct {								\
 
 #define LIST_INSERT_AFTER(head, listelm, elm) do {			\
 	LIST_FIELD(elm).tqe_next = LIST_FIELD(listelm).tqe_next;	\
-	if (LIST_FIELD(elm).tqe_next != NULL)				\
+	if (LIST_FIELD(elm).tqe_next != nullptr)				\
 		LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =	\
 		    &LIST_FIELD(elm).tqe_next;				\
 	else								\
@@ -151,14 +151,14 @@ struct {								\
 } while (0)
 
 #define LIST_REMOVE(head, elm) do {					\
-	if ((LIST_FIELD(elm).tqe_next) != NULL)				\
+	if ((LIST_FIELD(elm).tqe_next) != nullptr)				\
 		LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =	\
 		    LIST_FIELD(elm).tqe_prev.ptr;			\
 	else								\
 		(head)->tqh_last = LIST_FIELD(elm).tqe_prev.ptr;	\
 	*LIST_FIELD(elm).tqe_prev.ptr = LIST_FIELD(elm).tqe_next;	\
-	LIST_FIELD(elm).tqe_prev.ptr = NULL;				\
-	LIST_FIELD(elm).tqe_next = NULL;				\
+	LIST_FIELD(elm).tqe_prev.ptr = nullptr;				\
+	LIST_FIELD(elm).tqe_next = nullptr;				\
 } while (0)
 
 #define LIST_CONCAT(head1, head2) do {					\

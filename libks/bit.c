@@ -16,7 +16,7 @@
  */
 
 #include "libks/bit.h"
-#include <stddef.h>	/* NULL */
+#include <stddef.h>	/* nullptr */
 #include <stdint.h>
 #include "libks/capabilities.h"
 
@@ -51,7 +51,7 @@ KS_bit_init(void)
 {
 #if defined(__x86_64__)
 	const struct KS_x86_capabilites *caps = KS_x86_capabilites();
-	if (caps == NULL)
+	if (caps == nullptr)
 		return 0;
 	if (caps->bmi >= 2 /* PEXT, PDEP */) {
 		KS_extract_and_deposit = KS_extract_and_deposit_native;

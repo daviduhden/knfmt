@@ -60,7 +60,7 @@ void	*map_insert_n(void *, const void *const *, size_t);
 
 #define MAP_INSERT_VALUE(m, key, val) __extension__ ({			\
 	__typeof__((m)->v) _e = MAP_INSERT((m), (key));			\
-	if (_e != NULL)							\
+	if (_e != nullptr)							\
 		*_e = (const __typeof__(*(m)->v))(val);			\
 	_e;								\
 })
@@ -103,7 +103,7 @@ struct map_iterator {
 #define MAP_ITERATE(m, iterator) __extension__ ({			\
 	(iterator)->val = (__typeof__((m)->v))map_iterate(		\
 	    (m), &((iterator)->it));					\
-	if ((iterator)->val != NULL) {					\
+	if ((iterator)->val != nullptr) {					\
 		void *_k = map_key((m), (void *)(iterator)->val);	\
 		(iterator)->key = __builtin_choose_expr(		\
 		    sizeof((m)->p) > sizeof(char),			\
@@ -113,7 +113,7 @@ struct map_iterator {
 	/* Suppress cppcheck unreadVariable false positives. */		\
 	(void)(iterator)->key;						\
 	(void)(iterator)->val;						\
-	(iterator)->val != NULL ? 1 : 0;				\
+	(iterator)->val != nullptr ? 1 : 0;				\
 })
 void	*map_iterate(void *, struct map_iterator *);
 

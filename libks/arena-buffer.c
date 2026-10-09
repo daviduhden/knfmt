@@ -70,7 +70,7 @@ arena_buffer_read(struct arena_scope *s, const char *path)
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
-		return NULL;
+		return nullptr;
 
 	if (estimate_size(fd, &init_size))
 		overshoot = 0;
@@ -82,7 +82,7 @@ arena_buffer_read(struct arena_scope *s, const char *path)
 	if (error) {
 		buffer_free(bf);
 		errno = errno_save;
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -95,7 +95,7 @@ arena_buffer_read_fd(struct arena_scope *s, int fd)
 	bf = arena_buffer_alloc(s, 1 << 13);
 	if (buffer_read_fd_impl(bf, fd)) {
 		buffer_free(bf);
-		return NULL;
+		return nullptr;
 	}
 	return bf;
 }
@@ -104,7 +104,7 @@ const char *
 arena_buffer_getline(struct arena_scope *s, const struct buffer *bf,
     struct buffer_getline *getline)
 {
-	if (getline->bf == NULL)
+	if (getline->bf == nullptr)
 		getline->bf = arena_buffer_alloc(s, 1 << 10);
 
 	return buffer_getline_impl(bf, getline);

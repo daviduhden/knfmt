@@ -40,11 +40,11 @@ KS_str_match_init_once("  \f\f\n\n\r\r\t\t\v\v", &match_spaces);
 static void
 KS_str_init(void)
 {
-	struct KS_str_match_init_once *once = NULL;
+	struct KS_str_match_init_once *once = nullptr;
 
 	while (SECTION_ITERATE(once, KS_str_ranges)) {
 		/* Suppress cppcheck nullPointer false positive. */
-		assert(once != NULL);
+		assert(once != nullptr);
 		if (KS_str_match_init(once->ranges, once->match) == -1)
 			__builtin_trap();
 	}

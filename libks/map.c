@@ -106,7 +106,7 @@ map_init(void **mp, size_t keysize, size_t valsize, unsigned int flags)
 		goto overflow;
 
 	m = calloc(1, sizeof(*m));
-	if (m == NULL)
+	if (m == nullptr)
 		return 1;
 	m->key.size = keysize;
 	m->val.size = valsize;
@@ -127,10 +127,10 @@ map_free(void *mp)
 	struct map *m = mp;
 	struct map_element *el, *nx;
 
-	if (m == NULL)
+	if (m == nullptr)
 		return;
 
-	for (el = m->head; el != NULL; el = nx) {
+	for (el = m->head; el != nullptr; el = nx) {
 		nx = el->next;
 		HASH_DELETE(m, el);
 	}
@@ -154,12 +154,12 @@ map_insert_n(void *mp, const void *const *key, size_t keysize)
 
 	keyptr = key_get_ptr(m, key);
 	el = map_alloc_element(m, keysize);
-	if (el == NULL)
-		return NULL;
+	if (el == nullptr)
+		return nullptr;
 	memcpy(element_get_key(m, el), keyptr, keysize);
 	if (HASH_ADD(m, element_get_key(m, el), keysize, el)) {
 		free(el);
-		return NULL;
+		return nullptr;
 	}
 	return element_get_val(el);
 }
@@ -184,7 +184,7 @@ map_find(void *mp, const void *const *key)
 	keyptr = key_get_ptr(m, key);
 	keysize = key_get_size(m, keyptr);
 	el = HASH_FIND(m, keyptr, keysize);
-	return el != NULL ? element_get_val(el) : NULL;
+	return el != nullptr ? element_get_val(el) : nullptr;
 }
 
 void *
@@ -196,7 +196,7 @@ map_find_n(void *mp, const void *const *key, size_t keysize)
 
 	keyptr = key_get_ptr(m, key);
 	el = HASH_FIND(m, keyptr, keysize);
-	return el != NULL ? element_get_val(el) : NULL;
+	return el != nullptr ? element_get_val(el) : nullptr;
 }
 
 void
@@ -210,7 +210,7 @@ map_remove(void *mp, const void *const *key)
 	keyptr = key_get_ptr(m, key);
 	keysize = key_get_size(m, keyptr);
 	el = HASH_FIND(m, keyptr, keysize);
-	if (el == NULL)
+	if (el == nullptr)
 		return;
 	HASH_DELETE(m, el);
 }
@@ -221,18 +221,18 @@ map_iterate(void *mp, struct map_iterator *it)
 	struct map *m = mp;
 	struct map_element *el;
 
-	if (it->el == NULL && it->nx == NULL) {
+	if (it->el == nullptr && it->nx == nullptr) {
 		el = m->head;
-		if (el == NULL)
-			return NULL;
+		if (el == nullptr)
+			return nullptr;
 		it->el = el;
 		it->nx = el->next;
 		return element_get_val(el);
 	}
 
 	el = it->nx;
-	if (el == NULL)
-		return NULL;
+	if (el == nullptr)
+		return nullptr;
 	it->nx = el->next;
 	return element_get_val(el);
 }
@@ -251,13 +251,13 @@ map_alloc_element(struct map *m, size_t keysize)
 		    KS_size_add_overflow(keysize_aligned, totsize, &totsize) ||
 		    KS_size_add_overflow(1, totsize, &totsize)) {
 			errno = EOVERFLOW;
-			return NULL;
+			return nullptr;
 		}
 	}
 
 	el = calloc(1, totsize);
-	if (el == NULL)
-		return NULL;
+	if (el == nullptr)
+		return nullptr;
 	return el;
 }
 
@@ -379,9 +379,9 @@ HASH_ADD(struct map *m, const void *key, size_t keylen,
 	add->hashv = _ha_hashv;
 	add->key = key;
 	add->keylen = keylen;
-	if (m->head == NULL) {
+	if (m->head == nullptr) {
 		m->table = HASH_MAKE_TABLE(add);
-		if (m->table == NULL)
+		if (m->table == nullptr)
 			return 1;
 		m->head = add;
 	} else {
@@ -401,8 +401,8 @@ HASH_ADD_TO_TABLE(struct map *m, unsigned int hashval, struct map_element *add)
 	bkt = &m->table->buckets[bkt_idx];
 	bkt->count++;
 	add->hh_next = bkt->hh_head;
-	add->hh_prev = NULL;
-	if (bkt->hh_head != NULL)
+	add->hh_prev = nullptr;
+	if (bkt->hh_head != nullptr)
 		bkt->hh_head->hh_prev = add;
 	bkt->hh_head = add;
 	if ((bkt->count >=
@@ -417,7 +417,7 @@ HASH_ADD_TO_TABLE(struct map *m, unsigned int hashval, struct map_element *add)
 static void
 HASH_APPEND_LIST(struct map *m, struct map_element *add)
 {
-	add->next = NULL;
+	add->next = nullptr;
 	add->prev = m->table->tail;
 	m->table->tail->next = add;
 	m->table->tail = add;
@@ -441,18 +441,18 @@ HASH_DELETE(struct map *m, struct map_element *del)
 	const struct map_element *_hd_hh_del = del;
 	struct UT_hash_table *tbl = m->table;
 
-	if (_hd_hh_del->prev == NULL && _hd_hh_del->next == NULL) {
+	if (_hd_hh_del->prev == nullptr && _hd_hh_del->next == nullptr) {
 		free(tbl->buckets);
 		free(tbl);
-		m->head = NULL;
+		m->head = nullptr;
 	} else {
 		if (_hd_hh_del == tbl->tail)
 			tbl->tail = _hd_hh_del->prev;
-		if (_hd_hh_del->prev != NULL)
+		if (_hd_hh_del->prev != nullptr)
 			_hd_hh_del->prev->next = _hd_hh_del->next;
 		else
 			m->head = _hd_hh_del->next;
-		if (_hd_hh_del->next != NULL)
+		if (_hd_hh_del->next != nullptr)
 			_hd_hh_del->next->prev = _hd_hh_del->prev;
 		HASH_DEL_IN_BKT(m, _hd_hh_del);
 		tbl->num_items--;
@@ -518,7 +518,7 @@ HASH_EXPAND_BUCKETS(struct map *m)
 	if (KS_u32_mul_overflow(tbl->num_buckets, 2, &nbuckets))
 		return 1;
 	newbuckets = calloc(nbuckets, sizeof(struct UT_hash_bucket));
-	if (newbuckets == NULL)
+	if (newbuckets == nullptr)
 		return 1;
 
 	tbl->ideal_chain_maxlen =
@@ -528,7 +528,7 @@ HASH_EXPAND_BUCKETS(struct map *m)
 	tbl->nonideal_items = 0;
 	for (i = 0; i < tbl->num_buckets; i++) {
 		_he_thh = tbl->buckets[i].hh_head;
-		while (_he_thh != NULL) {
+		while (_he_thh != nullptr) {
 			_he_hh_nxt = _he_thh->hh_next;
 			unsigned int bkt_idx = HASH_TO_BKT(_he_thh->hashv, nbuckets);
 			_he_newbkt = &newbuckets[bkt_idx];
@@ -539,9 +539,9 @@ HASH_EXPAND_BUCKETS(struct map *m)
 				    tbl->ideal_chain_maxlen)
 					_he_newbkt->expand_mult++;
 			}
-			_he_thh->hh_prev = NULL;
+			_he_thh->hh_prev = nullptr;
 			_he_thh->hh_next = _he_newbkt->hh_head;
-			if (_he_newbkt->hh_head != NULL)
+			if (_he_newbkt->hh_head != nullptr)
 				_he_newbkt->hh_head->hh_prev = _he_thh;
 			_he_newbkt->hh_head = _he_thh;
 			_he_thh = _he_hh_nxt;
@@ -564,19 +564,19 @@ HASH_FIND(struct map *m, const void *key, size_t keylen)
 	struct map_element *el;
 	unsigned int bkt_idx, hashv;
 
-	if (m->head == NULL)
-		return NULL;
+	if (m->head == nullptr)
+		return nullptr;
 
 	hashv = HASH_JEN(key, keylen);
 	bkt_idx = HASH_TO_BKT(hashv, m->table->num_buckets);
 	el = m->table->buckets[bkt_idx].hh_head;
-	while (el != NULL) {
+	while (el != nullptr) {
 		if (el->hashv == hashv && el->keylen == keylen &&
 		    memcmp(el->key, key, keylen) == 0)
 			return el;
 		el = el->hh_next;
 	}
-	return NULL;
+	return nullptr;
 }
 
 static struct UT_hash_table *
@@ -585,16 +585,16 @@ HASH_MAKE_TABLE(struct map_element *tail)
 	struct UT_hash_table *tbl;
 
 	tbl = calloc(1, sizeof(*tbl));
-	if (tbl == NULL)
-		return NULL;
+	if (tbl == nullptr)
+		return nullptr;
 	tbl->tail = tail;
 	tbl->num_buckets = HASH_INITIAL_NUM_BUCKETS;
 	tbl->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
 	tbl->buckets = calloc(HASH_INITIAL_NUM_BUCKETS,
 	    sizeof(struct UT_hash_bucket));
-	if (tbl->buckets == NULL) {
+	if (tbl->buckets == nullptr) {
 		free(tbl);
-		return NULL;
+		return nullptr;
 	}
 	return tbl;
 }

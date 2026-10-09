@@ -72,7 +72,8 @@ fi
 [ ! -s "${_wrkdir}/o1" ]
 
 # EOF after a backslash, blank lines and whitespace is accepted and stable.
-printf 'int x = 1;\\' >"${_wrkdir}/eof-bs.c"
+bs=\\
+printf 'int x = 1;%s' "${bs}" >"${_wrkdir}/eof-bs.c"
 stable eof-bs.c
 printf 'int x = 1;\n\n\n' >"${_wrkdir}/eof-blank.c"
 stable eof-blank.c

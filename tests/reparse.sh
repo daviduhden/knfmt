@@ -7,25 +7,36 @@
 
 K="${KNFMT:-./knfmt}"
 cd "$(dirname "$0")/.." || exit 1
-files="$*"
-[ -n "$files" ] || files="tests/*.c tests/*.h"
+files="${*}"
+[ -n "${files}" ] || files="tests/*.c tests/*.h"
+
+# fmt <opts> <file> <out>: format <file> into <out>, applying the optional
+# <opts> when it is non-empty. Keeping the argument as a single properly quoted
+# word avoids relying on word splitting.
+fmt() {
+	if [ -n "$1" ]; then
+		"${K}" "$1" "$2" >"$3" 2>/dev/null
+	else
+		"${K}" "$2" >"$3" 2>/dev/null
+	fi
+}
 
 fail=0; n=0; na=0
-for f in $files; do
+for f in ${files}; do
 	for opts in "" "-s"; do
 		out=$(mktemp); out2=$(mktemp)
-		if $K $opts "$f" >"$out" 2>/dev/null; then
+		if fmt "${opts}" "${f}" "${out}"; then
 			n=$((n + 1))
-			if ! $K $opts "$out" >"$out2" 2>/dev/null ||
-			    ! cmp -s "$out" "$out2"; then
-				echo "REPARSE FAIL: $f opts='$opts'"
+			if ! fmt "${opts}" "${out}" "${out2}" ||
+			    ! cmp -s "${out}" "${out2}"; then
+				echo "REPARSE FAIL: ${f} opts='${opts}'"
 				fail=$((fail + 1))
 			fi
 		else
 			na=$((na + 1))
 		fi
-		rm -f "$out" "$out2"
+		rm -f "${out}" "${out2}"
 	done
 done
-echo "reparse: accepted=$n rejected=$na fail=$fail"
-[ "$fail" -eq 0 ]
+echo "reparse: accepted=${n} rejected=${na} fail=${fail}"
+[ "${fail}" -eq 0 ]

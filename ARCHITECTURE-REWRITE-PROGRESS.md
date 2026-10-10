@@ -496,3 +496,31 @@ all callers pass `beg >= 1`, but the function now enforces its own
 - Full interprocedural ownership reconstruction and the C89-C23 feature
   matrix remain partially complete; brace/expression/declaration paths are
   audited, but this is not an exhaustive file-by-file claim.
+
+## Update — Valgrind memory-checking pass (current head)
+
+Valgrind became usable via `with-standard-malloc` (bypasses the Secureblue
+`libhardened_malloc` preload that aborts under Valgrind). Using the repo
+`.valgrindrc` (full leak checking, `errors-for-leak-kinds=all`):
+
+- Scanned all 928 `tests/*.c`/`*.h` files plus a `-s` subset: **0 memory
+  errors, 0 leaks** after the fix below.
+- Found and fixed: `parser_func_peek1()`'s implicit-int branch left
+  `func_decl` uninitialized; `parser_func_proto()` then branched on it
+  ("Conditional jump or move depends on uninitialised value(s)",
+  `tests/valid-533.c`). Fixed by clearing the whole `struct parser_type`.
+  Commit `f3776f0`.
+- Fixed a latent unsigned underflow: `lexer_get_lines()` now rejects
+  `beg == 0`. Commit `d33e642`.
+- Fixed the quadratic flat brace initializer scan found by the mutation
+  fuzzer. Commit `2dbef70`.
+
+Mutation fuzzing (standalone `fuzz-parse`, GCC): 4000 executions on the
+fixed tree, 0 crashes, 0 timeouts; a 25000-execution campaign is recorded
+separately.
+
+Remaining limitations: Clang (ASan/UBSan/unsigned-overflow and libFuzzer)
+is unavailable because the Homebrew LLVM tree is currently owner-only;
+the last instrumented Clang run predates today's fixes. The
+interprocedural ownership review and the C89-C23 feature matrix are
+partial; the claim of exhaustiveness is not made.

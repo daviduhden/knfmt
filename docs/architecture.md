@@ -134,3 +134,23 @@ established and is not claimed.
   actually instrumented. LeakSanitizer cannot run here (`ptrace` is
   restricted); leak-freedom is therefore not established by LSan and the
   `tests/fault.sh` and reference counting checks are used instead.
+
+## Valgrind memory checking
+
+- The system preloads `libhardened_malloc.so` (Secureblue), whose custom
+  allocator aborts under Valgrind. Run tools under
+  `with-standard-malloc …` (a `bwrap` wrapper that masks
+  `/etc/ld.so.preload`) to use the standard allocator.
+- `.valgrindrc` enables `--leak-check=full` with
+  `--errors-for-leak-kinds=all` and `--error-exitcode=1`, so a clean exit
+  already implies no memory errors and no leaks.
+- The whole `tests/*.c`/`*.h` corpus (928 files) runs Valgrind-clean, and
+  so does a `-s` subset. This compensates for the unavailable
+  LeakSanitizer.
+
+## Parser type initialization
+
+- `parser_func_peek1()`'s implicit-int branch must clear the whole
+  `struct parser_type`, not only the token pointers: `func_decl` is read
+  by `parser_func_proto()` and was otherwise uninitialized (found by
+  Valgrind on `tests/valid-533.c`).

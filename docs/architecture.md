@@ -154,3 +154,15 @@ established and is not claimed.
   `struct parser_type`, not only the token pointers: `func_decl` is read
   by `parser_func_proto()` and was otherwise uninitialized (found by
   Valgrind on `tests/valid-533.c`).
+
+## C99 line comments in declarations
+
+- A `//` comment runs to the end of the line, so any following token must
+  start a new line. The type-specifier loop in `parser_type()` used a soft
+  line before the next type token; when the preceding token carried a C99
+  comment the soft line could be dropped and the following declaration was
+  appended to the comment, commenting it out and swallowing one more
+  declaration per pass. A hard line is emitted after a C99 comment there.
+  This line is internal to a declaration, so it never duplicates the
+  statement separator (normal `int x; // c` output is unchanged).
+- Regression: `tests/repro-idempotence-003.c`.

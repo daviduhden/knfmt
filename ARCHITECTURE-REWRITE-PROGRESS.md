@@ -524,3 +524,25 @@ is unavailable because the Homebrew LLVM tree is currently owner-only;
 the last instrumented Clang run predates today's fixes. The
 interprocedural ownership review and the C89-C23 feature matrix are
 partial; the claim of exhaustiveness is not made.
+
+## Update — C99 comment in a recovered declaration (fuzzing)
+
+Mutation fuzzing (standalone `fuzz-parse`, idempotence oracle) found a
+SIGILL at execution 7184 of a 25000-run campaign. Minimized to 84 bytes:
+
+```c
+main(void)
+{
+	struct //vattr vattr;
+	char *name;
+	const char *dir = "/var/crash";
+}
+```
+
+Pass 1 emitted `struct //vattr vattr; char *name;`, turning `char *name;`
+into part of the C99 comment and losing the declaration; each pass
+swallowed one more declaration. Root cause: `parser_type()` used a soft
+line between type tokens; after a C99 comment that line must be hard.
+Fixed in `parser-type.c` (commit `6a196a5`), regression
+`tests/repro-idempotence-003.c`. Follow-up campaigns: 8000 executions,
+0 crashes, 0 timeouts.

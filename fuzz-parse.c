@@ -48,6 +48,13 @@ teardown(void *userdata)
 {
 	struct test_context *c = userdata;
 
+	/*
+	 * Leave the eternal scope before freeing the arenas. arena_free()
+	 * cannot run cleanup handlers (such as style_free(), which regfree()s
+	 * the compiled patterns) while a scope is still outstanding, so the
+	 * patterns would otherwise be leaked.
+	 */
+	arena_scope_leave(&c->eternal_scope);
 	arenas_free(&c->arena);
 	style_shutdown();
 	expr_shutdown();
@@ -56,7 +63,7 @@ teardown(void *userdata)
 FUZZER_TEARDOWN(teardown);
 
 static int
-format_once(const struct test_context *c, const struct buffer *bf,
+format_once(struct test_context *c, const struct buffer *bf,
     struct arena_scope *scope, struct buffer *dst)
 {
 	struct clang *clang;

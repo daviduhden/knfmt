@@ -166,3 +166,33 @@ established and is not claimed.
   This line is internal to a declaration, so it never duplicates the
   statement separator (normal `int x; // c` output is unchanged).
 - Regression: `tests/repro-idempotence-003.c`.
+
+## C89–C23 feature audit (summary)
+
+The build is `-std=c23` with `-D_DEFAULT_SOURCE`; libks is C23 too. The
+following were evaluated against real code (not adopted merely because
+they exist).
+
+| Standard | Feature | Status | Reason |
+|---|---|---|---|
+| C90 | prototypes, `const`, `void *`, enums, storage classes | used | already idiomatic; no K&R/undefined declarations |
+| C90 | wide characters (C95) | n/a | byte/UTF-8 oriented formatter |
+| C99 | designated initializers | used | e.g. `buffer_callbacks`, style tables |
+| C99 | `stdint.h`, `inline`, variadic macros | used | fixed widths; header inlines; trace macros |
+| C99 | `restrict` | not used | no no-alias contract established for public entry points |
+| C99 | flexible array members | n/a | no layout benefit over current representations |
+| C11 | `static_assert` | adopted | `libks/map.c` bucket/log2 invariant |
+| C11 | `_Generic`, atomics, TLS | n/a | no type-dispatch or shared-state use |
+| C11 | alignment | used | `__attribute__((aligned))` where ABI requires it |
+| C23 | `nullptr` | adopted | whole tree (project + libks) |
+| C23 | `bool`, `true`, `false` | used | already native |
+| C23 | `[[noreturn]]` | adopted | `usage()`; `format`/`cleanup` retained (no standard equivalent) |
+| C23 | `[[nodiscard]]` | adopted | checked-arithmetic helpers |
+| C23 | `<stdckdint.h>` | adopted | `KS_*_overflow` prefer `ckd_*`, fall back to builtins |
+| C23 | `static_assert` | adopted | see C11 |
+| C23 | `alignas`/`alignof`, `typeof`, `auto`, `<stdbit.h>`, `#embed`, `_BitInt`, `#elifdef`/`#warning`/`__VA_OPT__` | n/a | no applicable site that would not add complexity or change layout/ABI |
+
+The C++ side (`benchmark.cpp`, Google Benchmark harness) is C++23
+(`-std=c++23`); it cannot be built here and is reviewed at source level
+only. Standard C++ ownership abstractions are not introduced into the C
+codebase.

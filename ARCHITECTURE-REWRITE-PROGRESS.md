@@ -438,3 +438,61 @@ incidental source break for this recovered expression, or the malformed
 input must be rejected cleanly. Both the original (15058-byte) and the
 minimized reproducer are preserved; neither is wired into `bmake test`
 while the defect remains.
+
+## Update — idempotence resolved, fault injection, quadratic brace fix
+
+Head: `main`, working tree clean. Both reproducers below are fixed.
+
+### `tests/repro-idempotence-00{1,2}.c` — resolved (Option A)
+
+Root cause: `token_move_prev_line()` moved a line break before a binary
+operator onto the operator. When the token before an operator is itself an
+operator (as happens when recovering malformed input), the moved break
+then precedes the next operator, which the following pass moved again —
+one operator per pass. Fix: leave an operator that immediately follows
+another binary operator untouched. `F(F(x)) == F(x)` now holds in one
+pass; the output is unchanged for valid input. `001` shares the root cause
+and is also stable. Regression: `tests/idempotence.sh`, wired into
+`bmake test`, covering both reproducers in normal and `-s` mode.
+
+### Allocation fault injection (`bmake fault`, dev target)
+
+`knfmt-fault` links `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc` with
+`tests/fault-wrap.c`; `tests/fault.sh` fails each allocation in turn.
+Result: every failure point for `valid-001.c` (0..291), `diff-014.c`
+(0..1869, `-s` 0..3553) and `repro-idempotence-002.c` (0..310) exits
+cleanly (status 1, no partial stdout), and `-i` leaves the file unchanged.
+
+### Quadratic flat brace initializers — fixed
+
+Found by mutation fuzzing as a timeout (210 KB in ~18 s). The cache in
+`lbrace_cache_lookup()` did not record the absence of a nested brace, so
+every field rescanned to end of input. Now near-linear: 640 KB in 0.74 s
+(was 60 s); `tests/valid-292.c` 0.25 s (was 6.1 s). No output change.
+
+### Lexer line table — latent fix
+
+`lexer_get_lines()` now rejects `beg == 0` (would index `lx_lines[-1]`);
+all callers pass `beg >= 1`, but the function now enforces its own
+1-based contract.
+
+### Verification performed
+
+- `LC_ALL=C bmake test` green; `tests/reparse.sh`
+  accepted=1692 rejected=164 fail=0.
+- `bmake fault` (GCC build) green.
+- Mutation fuzzing: `tests/*.c`/`*.h` seeds (928), 5000 mutated executions
+  via the standalone `fuzz-parse` oracle (normal and trap-on-non-idempotence);
+  1 timeout (the quadratic case above, now fixed), 0 crashes.
+
+### Remaining / limitations
+
+- Clang became unavailable mid-session (Homebrew LLVM directory perms
+  changed to owner-only), so the Clang ASan/UBSan/unsigned-overflow suite
+  and libFuzzer campaign could not be re-run after the latest fixes; the
+  last instrumented run was on the pre-`idempotence`-fix tree.
+- LeakSanitizer cannot run here (`ptrace` restricted): leak-freedom is not
+  established by LSan.
+- Full interprocedural ownership reconstruction and the C89-C23 feature
+  matrix remain partially complete; brace/expression/declaration paths are
+  audited, but this is not an exhaustive file-by-file claim.

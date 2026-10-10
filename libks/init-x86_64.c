@@ -76,11 +76,17 @@ KS_str_match_init_512(const char *ranges, struct KS_str_match *match)
 	ranges_len = strlen(ranges);
 
 	for (i = 0; i < ranges_len; i += 2) {
-		uint8_t hi, j, lo;
+		uint8_t hi, lo;
+		unsigned int j;
 
 		lo = (uint8_t)ranges[i];
 		hi = (uint8_t)ranges[i + 1];
-		for (j = lo; j < hi + 1; j++) {
+		/*
+		 * j must be wider than the range bounds: hi + 1 is promoted to
+		 * int, so a uint8_t j would never reach 0x100 and the loop
+		 * would not terminate when hi == 0xff.
+		 */
+		for (j = lo; j <= hi; j++) {
 			uint8_t mask = (uint8_t)(1 << (j >> 4));
 
 	/* Avoid loss of precision due to conversion warnings. Caused by the

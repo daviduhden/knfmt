@@ -25,6 +25,7 @@
 #include "libks/arena-buffer.h"
 #include "libks/arena-vector.h"
 #include "libks/arena.h"
+#include "libks/arithmetic.h"
 #include "libks/bit.h"
 #include "libks/buffer.h"
 #include "libks/section.h"
@@ -167,9 +168,17 @@ char *
 KS_str_vis(const char *str, size_t len, struct arena_scope *s)
 {
 	struct buffer *bf;
-	size_t i;
+	size_t i, size;
 
-	bf = arena_buffer_alloc(s, (4 * len) + 1);
+	/*
+	 * Worst case every byte expands to four characters ("\xNN"), plus the
+	 * NUL terminator. Use a checked calculation and fall back to a minimal
+	 * hint when it would overflow; the buffer grows on demand.
+	 */
+	if (KS_size_mul_overflow(len, 4, &size) ||
+	    KS_size_add_overflow(size, 1, &size))
+		size = 1;
+	bf = arena_buffer_alloc(s, size);
 
 	for (i = 0; i < len; i++) {
 		char c = str[i];

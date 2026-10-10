@@ -35,13 +35,13 @@ is_guard_define(const struct token *tk)
 	while (len > 0) {
 		int word = 0;
 
-		for (; !isspace((unsigned char)str[0]) && len > 0; str++, len--)
+		for (; len > 0 && !isspace((unsigned char)str[0]); str++, len--)
 			word = 1;
 		nwords += word;
 		if (nwords > threshold)
 			break;
 
-		for (; isspace((unsigned char)str[0]) && len > 0; str++, len--)
+		for (; len > 0 && isspace((unsigned char)str[0]); str++, len--)
 			continue;
 	}
 
@@ -67,7 +67,7 @@ path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 		if (c == '.' || c == '/' || c == '-')
 			buffer_putc(bf, '_');
 		else
-			buffer_putc(bf, toupper(c));
+			buffer_putc(bf, (char)toupper((unsigned char)c));
 	}
 	return buffer_str(bf);
 }
@@ -259,6 +259,13 @@ cpp_include_guard(const struct style *st, struct lexer *lx,
 	cpp_endif = arena_sprintf(eternal_scope, "#endif /* !%s */\n", guard);
 
 	int has_include_guards = sense_include_guards(lx, cpp_ifndef, cpp_define, cpp_endif, &c);
+	/*
+	 * A negative result means the lexer could not be inspected; the
+	 * context is left zeroed, so bail out rather than dereference null
+	 * branch parents below.
+	 */
+	if (has_include_guards < 0)
+		return;
 	if (has_include_guards && ncomponents == 0)
 		remove_include_guards(&c);
 	if (has_include_guards || ncomponents == 0)

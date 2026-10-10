@@ -21,7 +21,12 @@ has_underscores(const struct token *tk)
 	const char *str = tk->tk_str;
 	size_t len = tk->tk_len;
 
-	return len > 2 &&
+	/*
+	 * The prefix and suffix "__" must not overlap: the shortest valid
+	 * identifier is "____", otherwise len - 4 in remove_underscores()
+	 * would underflow (e.g. the three-byte identifier "___").
+	 */
+	return len >= 4 &&
 	    strncmp(str, "__", 2) == 0 &&
 	    strncmp(&str[len - 2], "__", 2) == 0;
 }

@@ -360,7 +360,10 @@ lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
 	size_t nlines = VECTOR_LENGTH(lx->lx_lines);
 	size_t bo, eo;
 
-	if (beg > nlines || end > nlines)
+	/*
+	 * Line numbers are 1-based; beg == 0 would index lx_lines[-1].
+	 */
+	if (beg == 0 || beg > nlines || end > nlines)
 		return 0;
 	if (end != 0 && beg > end)
 		return 0;

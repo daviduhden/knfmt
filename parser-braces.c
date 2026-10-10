@@ -27,7 +27,7 @@ struct braces_field_arg {
 };
 
 struct lbrace_cache {
-	int		 valid;
+	int		 searched;
 	struct token	*lbrace;
 };
 
@@ -468,12 +468,16 @@ static struct token *
 lbrace_cache_lookup(struct parser *pr, struct lbrace_cache *cache,
     struct token *fallback)
 {
-	if (!cache->valid) {
-		struct token *lbrace = find_next_lbrace(pr);
-		if (lbrace != nullptr) {
-			cache->lbrace = lbrace;
-			cache->valid = 1;
-		}
+	/*
+	 * Remember that the search was performed even when no nested left brace
+	 * exists. Positions only move forward, so a brace that is absent now
+	 * cannot appear later; without this a flat initializer would rescan the
+	 * token stream to its end for every field, making formatting quadratic
+	 * in the number of elements.
+	 */
+	if (!cache->searched) {
+		cache->lbrace = find_next_lbrace(pr);
+		cache->searched = 1;
 	}
 	return cache->lbrace != nullptr ? cache->lbrace : fallback;
 }

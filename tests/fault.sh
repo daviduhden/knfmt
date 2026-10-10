@@ -84,8 +84,12 @@ run_inplace() {
 for _f in \
     "${srcdir}/tests/valid-001.c" \
     "${srcdir}/tests/diff-014.c" \
-    "${srcdir}/tests/repro-idempotence-002.c"; do
+    "${srcdir}/tests/repro-idempotence-002.c" \
+    "${srcdir}/tests/repro-idempotence-003.c" \
+    "${srcdir}/tests/simple-attributes-003.c"; do
 	run "${_f}"
 	run "${_f}" -s
 done
+run "${srcdir}/tests/valid-001.c" -d
 run_inplace "${srcdir}/tests/valid-001.c"
+run_inplace "${srcdir}/tests/repro-idempotence-003.c"

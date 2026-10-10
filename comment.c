@@ -102,7 +102,12 @@ skipws(const char *str, size_t len)
 
 	for (; len > 0 && (str[i] == ' ' || str[i] == '\t'); i++, len--)
 		continue;
-	if (i == 0)
+	/*
+	 * Return nullptr both when there is no leading whitespace and when the
+	 * whole string is whitespace: in the latter case &str[i] points one
+	 * past the end and the caller would dereference it.
+	 */
+	if (i == 0 || len == 0)
 		return nullptr;
 	return &str[i];
 }

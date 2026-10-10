@@ -9,6 +9,7 @@ fuzz-style
 knfmt
 t
 knfmt-fault
+strmatch
 
 # Build artifacts
 *.o

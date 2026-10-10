@@ -75,6 +75,10 @@ OBJS_fault=	${OBJS_knfmt} tests/fault-wrap.o
 DEPS_fault=	tests/fault-wrap.d
 PROG_fault=	knfmt-fault
 
+OBJS_strmatch=	tests/str-match.o ${OBJS_knfmt:Nknfmt.o}
+DEPS_strmatch=	tests/str-match.d
+PROG_strmatch=	strmatch
+
 SRCS_test+=	${SRCS}
 SRCS_test+=	t.c
 OBJS_test:=	${SRCS_test:.c=.o}
@@ -491,6 +495,10 @@ ${PROG_fault}: ${OBJS_fault}
 	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_fault} ${OBJS_fault} ${LDFLAGS} \
 		-Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc
 
+${PROG_strmatch}: ${OBJS_strmatch}
+	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_strmatch} ${OBJS_strmatch} \
+		${LDFLAGS}
+
 ${PROG_test}: ${OBJS_test}
 	${CC} ${DEBUG} ${NO_SANITIZE_FUZZER} -o ${PROG_test} ${OBJS_test} ${LDFLAGS}
 
@@ -501,6 +509,7 @@ ${PROG_benchmark}: ${OBJS_benchmark}
 clean:
 	rm -f ${DEPS_knfmt} ${OBJS_knfmt} ${PROG_knfmt} \
 		${DEPS_fault} ${OBJS_fault} ${PROG_fault} \
+		${DEPS_strmatch} ${OBJS_strmatch} ${PROG_strmatch} \
 		${DEPS_test} ${OBJS_test} ${PROG_test} \
 		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
 		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
@@ -525,6 +534,10 @@ format: ${PROG_knfmt}
 fault: ${PROG_fault}
 	KFAULT=${.OBJDIR}/${PROG_fault} sh ${.CURDIR}/tests/fault.sh
 .PHONY: fault
+
+str-match: ${PROG_strmatch}
+	./${PROG_strmatch}
+.PHONY: str-match
 
 fuzz: ${PROG_fuzz-style} ${PROG_fuzz-parse}
 

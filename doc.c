@@ -1479,7 +1479,7 @@ doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 		break;
 
 	case DOC_VERBATIM:
-		if (dc->dc_str[dc->dc_len - 1] != '\n')
+		if (dc->dc_len > 0 && dc->dc_str[dc->dc_len - 1] != '\n')
 			doc_column(st, dc->dc_str, dc->dc_len);
 		break;
 

@@ -62,7 +62,7 @@
 } while (0)
 
 #define UNSIGNED_MUL_OVERFLOW(max, a, b, c) do {			\
-	if ((a) > (max) / (b))						\
+	if ((b) != 0 && (a) > (max) / (b))				\
 		return 1;						\
 	*(c) = (a) * (b);						\
 	return 0;							\

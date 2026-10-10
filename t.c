@@ -924,7 +924,10 @@ assert_token_move(struct context *ctx, const char **want)
 			break;
 
 		LIST_FOREACH(prefix, &tk->tk_prefixes) {
-			KS_expect_true(want[i] != nullptr);
+			if (want[i] == nullptr) {
+				KS_expect_true(0);
+				return;
+			}
 
 			str = token_serialize_position(&s, prefix);
 			KS_expect_str(&want[i][2], str);
@@ -934,12 +937,19 @@ assert_token_move(struct context *ctx, const char **want)
 		if (tk->tk_type == LEXER_EOF)
 			break;
 
+		if (want[i] == nullptr) {
+			KS_expect_true(0);
+			return;
+		}
 		str = token_serialize_position(&s, tk);
 		KS_expect_str(want[i], str);
 		i++;
 
 		LIST_FOREACH(suffix, &tk->tk_suffixes) {
-			KS_expect_true(want[i] != nullptr);
+			if (want[i] == nullptr) {
+				KS_expect_true(0);
+				return;
+			}
 
 			str = token_serialize_position(&s, suffix);
 			KS_expect_str(&want[i][2], str);

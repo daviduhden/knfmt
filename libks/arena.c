@@ -169,7 +169,7 @@ read_stack_trace(uintptr_t *stack_trace, uint32_t stack_trace_length)
 
 #  if defined(__x86_64__)
 #    define REG_BP "rbp"
-#  elif defined(__i386__)
+#  elifdef __i386__
 #    define REG_BP "ebp"
 #  endif
 

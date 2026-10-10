@@ -30,8 +30,10 @@
 #define NDEBUG_UNUSED(x) UNUSED(x)
 #endif
 
-/* _Static_assert() was introduced in C11. */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+/* _Static_assert() was introduced in C11; C23 makes it a keyword. */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#  define STATIC_ASSERT(expression, message) static_assert(expression, message)
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #  define STATIC_ASSERT(expression, message) _Static_assert(expression, message)
 #else
 #  define STATIC_ASSERT(expression, message)
@@ -39,7 +41,9 @@
 
 #define countof(x)	(sizeof((x)) / sizeof((x)[0]))
 
-#if __has_attribute(fallthrough)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#  define FALLTHROUGH	[[fallthrough]]
+#elif __has_attribute(fallthrough)
 #  define FALLTHROUGH	__attribute__((fallthrough))
 #else
 #  define FALLTHROUGH	do {} while (0) /* FALLTHROUGH */

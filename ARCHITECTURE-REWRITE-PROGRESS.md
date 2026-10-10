@@ -546,3 +546,27 @@ line between type tokens; after a C99 comment that line must be hard.
 Fixed in `parser-type.c` (commit `6a196a5`), regression
 `tests/repro-idempotence-003.c`. Follow-up campaigns: 8000 executions,
 0 crashes, 0 timeouts.
+
+## Update — final verification (head `a16c27b`)
+
+- `fuzz-parse` harness: fixed a leak (teardown freed the arenas without
+  leaving the eternal scope `init()` entered, so `style_free()` never
+  `regfree()`d the compiled patterns) and two `-Wdiscarded-qualifiers`
+  warnings. The harness now builds warning-free and is Valgrind-clean.
+- Mutation fuzzing after all fixes: 23000 executions (8000 + 15000) over
+  929 seeds, **0 crashes, 0 timeouts**; the earlier campaign's single
+  finding (C99 comment swallowing a declaration) is fixed and regressed.
+- Valgrind (via `with-standard-malloc`), full leak checking:
+  - 928 `tests/*.c`/`*.h` normal mode: 0 errors, 0 leaks.
+  - 542 `tests/valid-*.c` in `-s` mode: 0 errors, 0 leaks.
+  - 80 mutated recovery inputs through the `fuzz-parse` pipeline: 0 errors.
+- Ordinary suite, `tests/reparse.sh` (accepted=1694 rejected=164 fail=0),
+  `lint-shellcheck`, and `bmake fault` (every allocation point 0..N for
+  three inputs, normal/`-s`/in-place) all pass.
+- 100k/200k flat terms: 2.0 s / 5.2 s, idempotent (unchanged).
+
+Clang ASan/UBSan/unsigned-overflow and libFuzzer are unavailable in the
+current environment (Homebrew LLVM is owner-only), so those are not
+re-run on this head; the last such run predates the C99-comment and
+brace/lexer fixes. Leak-freedom is established by Valgrind here, not by
+LSan.

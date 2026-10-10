@@ -196,3 +196,24 @@ The C++ side (`benchmark.cpp`, Google Benchmark harness) is C++23
 (`-std=c++23`); it cannot be built here and is reviewed at source level
 only. Standard C++ ownership abstractions are not introduced into the C
 codebase.
+
+## C23 keyword macros
+
+- `libks/compiler.h`: under C23 `STATIC_ASSERT` now maps to the `static_assert`
+  keyword and `FALLTHROUGH` to the `[[fallthrough]]` attribute, keeping the
+  older fallbacks for other language modes.
+- `libks/arena.c`: `#elif defined(__i386__)` uses the C23 `#elifdef`.
+- These are purely the standardized spelling; no behavior change.
+
+## Recovered brace initializers
+
+- When a brace initializer is recovered as an expression (e.g. an
+  identifier before a designator: `L.callbacks = { ... }`), the assignment
+  operator's trailing space was re-emitted by the brace parser after the
+  expression formatter had already emitted one, giving `=  {` on the first
+  pass and `= {` on the next. Assignment operators are now excluded from
+  that re-emission. Regression: tests/repro-idempotence-004.c.
+- Two further malformed-recovery idempotence cases remain unresolved and
+  are preserved under tests/known-nonidempotent-00{1,2}.c: an aligned
+  continuation after an unexpected identifier before a subscript
+  designator, and a CPP branch soup. They are not wired into the suite.

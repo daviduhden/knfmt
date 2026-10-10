@@ -570,3 +570,55 @@ current environment (Homebrew LLVM is owner-only), so those are not
 re-run on this head; the last such run predates the C99-comment and
 brace/lexer fixes. Leak-freedom is established by Valgrind here, not by
 LSan.
+
+## File-level memory-safety coverage ledger
+
+Status categories: Complete = implementation read and all applicable
+categories examined; N/A = no applicable memory-management operations.
+
+### libks implementation (16 .c, 2 .S)
+
+Complete: arena.c, arena-buffer.c, arena-vector.c, arithmetic.c, bit.c,
+buffer.c, capabilities-x86.c, consistency.c, exec.c, fs.c, init.c,
+init-x86_64.c, map.c, string.c, valgrind.c, vector.c, bit-x86_64.S,
+string-x86_64.S. string-x86_64.S additionally receives differential
+verification against the C reference via `bmake str-match`.
+
+### Project implementation (50 .c)
+
+Complete: arenas.c, clang.c, comment.c, cpp-format.c, cpp-include.c,
+cpp-include-guard.c, diff.c, doc.c, error.c, expr.c, file.c, knfmt.c,
+lexer.c, options.c, parser.c, parser-attributes.c, parser-braces.c,
+parser-cpp.c, parser-decl.c, parser-expr.c, parser-extern.c, parser-func.c,
+parser-stmt.c, parser-stmt-asm.c, parser-stmt-expr.c, parser-type.c,
+path.c, ruler.c, simple.c, simple-attributes.c, simple-decl.c,
+simple-decl-forward.c, simple-decl-proto.c, simple-expr-printf.c,
+simple-implicit-int.c, simple-stmt.c, simple-stmt-empty-loop.c,
+simple-stmt-switch.c, simple-storage.c, style.c, t.c, token.c, trace.c,
+util.c, fuzz-dict.c, fuzz-parse.c, fuzz-style.c.
+N/A: compat-pledge.c.
+
+### Headers
+
+Reviewed: all project headers (declarations) and libks headers; the
+macro-heavy libks/compiler.h, libks/section.h, libks/list.h,
+libks/fuzzer.h and libks/asm.h were read in full.
+
+### Reviewed invariants without a concrete counterexample
+
+- clang.c clang_recover(): remove = cur_docs - stamp_docs[...]; stamps are
+  recorded at increasing document counts along the committed path, so the
+  difference is non-negative in practice; no reproducer found.
+- simple-decl-proto.c is_qualifier(), simple-stmt.c add_braces(): rely on
+  a guaranteed preceding "(" / "{" token; no reproducer found.
+- diff.c matchchunk(), cpp-format.c max_width(), doc.c doc_column():
+  bounded logic/statistics deviations, not memory access.
+
+## C++23 toolchain note
+
+`/home/linuxbrew/.linuxbrew/bin/g++-16` is available and accepts
+`-std=c++23`; the shared boundary header (util.h included from C++) also
+compiles cleanly as C++23 with it. `benchmark.cpp` still cannot be
+compiled because the Google Benchmark headers/library are absent, so no
+C++23 runtime validation is claimed. The Makefile default CXX (g++) is
+absent, but that only affects the optional benchmark target.

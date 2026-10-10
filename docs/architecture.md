@@ -214,6 +214,6 @@ codebase.
   pass and `= {` on the next. Assignment operators are now excluded from
   that re-emission. Regression: tests/repro-idempotence-004.c.
 - Two further malformed-recovery idempotence cases remain unresolved and
-  are preserved under tests/known-nonidempotent-00{1,2}.c: an aligned
+  are preserved under tests/known-nonidempotent/00{1,2}.c: an aligned
   continuation after an unexpected identifier before a subscript
   designator, and a CPP branch soup. They are not wired into the suite.

@@ -502,8 +502,16 @@ parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
 			    nx->tk_type != TOKEN_LSQUARE &&
 			    nx->tk_type != TOKEN_RSQUARE &&
 			    nx->tk_type != TOKEN_RPAREN &&
-			    nx->tk_type != TOKEN_COMMA)
-				doc_alloc(DOC_LINE, concat);
+			    nx->tk_type != TOKEN_COMMA) {
+				/*
+				 * A C99 comment runs to the end of the line, so
+				 * the following token must start a new one; a
+				 * soft line would let it be joined onto the
+				 * comment.
+				 */
+				doc_alloc(token_has_c99_comment(tk) ?
+				    DOC_HARDLINE : DOC_LINE, concat);
+			}
 			lexer_peek_leave(lx, &s);
 		}
 	}

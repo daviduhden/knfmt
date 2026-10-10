@@ -121,9 +121,20 @@ target(const struct buffer *bf, void *userdata)
 	if (!format_once(c, dst2, &eternal_scope, dst3))
 		return;
 
-	if (buffer_get_len(dst2) != buffer_get_len(dst3) ||
-	    memcmp(buffer_str(dst2), buffer_str(dst3),
-	     buffer_get_len(dst2)) != 0)
+	size_t len2, len3;
+	const char *str2, *str3;
+
+	len2 = buffer_get_len(dst2);
+	len3 = buffer_get_len(dst3);
+	/*
+	 * buffer_str() releases the buffer and resets its length to zero, so
+	 * the lengths and pointers must be captured first. Relying on the
+	 * unspecified evaluation order of a single expression could compare
+	 * zero bytes and hide a non-idempotent result.
+	 */
+	str2 = buffer_str(dst2);
+	str3 = buffer_str(dst3);
+	if (len2 != len3 || memcmp(str2, str3, len2) != 0)
 		__builtin_trap();
 }
 FUZZER_TARGET_BUFFER(target);

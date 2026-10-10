@@ -252,8 +252,15 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 
 		if (!lexer_back(lx, &pv) || !lexer_peek(lx, &nx)) {
 			return parser_fail(pr);
-		} else if (token_has_spaces(pv) && !token_has_line(pv, 1)) {
-			/* Previous token already emitted, honor spaces. */
+		} else if ((pv->tk_flags & TOKEN_FLAG_ASSIGN) == 0 &&
+		    token_has_spaces(pv) && !token_has_line(pv, 1)) {
+			/*
+			 * Previous token already emitted, honor spaces. The
+			 * spacing after an assignment operator is emitted by the
+			 * expression formatter, so re-emitting its spaces here
+			 * would duplicate them and break idempotence when the
+			 * initializer is recovered as an expression.
+			 */
 			parser_doc_token(pr, token_find_suffix_spaces(pv),
 			    concat);
 		} else if (pv->tk_type == TOKEN_COMMA &&

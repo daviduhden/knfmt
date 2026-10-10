@@ -264,10 +264,12 @@ parser_func_peek1(struct parser *pr, struct parser_type *type)
 
 		if (kind == PARSER_IMPLICIT_NONE)
 			goto out;
-		type->beg = nullptr;
-		type->end = nullptr;
-		type->align = nullptr;
-		type->args = nullptr;
+		/*
+		 * The type is left empty; clearing the whole struct also resets
+		 * func_decl, which is otherwise read uninitialized by
+		 * parser_func_proto().
+		 */
+		*type = (struct parser_type){0};
 		peek = kind == PARSER_IMPLICIT_DECL ?
 		    PARSER_FUNC_PEEK_DECL : PARSER_FUNC_PEEK_IMPL;
 	}

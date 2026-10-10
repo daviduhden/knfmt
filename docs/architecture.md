@@ -94,3 +94,43 @@ Sequential in-process reentrancy is verified: the CLI formats several files
 per process, and `knfmt A B A`, `-s`, `-d`, and valid→malformed→valid
 sequences produce output identical to isolated runs. Thread safety is not
 established and is not claimed.
+
+## Recovered input stability
+
+- `token_move_prev_line()` moves a line break that precedes a binary
+  operator to just after it (break-after-operator layout). For recovered
+  malformed input the token before an operator may itself be an operator;
+  moving the break then places it before the *next* operator, which the
+  next pass moves again, so the layout drifted one operator per pass.
+  Operators that immediately follow another binary operator are left
+  untouched, which makes `F(F(x)) == F(x)` hold in one pass. Valid
+  expressions are unaffected because a binary operator's left operand
+  never ends in an operator. Regression: `tests/idempotence.sh` (runs
+  `tests/repro-idempotence-00{1,2}.c` twice, normal and `-s`).
+
+## Brace initializers
+
+- `lbrace_cache_lookup()` caches the next nested left brace. It must cache
+  the *absence* of a nested brace too: a flat initializer otherwise
+  rescanned the token stream to its end for every element (quadratic;
+  a 640 KB initializer took 60 s). With negative caching the same input
+  formats in <1 s and `tests/valid-292.c` (210 KB) in ~0.25 s.
+
+## Allocation fault injection
+
+- `bmake fault` links a test-only `knfmt-fault` binary using
+  `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc` and
+  `tests/fault-wrap.c`, then `tests/fault.sh` fails each allocation in
+  turn (`FAULT_AT=0,1,2,…`) and requires a controlled exit (status 1, no
+  partial stdout) and an unchanged in-place target. This is a development
+  target, not part of `bmake test`.
+
+## Sanitizer instrumentation
+
+- Sanitizers are only verified with Clang; the system GCC 16 cannot link
+  its sanitizer runtimes in this environment, and `./configure --sanitize`
+  then silently produces an uninstrumented build. Always confirm the
+  resulting `CFLAGS` contain `-fsanitize=...` and that the binary is
+  actually instrumented. LeakSanitizer cannot run here (`ptrace` is
+  restricted); leak-freedom is therefore not established by LSan and the
+  `tests/fault.sh` and reference counting checks are used instead.

@@ -622,3 +622,23 @@ compiles cleanly as C++23 with it. `benchmark.cpp` still cannot be
 compiled because the Google Benchmark headers/library are absent, so no
 C++23 runtime validation is claimed. The Makefile default CXX (g++) is
 absent, but that only affects the optional benchmark target.
+
+## Update — 001 resolved, 002 class documented
+
+- Fixed `tests/known-nonidempotent/001.c` (moved to
+  `tests/repro-idempotence-005.c`): an assignment whose brace-initializer RHS
+  was also the field stop was split into two fields, so the layout depended on
+  the incidental brace position. `expr_exec_binary()` now attaches the brace
+  as the operand. Normal and `-s` are idempotent.
+- `tests/known-nonidempotent/00{2,3}.c` (CPP branch crossing an `extern "C"`
+  block close) remain unresolved and are exercised by the expected-failure
+  test `tests/known-nonidempotent.sh`.
+- GCC `-fanalyzer` re-run: same 11 findings, all false positives (six
+  `VECTOR_POP` guarded by `!VECTOR_EMPTY`, the arena never-NULL contract,
+  `newbuckets` ownership transfer, the deliberate null-out in `style.c`, and
+  the child-process fds before `execlp`).
+- Mutation fuzzing (20000 executions, 933 seeds): 1 non-idempotence finding
+  (the 002 class, now `known-nonidempotent/003.c`), 0 timeouts; the 001 class
+  no longer reproduces.
+- Valgrind: clean on the changed reproducers. `str-match` 2520/0 (AVX-512
+  unavailable on this CPU). Performance unchanged: 100k 2.03 s, 200k 5.17 s.

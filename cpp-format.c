@@ -38,9 +38,11 @@ struct alignment {
 };
 
 static const char *
-trim_line(const char *str, size_t len, struct arena_scope *s)
+trim_line(const char *str, size_t len, struct arena_scope *s, size_t *lenp)
 {
 	int newlines = 0;
+	char *out;
+	size_t n;
 
 	/* Honor up to two trailing new line(s). */
 	if (len > 0 && str[len - 1] == '\n')
@@ -57,13 +59,103 @@ trim_line(const char *str, size_t len, struct arena_scope *s)
 	 * last content line, so emit at most one further new line; otherwise
 	 * the number of blank lines would depend on the source layout.
 	 */
-	if (len == 0)
+	if (len == 0) {
+		if (lenp != nullptr)
+			*lenp = newlines > 0 ? 1 : 0;
 		return newlines > 0 ? "\n" : "";
+	}
 
-	return arena_sprintf(s, "%.*s%s%s",
-	    (int)len, str,
-	    newlines >= 2 ? "\n" : "",
-	    newlines >= 1 ? "\n" : "");
+	/*
+	 * Copy the bytes explicitly: the line may contain NUL bytes, which a
+	 * %s conversion would truncate.
+	 */
+	n = len + (newlines >= 2 ? 1 : 0) + (newlines >= 1 ? 1 : 0);
+	out = arena_malloc(s, n);
+	memcpy(out, str, len);
+	if (newlines >= 2)
+		out[len++] = '\n';
+	if (newlines >= 1)
+		out[len++] = '\n';
+	if (lenp != nullptr)
+		*lenp = len;
+	return out;
+}
+
+/*
+ * Returns non-zero if any line continuation (backslash immediately followed by
+ * a newline) occurs inside a string or character literal. Aligning such a
+ * continuation inserts padding into the literal, changing its value; the macro
+ * must be preserved as is instead.
+ */
+static int
+splice_inside_literal(const char *str, size_t len)
+{
+	enum { NORMAL, STRING, CHARACTER, BLOCK_COMMENT } state = NORMAL;
+	size_t i = 0;
+
+	while (i < len) {
+		char c = str[i];
+
+		switch (state) {
+		case BLOCK_COMMENT:
+			if (c == '*' && i + 1 < len && str[i + 1] == '/') {
+				state = NORMAL;
+				i += 2;
+				continue;
+			}
+			i++;
+			continue;
+		case STRING:
+		case CHARACTER:
+			if (c == '\\') {
+				if (i + 1 < len && str[i + 1] == '\n')
+					return 1;
+				if (i + 2 < len && str[i + 1] == '\r' &&
+				    str[i + 2] == '\n')
+					return 1;
+				i += 2;
+				continue;
+			}
+			if (c == (state == STRING ? '"' : '\'')) {
+				state = NORMAL;
+				i++;
+				continue;
+			}
+			if (c == '\n') {
+				/* Unterminated literal ends at the line end. */
+				state = NORMAL;
+				i++;
+				continue;
+			}
+			i++;
+			continue;
+		case NORMAL:
+			break;
+		}
+
+		if (c == '"') {
+			state = STRING;
+			i++;
+		} else if (c == '\'') {
+			state = CHARACTER;
+			i++;
+		} else if (c == '/' && i + 1 < len && str[i + 1] == '*') {
+			state = BLOCK_COMMENT;
+			i += 2;
+		} else if (c == '/' && i + 1 < len && str[i + 1] == '/') {
+			/* Line comment: skip to the end of the line. */
+			size_t j = i;
+
+			while (j < len && str[j] != '\n')
+				j++;
+			i = j;
+		} else if (c == '\\' && i + 1 < len && str[i + 1] == '\n') {
+			i += 2;	/* splice outside a literal */
+		} else {
+			i++;
+		}
+	}
+	return 0;
 }
 
 static enum indent_type
@@ -224,7 +316,7 @@ max_width(const struct style *st)
  */
 const char *
 cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
-    struct arenas *arena, const struct options *op)
+    struct arenas *arena, const struct options *op, size_t *lenp)
 {
 	struct alignment alignment = {
 		.mode	= style(st, AlignEscapedNewlines),
@@ -239,9 +331,19 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	int nlines = 0;
 	int didtrim = 0;
 
+	if (lenp != nullptr)
+		*lenp = 0;
+
 	str = tk->tk_str;
 	len = tk->tk_len;
 	if (nextline(str, len, &nx) == nullptr)
+		return nullptr;
+
+	/*
+	 * Never realign a macro whose line continuation sits inside a string or
+	 * character literal: the padding would become part of the literal.
+	 */
+	if (splice_inside_literal(str, len))
 		return nullptr;
 
 	arena_scope(arena->ruler, ruler_scope);
@@ -293,7 +395,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 			const char *literal;
 
 			literal = arena_strndup(&scratch_scope, sp, cpplen);
-			doc_literal(literal, concat);
+			doc_literaln(literal, cpplen, concat);
 		}
 		buffer_reset(bf);
 		w = doc_width(&(struct doc_exec_arg){
@@ -319,10 +421,11 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	}
 	if (len > 0) {
 		const char *literal;
+		size_t litlen;
 
-		literal = trim_line(str, len, &scratch_scope);
-		didtrim = len != strlen(literal);
-		doc_literal(literal, dc);
+		literal = trim_line(str, len, &scratch_scope, &litlen);
+		didtrim = len != litlen;
+		doc_literaln(literal, litlen, dc);
 	}
 
 	/* Alignment only wanted for multiple lines. */
@@ -337,5 +440,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	    .bf		= bf,
 	    .st		= st,
 	});
-	return buffer_str(bf);
+	if (lenp != nullptr)
+		*lenp = buffer_get_len(bf);
+	return buffer_get_ptr(bf);
 }

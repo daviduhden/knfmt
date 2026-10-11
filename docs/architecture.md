@@ -232,11 +232,61 @@ codebase.
 
 ## Known non-idempotent reproducers
 
-- No malformed reproducers are currently known to be non-idempotent or to
-  lose content. `tests/known-nonidempotent/` is empty; keep
-  `tests/known-nonidempotent.sh` and add a case there when a new one is found
-  so a later fix cannot silently leave it forgotten. All reproducers
-  (001-007) are idempotent in normal and `-s` mode.
+- `tests/known-nonidempotent/001.c` remains unresolved: a function whose
+  parameter list contains a CPP conditional branch, and whose body then fails
+  to parse because of a stray non-ASCII byte. Recovery rewinds to the first
+  token with no usable stamp; the parameter branch's tokens are already
+  removed and its `#else` content is dropped, producing output the formatter
+  itself rejects on the second pass. `tests/known-nonidempotent.sh` keeps it
+  visible and fails once it starts round-tripping. Every other reproducer
+  (`tests/repro-idempotence-001..011.c`) is idempotent in normal and `-s`
+  mode.
+
+## Token separation
+
+- `token_pair_needs_space()` defines when two adjacent tokens would merge into
+  a different preprocessing token (identifier/number characters, comment
+  openers, operator combinations, `.`/digit). `expr_doc_concat()` consults it
+  at every operand boundary, so a malformed recovery can no longer join e.g.
+  `voiint` and `i` into `voiinti`. Regression: `tests/repro-idempotence-008.c`.
+
+## C99 comments end the line
+
+- A `//` comment runs to the end of the physical line, so the line break after
+  it is mandatory. `parser_doc_token_impl()` now forces the following optional
+  line (a discarded optional line is emitted as well) when a C99 comment
+  precedes it. Without this the parser could move the next token onto the
+  comment line, silently swallowing it. Regression:
+  `tests/repro-idempotence-010.c`.
+
+## NUL bytes and explicit lengths
+
+- Rebuilding a comment with a NUL byte must not rely on NUL termination:
+  `comment_trim()` returns the explicit length and `cpp_format()` plus the new
+  `doc_literaln()` carry one as well. `tests/nul.sh` covers a multi-line
+  comment and a multi-line macro containing NUL.
+- A non-white-space byte that is the last byte of the input is its own
+  preprocessing token; `clang_read()` no longer classifies it as `LEXER_EOF`
+  and drops it. A lone stray byte is rejected without partial output, matching
+  the non-final case.
+
+## Macro realignment and literals
+
+- `cpp_format()` refuses to realign a macro when a line continuation occurs
+  inside a string or character literal: the alignment padding would become
+  part of the literal. Regression: `tests/semantic-macro-literal.c`.
+
+## Recovery rewinds and crossed branches
+
+- `clang_recover()` folds a branch to recover. If the stamp it would rewind to
+  precedes the most recent branch crossing (`stamp_docs < brch_docs`), the
+  crossed branch's tokens are already gone and re-parsing cannot restore their
+  content, so recovery instead asks the caller to preserve the whole source
+  verbatim. Regression: `tests/repro-idempotence-009.c`.
+- A `clang-format off` region emits a mute document. If recovery discards the
+  recorded off comment while the mute is still active, `parser_exec()` cancels
+  it by preserving the whole source, so the tail is never silently dropped.
+  Regression: `tests/repro-idempotence-011.c`.
 
 ## CPP branches and block terminators
 
@@ -247,12 +297,14 @@ codebase.
   the branch recovery re-emits or drops the block. When the block is
   declined, `parser_extern()` sets `pr_verbatim`; on the resulting parse
   failure `parser_exec()` discards every document built so far and emits the
-  whole source verbatim (`parser_verbatim_all()`). No committed position can
-  precede the branch reliably, and folding it would collect the leading
-  directives and comments onto tokens that are then removed without being
-  re-emitted. The verbatim emission is byte-stable, so it is idempotent and
-  content-preserving; `tests/repro-idempotence-007.c` guards it. A conditional
-  brace without an alternative (the usual C++ linkage guard,
+  whole source verbatim (`parser_verbatim_all()`). The same full-source
+  fallback is used when `clang_recover()` would otherwise rewind across a
+  crossed branch (see "Recovery rewinds and crossed branches"). No committed
+  position can precede the branch reliably, and folding it would collect the
+  leading directives and comments onto tokens that are then removed without
+  being re-emitted. The verbatim emission is byte-stable, so it is idempotent
+  and content-preserving; `tests/repro-idempotence-007.c` guards it. A
+  conditional brace without an alternative (the usual C++ linkage guard,
   `#ifdef __cplusplus ... #endif`) is still parsed.
 - `parser_func_arg()` keeps a hard line after a parameter type that ends in a
   line comment, so the next parameter is not joined onto the comment.
@@ -261,9 +313,14 @@ codebase.
 
 - `tests/semantic.sh` formats each accepted fixture in normal mode and
   compares the non-comment, non-whitespace, non-semicolon, non-backslash byte
-  sequence before and after (translation-phase-2 splicing is applied first).
-  It is independent of the formatter's lexer and catches token loss and
-  duplication that idempotence cannot see. Not applied to `-s`, which
-  legitimately rewrites tokens.
+  sequence before and after. Translation phase 1 (trigraph replacement) and
+  phase 2 (backslash-newline splicing) are applied first. It is independent of
+  the formatter's lexer and catches token loss, duplication and reordering
+  that idempotence cannot see. Not applied to `-s`, which legitimately
+  rewrites tokens.
+- `tests/semanticoracle.pl --selftest` exercises 29 cases covering identifier
+  and operator concatenation, token splitting, deleted/duplicate punctuation,
+  changed and truncated literals, swallowed comments, macro continuation and
+  escaped-newline changes, and CPP branch deletion/duplication/reordering.
 - `tests/mutate.pl` runs the same check on every mutant, so the fuzzer
   reports `SEMANTIC` findings separately from `CRASH`/`TIMEOUT`.

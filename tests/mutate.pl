@@ -37,6 +37,7 @@ my @DICT = (
 	"...", "sizeof", "_Generic", "_Static_assert", "static_assert",
 	"__attribute__", "asm", "static", "struct", "union", "enum",
 	"NULL", "nullptr", "\x00", "\xff", "\r\n", "\r", "A" x 64,
+	"??/\n", "??=", "??'", "??!", "in", "main", "voiint",
 );
 
 sub load_seeds {

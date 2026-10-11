@@ -1405,10 +1405,21 @@ expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 		/*
 		 * Do not add a separator when the operand is already followed
 		 * by a blank line from the source; the blank line is emitted
-		 * and the separator would add a spurious space.
+		 * and the separator would add a spurious space. However, a
+		 * separator is mandatory when dropping it would merge the
+		 * boundary tokens into a different one, e.g. when the operand
+		 * ends with a token that has no emitted trailing line after a
+		 * malformed recovery.
 		 */
-		if (i + 1 < n && !token_has_line(e->ex_tk, 2))
-			doc_alloc(DOC_LINE, tmp);
+		if (i + 1 < n) {
+			struct expr *nx = ex->ex_concat[i + 1];
+
+			if ((e->ex_tk != nullptr && nx->ex_tk != nullptr &&
+			    token_pair_needs_space(token_prev(nx->ex_tk),
+			    nx->ex_tk)) ||
+			    !token_has_line(e->ex_tk, 2))
+				doc_alloc(DOC_LINE, tmp);
+		}
 		/* Nest subsequent expressions under the first one. */
 		if (i == 0)
 			dc = tmp;

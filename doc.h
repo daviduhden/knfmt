@@ -123,6 +123,11 @@ struct doc	*doc_minimize_impl(const struct doc_minimize *, size_t,
 struct doc	*doc_literal_impl(const char *, struct doc *,
     const char *, int);
 
+#define doc_literaln(a, b, c) \
+	doc_literaln_impl((a), (b), (c), __func__, __LINE__)
+struct doc	*doc_literaln_impl(const char *, size_t, struct doc *,
+    const char *, int);
+
 struct doc	*doc_token(struct token *, struct doc *, enum doc_type,
     const char *, int);
 

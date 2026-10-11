@@ -47,6 +47,8 @@ clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 	parser_trace(pr, "beg %u, end %u", beg, end);
 
 	doc_alloc_impl(DOC_UNMUTE, dc, -1, __func__, __LINE__);
+	if (pr->pr_mute > 0)
+		pr->pr_mute--;
 	if (!lexer_get_lines(pr->pr_lx, beg, end, &str, &len))
 		return;
 
@@ -107,6 +109,7 @@ clang_format_off(struct parser *pr, struct token *comment, struct doc *dc)
 	parser_trace(pr, "%s", lexer_serialize(pr->pr_lx, comment));
 
 	doc_alloc_impl(DOC_MUTE, dc, 1, __func__, __LINE__);
+	pr->pr_mute++;
 
 	/* Must account for more than one trailing hard line(s). */
 	if (pr->pr_token.clang_format_off != nullptr)
@@ -174,16 +177,20 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 			brch_docs = ndocs;
 			parser_reset(pr);
 		} else if (error & (FAIL | NONE)) {
-			int r;
+			int r, verbatim = 0;
+
+			r = clang_recover(clang, lx, &pr->pr_token.unmute,
+			    ndocs, brch_docs, &verbatim);
 
 			/*
-			 * The parser declined an extern block whose closing
-			 * brace is conditional. There is no way to rewind to a
-			 * consistent position: folding the branch discards the
-			 * directives and comments collected on the removed
-			 * tokens. Preserve the whole source verbatim instead.
+			 * Either the parser declined an extern block whose
+			 * closing brace is conditional, or recovery would
+			 * rewind before a branch whose tokens are already
+			 * removed. There is no way to rewind to a consistent
+			 * position without dropping content, so preserve the
+			 * whole source verbatim.
 			 */
-			if (pr->pr_verbatim) {
+			if (pr->pr_verbatim || verbatim) {
 				pr->pr_verbatim = 0;
 				while (ndocs > 0) {
 					doc_remove_tail(dc);
@@ -194,8 +201,6 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 				break;
 			}
 
-			r = clang_recover(clang, lx, &pr->pr_token.unmute,
-			    ndocs, brch_docs);
 			if (r == 0)
 				break;
 			while (r-- > 0) {
@@ -211,6 +216,20 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 	}
 
 	clang_format_verbatim(pr, dc, 0);
+
+	/*
+	 * A recovery may have dropped the recorded clang-format off comment
+	 * while the mute it emitted is still active, which would silently
+	 * suppress the rest of the file. Preserve the whole source instead.
+	 */
+	if (pr->pr_mute > 0) {
+		pr->pr_mute = 0;
+		while (ndocs > 0) {
+			doc_remove_tail(dc);
+			ndocs--;
+		}
+		parser_verbatim_all(pr, dc);
+	}
 
 	if (pr->pr_op->diffparse)
 		doc_flags |= DOC_EXEC_DIFF;
@@ -368,6 +387,7 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 {
 	struct doc *out;
 	struct token *nx, *prefix, *suffix;
+	int c99comment = 0;
 
 	if (tk == pr->pr_token.unmute) {
 		if (!lexer_get_peek(pr->pr_lx))
@@ -388,12 +408,34 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 	out = doc_token(tk, dc, DOC_LITERAL, fun, lno);
 
 	LIST_FOREACH(suffix, &tk->tk_suffixes) {
-		if (suffix->tk_flags & TOKEN_FLAG_DISCARD)
+		if (suffix->tk_flags & TOKEN_FLAG_DISCARD) {
+			/*
+			 * A discarded optional line must still be honored
+			 * after a C99 comment: the comment runs to the end
+			 * of the line, and without the line break the next
+			 * token is swallowed by the comment.
+			 */
+			if (c99comment &&
+			    (suffix->tk_flags & TOKEN_FLAG_OPTLINE))
+				doc_alloc_impl(DOC_OPTLINE, dc, 1, __func__,
+				    __LINE__);
 			continue;
-		if (suffix->tk_flags & TOKEN_FLAG_OPTLINE)
-			doc_alloc(DOC_OPTLINE, dc);
-		else
+		}
+		if (suffix->tk_flags & TOKEN_FLAG_OPTLINE) {
+			/*
+			 * A C99 comment runs to the end of the line, so the
+			 * following line break is mandatory. A dropped
+			 * optional line would let the next token be swallowed
+			 * by the comment. Force the line while keeping the
+			 * deferred indentation.
+			 */
+			doc_alloc_impl(DOC_OPTLINE, dc, c99comment, __func__,
+			    __LINE__);
+		} else {
 			doc_token(suffix, dc, DOC_VERBATIM, __func__, __LINE__);
+			if (suffix->tk_flags & TOKEN_FLAG_COMMENT_C99)
+				c99comment = 1;
+		}
 	}
 
 	/* Mute if we're about to branch. */

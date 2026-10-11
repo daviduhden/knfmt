@@ -371,13 +371,16 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
  */
 int
 clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
-    unsigned int cur_docs, unsigned int brch_docs)
+    unsigned int cur_docs, unsigned int brch_docs, int *verbatim)
 {
 	struct token *seek = nullptr;
 	struct token *back, *cpp_dst, *cpp_src, *dst, *src, *stamp;
 	size_t i, seek_index = 0;
 	unsigned int remove;
 	int error = 0;
+
+	if (verbatim != nullptr)
+		*verbatim = 0;
 
 	if (!lexer_back(lx, &back) && !lexer_peek_first(lx, &back))
 		return 0;
@@ -408,6 +411,20 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 			seek_index = i;
 			break;
 		}
+	}
+
+	/*
+	 * If the most recent branch crossing occurred after the position the
+	 * stamp would rewind to, the crossed branch's tokens have already been
+	 * removed. Re-parsing from the stamp cannot emit them again, so their
+	 * content would be lost. Ask the caller to preserve the source
+	 * verbatim instead.
+	 */
+	if (seek_index > 0 && brch_docs > 0 &&
+	    cl->stamp_docs[seek_index - 1] < brch_docs) {
+		if (verbatim != nullptr)
+			*verbatim = 1;
+		return 0;
 	}
 
 	/*
@@ -601,6 +618,8 @@ clang_read(struct lexer *lx, void *arg)
 		goto out;
 
 	st = lexer_get_state(lx);
+	if (lexer_eof(lx))
+		goto eof;
 	if (lexer_getc(lx, &ch))
 		goto eof;
 
@@ -641,12 +660,19 @@ clang_read(struct lexer *lx, void *arg)
 		tk = clang_read_number(cl, lx, &st, ch);
 	} else if (ch == '"' || ch == '\'') {
 		tk = clang_read_string(cl, lx, &st, ch);
-	} else if (lexer_eof(lx)) {
-eof:
-		tk = clang_token_emit(cl, lx, &st, LEXER_EOF);
 	} else {
+		/*
+		 * A non-white-space character that does not begin any token is
+		 * a preprocessing token of its own. Emit it as TOKEN_NONE even
+		 * when it is the last byte of the input; classifying it as
+		 * LEXER_EOF here silently dropped it.
+		 */
 		tk = clang_token_emit(cl, lx, &st, TOKEN_NONE);
 	}
+	goto out;
+
+eof:
+	tk = clang_token_emit(cl, lx, &st, LEXER_EOF);
 
 out:
 	LIST_CONCAT(&tk->tk_prefixes, &cl->prefixes);
@@ -1193,6 +1219,7 @@ clang_read_comment(struct clang *cl, struct lexer *lx, int block)
 	struct lexer_state oldst, st;
 	struct token *tk;
 	const char *trim;
+	size_t trimlen;
 	int c99;
 	unsigned char ch;
 
@@ -1254,9 +1281,9 @@ again:
 	tk->tk_flags |= sense_clang_format_comment(tk);
 
 	trim = comment_trim(tk, cl->st, cl->arena.scratch,
-	    lexer_get_arena_scope(lx));
+	    lexer_get_arena_scope(lx), &trimlen);
 	if (trim != nullptr)
-		token_set_str(tk, trim, strlen(trim));
+		token_set_str(tk, trim, trimlen);
 
 	/* Discard any remaining hard line(s). */
 	if (block)
@@ -1356,10 +1383,11 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 
 	if (tk->tk_type == TOKEN_CPP_DEFINE) {
 		const char *str;
+		size_t len;
 
-		str = cpp_format(lx, tk, cl->st, &cl->arena, cl->op);
+		str = cpp_format(lx, tk, cl->st, &cl->arena, cl->op, &len);
 		if (str != nullptr)
-			token_set_str(tk, str, strlen(str));
+			token_set_str(tk, str, len);
 	}
 
 	/* Discard any remaining hard line(s). */

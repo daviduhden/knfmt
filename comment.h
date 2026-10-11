@@ -1,7 +1,9 @@
+#include <stddef.h>
+
 struct arena;
 struct arena_scope;
 struct style;
 struct token;
 
 const char	*comment_trim(const struct token *, const struct style *,
-    struct arena *, struct arena_scope *);
+    struct arena *, struct arena_scope *, size_t *);

@@ -945,6 +945,7 @@ TESTS+=	style-enoent.sh
 TESTS+=	nul.sh
 TESTS+=	bytes.sh
 TESTS+=	idempotence.sh
+TESTS+=	stdckdint-compile-fail.sh
 
 .SUFFIXES: .c .c-phony .h .h-phony .sh .sh-phony
 

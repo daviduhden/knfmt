@@ -21,6 +21,15 @@
 #include <stddef.h> /* size_t */
 #include <stdint.h>
 
+#include "libks/stdckdint.h"
+
+/*
+ * Reference implementation of the checked arithmetic, kept only so that the
+ * test suite can compare the compiler builtins against an independent
+ * (division-based) algorithm.  Production code uses the KS_*_overflow()
+ * wrappers below, which are a thin layer over ckd_add/ckd_sub/ckd_mul from
+ * the vendored <stdckdint.h>.
+ */
 int	KS_i32_add_overflow0(int32_t, int32_t, int32_t *);
 int	KS_i32_sub_overflow0(int32_t, int32_t, int32_t *);
 int	KS_i32_mul_overflow0(int32_t, int32_t, int32_t *);
@@ -41,204 +50,33 @@ int	KS_size_add_overflow0(size_t, size_t, size_t *);
 int	KS_size_sub_overflow0(size_t, size_t, size_t *);
 int	KS_size_mul_overflow0(size_t, size_t, size_t *);
 
-#if defined(__has_include)
-# if __has_include(<stdckdint.h>)
-#  include <stdckdint.h>
-#  define has_stdckdint 1
-# else
-#  define has_stdckdint 0
-# endif
-#else
-# define has_stdckdint 0
-#endif
+/*
+ * The C23 macros return bool; the wrappers preserve the historical int
+ * interface used throughout knfmt.
+ */
+#define	KS_OVERFLOW_FUNCS(tag, type)					\
+	[[nodiscard]] static inline int					\
+	KS_##tag##_add_overflow(type a, type b, type *c)		\
+	{								\
+		return ckd_add(c, a, b);				\
+	}								\
+	[[nodiscard]] static inline int					\
+	KS_##tag##_sub_overflow(type a, type b, type *c)		\
+	{								\
+		return ckd_sub(c, a, b);				\
+	}								\
+	[[nodiscard]] static inline int					\
+	KS_##tag##_mul_overflow(type a, type b, type *c)		\
+	{								\
+		return ckd_mul(c, a, b);				\
+	}
 
-#if defined(__has_builtin)
-#define has_builtin(x) __has_builtin(x)
-#else
-#define has_builtin(x) 0
-#endif
+KS_OVERFLOW_FUNCS(i32, int32_t)
+KS_OVERFLOW_FUNCS(i64, int64_t)
+KS_OVERFLOW_FUNCS(u32, uint32_t)
+KS_OVERFLOW_FUNCS(u64, uint64_t)
+KS_OVERFLOW_FUNCS(size, size_t)
 
-[[nodiscard]] static inline int
-KS_i32_add_overflow(int32_t a, int32_t b, int32_t *c)
-{
-#if has_stdckdint
-	return ckd_add(c, a, b);
-#elif has_builtin(__builtin_add_overflow)
-	return __builtin_add_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i32_add_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_i32_sub_overflow(int32_t a, int32_t b, int32_t *c)
-{
-#if has_stdckdint
-	return ckd_sub(c, a, b);
-#elif has_builtin(__builtin_sub_overflow)
-	return __builtin_sub_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i32_sub_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_i32_mul_overflow(int32_t a, int32_t b, int32_t *c)
-{
-#if has_stdckdint
-	return ckd_mul(c, a, b);
-#elif has_builtin(__builtin_mul_overflow)
-	return __builtin_mul_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i32_mul_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_i64_add_overflow(int64_t a, int64_t b, int64_t *c)
-{
-#if has_stdckdint
-	return ckd_add(c, a, b);
-#elif has_builtin(__builtin_add_overflow)
-	return __builtin_add_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i64_add_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_i64_sub_overflow(int64_t a, int64_t b, int64_t *c)
-{
-#if has_stdckdint
-	return ckd_sub(c, a, b);
-#elif has_builtin(__builtin_sub_overflow)
-	return __builtin_sub_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i64_sub_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_i64_mul_overflow(int64_t a, int64_t b, int64_t *c)
-{
-#if has_stdckdint
-	return ckd_mul(c, a, b);
-#elif has_builtin(__builtin_mul_overflow)
-	return __builtin_mul_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_i64_mul_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u32_add_overflow(uint32_t a, uint32_t b, uint32_t *c)
-{
-#if has_stdckdint
-	return ckd_add(c, a, b);
-#elif has_builtin(__builtin_add_overflow)
-	return __builtin_add_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u32_add_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u32_sub_overflow(uint32_t a, uint32_t b, uint32_t *c)
-{
-#if has_stdckdint
-	return ckd_sub(c, a, b);
-#elif has_builtin(__builtin_sub_overflow)
-	return __builtin_sub_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u32_sub_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u32_mul_overflow(uint32_t a, uint32_t b, uint32_t *c)
-{
-#if has_stdckdint
-	return ckd_mul(c, a, b);
-#elif has_builtin(__builtin_mul_overflow)
-	return __builtin_mul_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u32_mul_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u64_add_overflow(uint64_t a, uint64_t b, uint64_t *c)
-{
-#if has_stdckdint
-	return ckd_add(c, a, b);
-#elif has_builtin(__builtin_add_overflow)
-	return __builtin_add_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u64_add_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u64_sub_overflow(uint64_t a, uint64_t b, uint64_t *c)
-{
-#if has_stdckdint
-	return ckd_sub(c, a, b);
-#elif has_builtin(__builtin_sub_overflow)
-	return __builtin_sub_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u64_sub_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_u64_mul_overflow(uint64_t a, uint64_t b, uint64_t *c)
-{
-#if has_stdckdint
-	return ckd_mul(c, a, b);
-#elif has_builtin(__builtin_mul_overflow)
-	return __builtin_mul_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_u64_mul_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_size_add_overflow(size_t a, size_t b, size_t *c)
-{
-#if has_stdckdint
-	return ckd_add(c, a, b);
-#elif has_builtin(__builtin_add_overflow)
-	return __builtin_add_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_size_add_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_size_sub_overflow(size_t a, size_t b, size_t *c)
-{
-#if has_stdckdint
-	return ckd_sub(c, a, b);
-#elif has_builtin(__builtin_sub_overflow)
-	return __builtin_sub_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_size_sub_overflow0(a, b, c);
-#endif
-}
-
-[[nodiscard]] static inline int
-KS_size_mul_overflow(size_t a, size_t b, size_t *c)
-{
-#if has_stdckdint
-	return ckd_mul(c, a, b);
-#elif has_builtin(__builtin_mul_overflow)
-	return __builtin_mul_overflow(a, b, c) ? 1 : 0;
-#else
-	return KS_size_mul_overflow0(a, b, c);
-#endif
-}
-
-#undef has_builtin
-#undef has_stdckdint
+#undef KS_OVERFLOW_FUNCS
 
 #endif /* !LIBKS_ARITHMETIC_H */

@@ -4,6 +4,7 @@
 
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
+#include "libks/arithmetic.h"
 #include "libks/buffer.h"
 #include "libks/compiler.h"
 #include "libks/expect.h"
@@ -113,6 +114,64 @@ static const char	*token_serialize_no_flags(struct arena_scope *,
     const struct token *);
 static const char	*token_serialize_position(struct arena_scope *,
     const struct token *);
+
+/*
+ * Differential test for the checked-arithmetic wrappers.  Every wrapper is
+ * compared against the independent, division-based reference in
+ * libks/arithmetic.c over a boundary grid; both the overflow indication and
+ * the stored result must agree.  This verifies the vendored <stdckdint.h>
+ * (and the compiler builtins under it) rather than two wrappers around the
+ * same builtin.
+ */
+#define CHECK_ARITH(tag, type, utype, op)				\
+	do {								\
+		size_t i, j;						\
+									\
+		for (i = 0; i < nvals; i++) {				\
+			for (j = 0; j < nvals; j++) {			\
+				type a = (type)(utype)vals[i];		\
+				type b = (type)(utype)vals[j];		\
+				type got = (type)0, want = (type)0;	\
+				int gf = KS_##tag##_##op##_overflow(a, b, &got);\
+				int wf = KS_##tag##_##op##_overflow0(a, b, &want);\
+									\
+				KS_expect_int(wf, gf);			\
+				KS_expect_true(got == want);		\
+			}						\
+		}							\
+	} while (0)
+
+static void
+test_arithmetic(void)
+{
+	static const uint64_t vals[] = {
+		UINT64_C(0), UINT64_C(1), UINT64_C(2), UINT64_C(3),
+		UINT64_C(127), UINT64_C(128), UINT64_C(255), UINT64_C(256),
+		UINT64_C(0x7fff), UINT64_C(0x8000), UINT64_C(0xffff),
+		UINT64_C(0x10000), UINT64_C(0x7fffffff),
+		UINT64_C(0x80000000), UINT64_C(0xffffffff),
+		UINT64_C(0x100000000), UINT64_C(0x7fffffffffffffff),
+		UINT64_C(0x8000000000000000), UINT64_C(0xffffffffffffffff),
+		UINT64_C(100), UINT64_C(1000),
+	};
+	size_t nvals = sizeof(vals) / sizeof(vals[0]);
+
+	CHECK_ARITH(i32, int32_t, uint32_t, add);
+	CHECK_ARITH(i32, int32_t, uint32_t, sub);
+	CHECK_ARITH(i32, int32_t, uint32_t, mul);
+	CHECK_ARITH(i64, int64_t, uint64_t, add);
+	CHECK_ARITH(i64, int64_t, uint64_t, sub);
+	CHECK_ARITH(i64, int64_t, uint64_t, mul);
+	CHECK_ARITH(u32, uint32_t, uint32_t, add);
+	CHECK_ARITH(u32, uint32_t, uint32_t, sub);
+	CHECK_ARITH(u32, uint32_t, uint32_t, mul);
+	CHECK_ARITH(u64, uint64_t, uint64_t, add);
+	CHECK_ARITH(u64, uint64_t, uint64_t, sub);
+	CHECK_ARITH(u64, uint64_t, uint64_t, mul);
+	CHECK_ARITH(size, size_t, size_t, add);
+	CHECK_ARITH(size, size_t, size_t, sub);
+	CHECK_ARITH(size, size_t, size_t, mul);
+}
 
 int
 main(void)
@@ -505,6 +564,8 @@ main(void)
 	test_token_branch_unlink();
 	test_token_serialize(&ctx);
 	test_clang_token_serialize(&ctx);
+
+	test_arithmetic();
 
 	context_free(&ctx);
 	style_shutdown();

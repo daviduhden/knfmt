@@ -59,6 +59,30 @@ clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 	token_rele(verbatim);
 }
 
+/*
+ * Emit the whole source verbatim. Used when invalid source cannot be recovered
+ * by crossing a preprocessor branch without dropping content.
+ */
+static void
+parser_verbatim_all(struct parser *pr, struct doc *dc)
+{
+	struct token *verbatim;
+	const char *str;
+	size_t len;
+
+	doc_alloc_impl(DOC_UNMUTE, dc, -1, __func__, __LINE__);
+	if (!lexer_get_lines(pr->pr_lx, 1, 0, &str, &len))
+		return;
+
+	verbatim = lexer_emit_synthetic(pr->pr_lx, &(struct token){
+	    .tk_type	= TOKEN_LITERAL,
+	    .tk_str	= str,
+	    .tk_len	= len,
+	});
+	doc_token(verbatim, dc, DOC_VERBATIM, __func__, __LINE__);
+	token_rele(verbatim);
+}
+
 static void
 clang_format_on(struct parser *pr, struct token *comment, struct doc *dc)
 {
@@ -143,6 +167,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 		if (error & GOOD) {
 			clang_stamp(clang, lx, ndocs);
 			brch_docs = 0;
+			pr->pr_verbatim = 0;
 		} else if (error & BRCH) {
 			if (!clang_branch(clang, lx, &pr->pr_token.unmute))
 				break;
@@ -150,6 +175,24 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 			parser_reset(pr);
 		} else if (error & (FAIL | NONE)) {
 			int r;
+
+			/*
+			 * The parser declined an extern block whose closing
+			 * brace is conditional. There is no way to rewind to a
+			 * consistent position: folding the branch discards the
+			 * directives and comments collected on the removed
+			 * tokens. Preserve the whole source verbatim instead.
+			 */
+			if (pr->pr_verbatim) {
+				pr->pr_verbatim = 0;
+				while (ndocs > 0) {
+					doc_remove_tail(dc);
+					ndocs--;
+				}
+				parser_verbatim_all(pr, dc);
+				error = 0;
+				break;
+			}
 
 			r = clang_recover(clang, lx, &pr->pr_token.unmute,
 			    ndocs, brch_docs);

@@ -213,10 +213,11 @@ codebase.
   expression formatter had already emitted one, giving `=  {` on the first
   pass and `= {` on the next. Assignment operators are now excluded from
   that re-emission. Regression: tests/repro-idempotence-004.c.
-- Two further malformed-recovery idempotence cases remain unresolved and
-  are preserved under tests/known-nonidempotent/00{1,2}.c: an aligned
-  continuation after an unexpected identifier before a subscript
-  designator, and a CPP branch soup. They are not wired into the suite.
+- Two malformed-recovery idempotence cases were formerly preserved under
+  `tests/known-nonidempotent/00{1,2}.c` (an aligned continuation after an
+  unexpected identifier before a subscript designator, and a CPP branch
+  soup). Both are now fixed and promoted to reproducers; the directory is
+  empty.
 
 ## Recovered assignment with a brace initializer
 
@@ -231,15 +232,11 @@ codebase.
 
 ## Known non-idempotent reproducers
 
-- `tests/known-nonidempotent/00{2,3}.c` remain non-idempotent: a CPP branch
-  (`#else`/`#elif`) crossing the closing brace of an `extern "C" { ... }`
-  block. `parser_extern()` consumes the conditional brace as the block close,
-  and the subsequent branch recovery re-emits the block body. The branch
-  recovery machinery is shared with all CPP handling and could not be changed
-  without regressing valid fixtures; both cases are kept visible by
-  `tests/known-nonidempotent.sh`, which fails if either starts passing so a
-  fix cannot leave them forgotten. All other reproducers (001-005) are
-  idempotent in normal and `-s` mode.
+- No malformed reproducers are currently known to be non-idempotent or to
+  lose content. `tests/known-nonidempotent/` is empty; keep
+  `tests/known-nonidempotent.sh` and add a case there when a new one is found
+  so a later fix cannot silently leave it forgotten. All reproducers
+  (001-007) are idempotent in normal and `-s` mode.
 
 ## CPP branches and block terminators
 
@@ -247,10 +244,16 @@ codebase.
   is not the body of a conditional branch that has an alternative
   (`#else`/`#elif`). Such a conditional terminator cannot be taken as an
   unconditional block close: crossing the alternative removes the brace and
-  the branch recovery re-emits the block, duplicating content. The construct
-  is left to the top-level branch recovery. A conditional brace without an
-  alternative (the usual C++ linkage guard, `#ifdef __cplusplus ... #endif`)
-  is still parsed.
+  the branch recovery re-emits or drops the block. When the block is
+  declined, `parser_extern()` sets `pr_verbatim`; on the resulting parse
+  failure `parser_exec()` discards every document built so far and emits the
+  whole source verbatim (`parser_verbatim_all()`). No committed position can
+  precede the branch reliably, and folding it would collect the leading
+  directives and comments onto tokens that are then removed without being
+  re-emitted. The verbatim emission is byte-stable, so it is idempotent and
+  content-preserving; `tests/repro-idempotence-007.c` guards it. A conditional
+  brace without an alternative (the usual C++ linkage guard,
+  `#ifdef __cplusplus ... #endif`) is still parsed.
 - `parser_func_arg()` keeps a hard line after a parameter type that ends in a
   line comment, so the next parameter is not joined onto the comment.
 

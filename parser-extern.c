@@ -44,8 +44,16 @@ parser_extern(struct parser *pr, struct doc *dc)
 			    token_type_normalize(alt) == TOKEN_CPP_ELSE)
 				conditional = 1;
 		}
-		if (!conditional)
+		if (!conditional) {
 			peek = 1;
+		} else {
+			/*
+			 * Signal the top-level parser so it can preserve the
+			 * source verbatim rather than recover across the
+			 * conditional brace.
+			 */
+			pr->pr_verbatim = 1;
+		}
 	}
 	lexer_peek_leave(lx, &s);
 	if (!peek)

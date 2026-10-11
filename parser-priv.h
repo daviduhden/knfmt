@@ -54,6 +54,13 @@ struct parser {
 	unsigned int	pr_depth;
 
 	/*
+	 * Set when parser_extern() declines an extern block whose closing
+	 * brace is conditional. The caller then preserves the source verbatim
+	 * instead of crossing the branch and dropping content.
+	 */
+	unsigned int	pr_verbatim;
+
+	/*
 	 * Cached classification of the token range scanned by
 	 * parser_type_decl_list_then_lbrace(). A scan that finds no
 	 * declaration list followed by '{' proves the same for every later

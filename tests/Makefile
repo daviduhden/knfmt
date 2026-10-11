@@ -946,6 +946,7 @@ TESTS+=	nul.sh
 TESTS+=	bytes.sh
 TESTS+=	idempotence.sh
 TESTS+=	known-nonidempotent.sh
+TESTS+=	semantic.sh
 TESTS+=	stdckdint-compile-fail.sh
 
 .SUFFIXES: .c .c-phony .h .h-phony .sh .sh-phony

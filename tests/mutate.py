@@ -11,6 +11,7 @@ The harness must enforce the property under test itself: fuzz-parse traps on
 non-idempotent formatting.
 """
 import os
+import re
 import random
 import subprocess
 import sys
@@ -21,6 +22,29 @@ ITERS = int(sys.argv[2]) if len(sys.argv) > 2 else 20000
 OUT = sys.argv[3] if len(sys.argv) > 3 else "crashes"
 SEED_DIRS = ["tests"]
 TIMEOUT = 15
+KNFMT = os.environ.get("KNFMT", "./knfmt")
+
+
+def _significant(data):
+    """Strip comments, whitespace, semicolons and continuations."""
+    data = re.sub(rb"\\\n", b"", data)
+    data = re.sub(rb"/\*.*?\*/", b"", data, flags=re.S)
+    data = re.sub(rb"//[^\n]*", b"", data)
+    data = re.sub(rb"\s", b"", data)
+    data = re.sub(rb"[;\\]", b"", data)
+    return data
+
+
+def semantic_ok(data):
+    """True if formatting preserves the significant byte sequence."""
+    try:
+        r = subprocess.run([KNFMT], input=data, capture_output=True,
+                           timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return True
+    if r.returncode != 0:
+        return True
+    return _significant(data) == _significant(r.stdout)
 
 # Tokens that exercise recovery, comments, CPP and malformed constructs.
 DICT = [
@@ -91,7 +115,7 @@ def main():
         print("no seeds", file=sys.stderr)
         return 2
     random.seed(20261010)
-    execs = crashes = timeouts = 0
+    execs = crashes = timeouts = semantic = 0
     started = time.time()
     for n in range(ITERS):
         data = mutate(random.choice(seeds), seeds)
@@ -114,10 +138,17 @@ def main():
             with open(path, "wb") as fh:
                 fh.write(data)
             print(f"CRASH rc={rc} {path}", flush=True)
+        elif rc == 0 and not semantic_ok(data):
+            semantic += 1
+            path = os.path.join(OUT, f"semantic-{n}.bin")
+            with open(path, "wb") as fh:
+                fh.write(data)
+            print(f"SEMANTIC {path}", flush=True)
     dur = time.time() - started
     print(f"target={HARNESS} seeds={len(seeds)} execs={execs} "
-          f"crashes={crashes} timeouts={timeouts} duration={dur:.1f}s")
-    return 1 if crashes or timeouts else 0
+          f"crashes={crashes} timeouts={timeouts} semantic={semantic} "
+          f"duration={dur:.1f}s")
+    return 1 if crashes or timeouts or semantic else 0
 
 
 if __name__ == "__main__":

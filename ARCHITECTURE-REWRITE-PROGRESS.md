@@ -642,3 +642,24 @@ absent, but that only affects the optional benchmark target.
   no longer reproduces.
 - Valgrind: clean on the changed reproducers. `str-match` 2520/0 (AVX-512
   unavailable on this CPU). Performance unchanged: 100k 2.03 s, 200k 5.17 s.
+
+## Update — 003 resolved (CPP branch over a block terminator)
+
+- Fixed `tests/known-nonidempotent/003.c` (moved to
+  `tests/repro-idempotence-007.c`): a CPP branch crossing the closing brace of
+  an `extern "C" { ... }` block. `parser_extern()` declines such a conditional
+  terminator, but the top-level recovery then had no committed position to
+  rewind to. It folded the branch, which collected the leading directives and
+  comments as prefixes of the first folded token, and `remove_token()` dropped
+  those prefixes with the token; the rewind started at the first remaining
+  token, so the content was never re-emitted (output began at `#else`).
+- `parser_extern()` now sets `pr->pr_verbatim` when it declines the block. On
+  the resulting failure `parser_exec()` removes every document built so far and
+  emits the whole source verbatim (`parser_verbatim_all()`), using the existing
+  `DOC_VERBATIM` path. The emission is the raw physical lines, so it is
+  byte-stable, idempotent in normal and `-s` mode, and content-preserving. A
+  conditional brace without an alternative is still parsed normally.
+- Verification: full suite green; `tests/reparse.sh`
+  accepted=1708 rejected=164 fail=0; semantic oracle 791 files, 0 mismatches;
+  oracle selftest 14/0; Valgrind clean on the reproducer. Performance
+  unchanged (100k 1.92 s, 200k 5.37 s).

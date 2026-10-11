@@ -557,6 +557,19 @@ expr_exec_binary(struct expr_state *es, struct expr *lhs)
 		ex->ex_arg.comma = comma;
 	ex->ex_lhs = lhs;
 	ex->ex_rhs = expr_exec1(es, pc);
+	/*
+	 * A brace initializer that is the right-hand side of an assignment may
+	 * also be the field stop chosen by the enclosing brace parser. Attach
+	 * it as the operand here instead of leaving it to become a separate
+	 * field: splitting it would move the left brace onto its own line and
+	 * change how the next pass indents the initializer, breaking
+	 * idempotence for recovered fields such as `x[0] = { ... }`.
+	 */
+	if (ex->ex_rhs == nullptr &&
+	    (ex->ex_tk->tk_flags & TOKEN_FLAG_ASSIGN) != 0 &&
+	    es->es_ea.stop != nullptr &&
+	    es->es_ea.stop->tk_type == TOKEN_LBRACE)
+		ex->ex_rhs = expr_exec_recover(es);
 
 	return ex;
 }

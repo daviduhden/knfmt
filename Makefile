@@ -471,6 +471,7 @@ SHLINT+=	tests/fd.sh
 SHLINT+=	tests/fault.sh
 SHLINT+=	tests/git.sh
 SHLINT+=	tests/idempotence.sh
+SHLINT+=	tests/known-nonidempotent.sh
 SHLINT+=	tests/include-categories.sh
 SHLINT+=	tests/knfmt.sh
 SHLINT+=	tests/nul.sh

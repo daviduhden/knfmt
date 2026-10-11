@@ -663,3 +663,41 @@ absent, but that only affects the optional benchmark target.
   accepted=1708 rejected=164 fail=0; semantic oracle 791 files, 0 mismatches;
   oracle selftest 14/0; Valgrind clean on the reproducer. Performance
   unchanged (100k 1.92 s, 200k 5.37 s).
+
+## Update — mutation-fuzzing semantic corruption
+
+Triaged every `SEMANTIC` finding from the saved campaigns (c10/c11/c12, 55
+inputs) and grouped them by root cause. Before: 16 mismatches plus 18
+rejections. After the fixes below: 36 oracle-clean, 18 cleanly rejected, 1
+unresolved (`tests/known-nonidempotent/001.c`). A fresh 6000-execution
+campaign with the phase-1 binary reported 0 semantic findings.
+
+Root causes corrected:
+
+- `comment.c`/`cpp-format.c`/`doc.c`: rebuilding a comment or macro used a
+  NUL-terminated length, so an embedded NUL truncated the comment and
+  everything after it. `comment_trim()` now returns the length, `cpp_format()`
+  takes one, and `doc_literaln()` carries explicit lengths.
+- `clang.c` `clang_read()`: a non-white-space byte that was the last byte of
+  the input was classified as `LEXER_EOF` and dropped. It is now an ordinary
+  `TOKEN_NONE` and is rejected consistently.
+- `cpp-format.c`: realigning a macro whose line continuation lies inside a
+  string/character literal inserted padding into the literal. Such macros are
+  left untouched (`splice_inside_literal()`).
+- `expr.c` `expr_doc_concat()`: a malformed recovery could emit two adjacent
+  identifiers with no separator (`voiint` + `i` -> `voiinti`). The separator is
+  now mandatory when `token_pair_needs_space()` says the tokens would merge.
+- `parser.c`: a C99 comment followed by a discarded optional line let the next
+  token be moved onto the comment line and swallowed. The line break is forced
+  (a new forced `DOC_OPTLINE`, `dc_int`), keeping the deferred indentation.
+- `clang.c` `clang_recover()`: folding a branch whose rewind stamp precedes the
+  most recent branch crossing loses the crossed branch. It now requests the
+  full-source verbatim fallback. Likewise, an unbalanced `clang-format off`
+  mute is cancelled by preserving the source instead of silently truncating.
+- `tests/semanticoracle.pl`: added translation phase 1 (trigraphs) and 15 more
+  self-tests (29 total).
+
+Unresolved: `tests/known-nonidempotent/001.c` (CPP-branched parameter list
+plus a stray byte in the body; recovery rewinds to the first token with no
+stamp and drops the parameter branch). `known-nonidempotent.sh` also treats a
+first pass whose output the formatter rejects as a known failure.

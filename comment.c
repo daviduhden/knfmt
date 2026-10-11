@@ -31,13 +31,15 @@ is_comment_trimmed(const struct token *tk, const struct buffer *bf)
 
 const char *
 comment_trim(const struct token *tk, const struct style *st,
-    struct arena *scratch, struct arena_scope *s)
+    struct arena *scratch, struct arena_scope *s, size_t *lenp)
 {
 	struct buffer *bf;
 	const char *sp = tk->tk_str;
 	size_t len = tk->tk_len;
 	int iscrlf;
 
+	if (lenp != nullptr)
+		*lenp = 0;
 	if (len == 0 || memchr(sp, '\n', len) == nullptr)
 		return nullptr;
 
@@ -81,7 +83,9 @@ comment_trim(const struct token *tk, const struct style *st,
 
 	if (!is_comment_trimmed(tk, bf))
 		return nullptr;
-	return arena_strdup(s, buffer_str(bf));
+	if (lenp != nullptr)
+		*lenp = buffer_get_len(bf);
+	return arena_strndup(s, buffer_get_ptr(bf), buffer_get_len(bf));
 }
 
 static const char *

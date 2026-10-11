@@ -61,6 +61,13 @@ struct parser {
 	unsigned int	pr_verbatim;
 
 	/*
+	 * Number of active clang-format off mutes emitted as documents. A
+	 * recovery may discard the recorded off comment, leaving the mute
+	 * unbalanced; the parser cancels it before emitting the result.
+	 */
+	unsigned int	pr_mute;
+
+	/*
 	 * Cached classification of the token range scanned by
 	 * parser_type_decl_list_then_lbrace(). A scan that finds no
 	 * declaration list followed by '{' proves the same for every later

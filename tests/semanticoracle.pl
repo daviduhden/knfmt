@@ -7,7 +7,8 @@
 # and compares them.  It does not use knfmt's lexer.
 #
 # Policy
-#   * Translation phase 2 (backslash-newline splicing) is applied first.
+#   * Translation phase 1 (trigraph replacement) and phase 2
+#     (backslash-newline splicing) are applied first.
 #   * Preprocessing tokens: identifiers, preprocessing numbers, string and
 #     character literals (escape aware), punctuators (longest match), comments
 #     and newlines.
@@ -36,6 +37,16 @@ my @PUNCT = sort { length($b) <=> length($a) } (
 
 sub tokenize {
 	my ($d) = @_;
+	# Translation phase 1: trigraph replacement.
+	$d =~ s/\?\?=/#/g;
+	$d =~ s/\?\?\//\\/g;
+	$d =~ s/\?\?'/^/g;
+	$d =~ s/\?\?\(/[/g;
+	$d =~ s/\?\?\)/]/g;
+	$d =~ s/\?\?!/|/g;
+	$d =~ s/\?\?</{/g;
+	$d =~ s/\?\?>/}/g;
+	$d =~ s/\?\?-/~/g;
 	# Translation phase 2: remove every backslash-newline.
 	$d =~ s/\\\r?\n//g;
 	my $n = length($d);
@@ -213,6 +224,35 @@ sub _selftest {
 		["#define X(a) a ## b\n", "#define X(a) a ## b\n", 1],
 		["#define X(a) a ## b\n", "#define X(a) a # b\n", 0],
 		["int x\\\n;\n", "int x;\n", 1],
+		# Trigraph line continuation (??/ + newline is a splice).
+		["int x??/\n;\n", "int x;\n", 1],
+		# Identifier concatenation.
+		["int x; int y;\n", "int x; inty;\n", 0],
+		# Operator concatenation.
+		["a + +b;\n", "a ++b;\n", 0],
+		["a - -b;\n", "a --b;\n", 0],
+		["a + = b;\n", "a += b;\n", 0],
+		# Token splitting.
+		["a++;\n", "a + +;\n", 0],
+		["a->b;\n", "a - >b;\n", 0],
+		# Deleted punctuation.
+		["int f(int a, int b);\n", "int f(int a int b);\n", 0],
+		# Duplicate punctuation.
+		["int f(int a);\n", "int f(int a,,);\n", 0],
+		# Changed literal bytes.
+		["char c = 'a';\n", "char c = 'b';\n", 0],
+		# Truncated literal.
+		["char *s = \"abcd\";\n", "char *s = \"abc\";\n", 0],
+		# Swallowed comment.
+		["int x; /* c */ int y;\n", "int x; int y;\n", 0],
+		# Escaped-newline change alters the spliced token stream.
+		["a\\\nb;\n", "a b;\n", 0],
+		# Deleted conditional branch.
+		["#if A\nint a;\n#else\nint b;\n#endif\n",
+		 "#if A\nint a;\n#endif\n", 0],
+		# Duplicated conditional branch.
+		["#if A\nint a;\n#else\nint b;\n#endif\n",
+		 "#if A\nint a;\n#else\nint a;\n#else\nint b;\n#endif\n", 0],
 	);
 	my $bad = 0;
 	for my $c (@cases) {

@@ -745,11 +745,22 @@ struct doc *
 doc_literal_impl(const char *str, struct doc *dc, const char *fun,
     int lno)
 {
+	return doc_literaln_impl(str, strlen(str), dc, fun, lno);
+}
+
+/*
+ * Like doc_literal(), but the length is explicit so the text may contain NUL
+ * bytes.
+ */
+struct doc *
+doc_literaln_impl(const char *str, size_t len, struct doc *dc,
+    const char *fun, int lno)
+{
 	struct doc *literal;
 
 	literal = doc_alloc_impl(DOC_LITERAL, dc, 0, fun, lno);
 	literal->dc_str = str;
-	literal->dc_len = strlen(str);
+	literal->dc_len = len;
 	return literal;
 }
 
@@ -992,10 +1003,11 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 
 		case DOC_OPTLINE:
 			/*
-			 * Instruct the next doc_print() invocation to emit a new
-			 * line. Necessary in order to get indentation right.
+			 * A forced optional line (dc_int) always starts a new
+			 * line, e.g. after a C99 comment which otherwise would
+			 * swallow the following token.
 			 */
-			if (st->st_optline)
+			if (st->st_optline || dc->dc_int)
 				st->st_newline = 1;
 			break;
 

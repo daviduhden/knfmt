@@ -217,3 +217,26 @@ codebase.
   are preserved under tests/known-nonidempotent/00{1,2}.c: an aligned
   continuation after an unexpected identifier before a subscript
   designator, and a CPP branch soup. They are not wired into the suite.
+
+## Recovered assignment with a brace initializer
+
+- A brace initializer that is the right-hand side of an assignment may also
+  be the field stop chosen by `peek_expr_stop()` (e.g. the malformed field
+  `stat[0x0] = { ... }`). The expression parser used to stop at the brace,
+  splitting `stat[0x0] =` and `{ ... }` into two fields. The formatter then
+  moved the left brace onto its own line, and the next pass classified it
+  differently and indented the continuation differently. `expr_exec_binary()`
+  now attaches such a brace as the assignment operand. Regression:
+  `tests/repro-idempotence-005.c`.
+
+## Known non-idempotent reproducers
+
+- `tests/known-nonidempotent/00{2,3}.c` remain non-idempotent: a CPP branch
+  (`#else`/`#elif`) crossing the closing brace of an `extern "C" { ... }`
+  block. `parser_extern()` consumes the conditional brace as the block close,
+  and the subsequent branch recovery re-emits the block body. The branch
+  recovery machinery is shared with all CPP handling and could not be changed
+  without regressing valid fixtures; both cases are kept visible by
+  `tests/known-nonidempotent.sh`, which fails if either starts passing so a
+  fix cannot leave them forgotten. All other reproducers (001-005) are
+  idempotent in normal and `-s` mode.

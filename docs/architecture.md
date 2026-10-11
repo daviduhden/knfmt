@@ -240,3 +240,27 @@ codebase.
   `tests/known-nonidempotent.sh`, which fails if either starts passing so a
   fix cannot leave them forgotten. All other reproducers (001-005) are
   idempotent in normal and `-s` mode.
+
+## CPP branches and block terminators
+
+- `parser_extern()` accepts `extern "C" { ... }` only when its matching `}`
+  is not the body of a conditional branch that has an alternative
+  (`#else`/`#elif`). Such a conditional terminator cannot be taken as an
+  unconditional block close: crossing the alternative removes the brace and
+  the branch recovery re-emits the block, duplicating content. The construct
+  is left to the top-level branch recovery. A conditional brace without an
+  alternative (the usual C++ linkage guard, `#ifdef __cplusplus ... #endif`)
+  is still parsed.
+- `parser_func_arg()` keeps a hard line after a parameter type that ends in a
+  line comment, so the next parameter is not joined onto the comment.
+
+## Semantic-preservation oracle
+
+- `tests/semantic.sh` formats each accepted fixture in normal mode and
+  compares the non-comment, non-whitespace, non-semicolon, non-backslash byte
+  sequence before and after (translation-phase-2 splicing is applied first).
+  It is independent of the formatter's lexer and catches token loss and
+  duplication that idempotence cannot see. Not applied to `-s`, which
+  legitimately rewrites tokens.
+- `tests/mutate.py` runs the same check on every mutant, so the fuzzer
+  reports `SEMANTIC` findings separately from `CRASH`/`TIMEOUT`.

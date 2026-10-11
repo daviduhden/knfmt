@@ -477,6 +477,7 @@ SHLINT+=	tests/knfmt.sh
 SHLINT+=	tests/nul.sh
 SHLINT+=	tests/reparse.sh
 SHLINT+=	tests/simple.sh
+SHLINT+=	tests/stdckdint-compile-fail.sh
 SHLINT+=	tests/stdin.sh
 SHLINT+=	tests/style-enoent.sh
 

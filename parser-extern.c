@@ -2,6 +2,7 @@
 
 #include "config.h"
 
+#include "clang.h"
 #include "doc.h"
 #include "lexer.h"
 #include "parser-priv.h"
@@ -18,8 +19,34 @@ parser_extern(struct parser *pr, struct doc *dc)
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_EXTERN, nullptr) &&
 	    lexer_if(lx, TOKEN_STRING, nullptr) &&
-	    lexer_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, nullptr, &rbrace))
-		peek = 1;
+	    lexer_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, nullptr, &rbrace)) {
+		struct token *prefix;
+		int conditional = 0;
+
+		/*
+		 * A closing brace that immediately follows a conditional
+		 * directive with an alternative branch ("#else"/"#elif") is
+		 * itself conditional. Taking it as this block's unconditional
+		 * terminator leaves the parser and the branch state
+		 * inconsistent: crossing the alternative removes the brace and
+		 * the branch recovery re-emits the block. Leave such a
+		 * construct to the top-level branch recovery. A conditional
+		 * brace without an alternative (the usual C++ linkage guard) is
+		 * safe.
+		 */
+		LIST_FOREACH(prefix, &rbrace->tk_prefixes) {
+			struct token *alt;
+
+			if (token_type_normalize(prefix) != TOKEN_CPP_IF)
+				continue;
+			alt = clang_token_branch_next(prefix);
+			if (alt != nullptr &&
+			    token_type_normalize(alt) == TOKEN_CPP_ELSE)
+				conditional = 1;
+		}
+		if (!conditional)
+			peek = 1;
+	}
 	lexer_peek_leave(lx, &s);
 	if (!peek)
 		return parser_none(pr);

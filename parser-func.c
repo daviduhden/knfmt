@@ -406,7 +406,13 @@ parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
 	    !lexer_peek_if(lx, TOKEN_COMMA, nullptr) &&
 	    !lexer_peek_if(lx, TOKEN_RPAREN, nullptr) &&
 	    !lexer_peek_if(lx, TOKEN_ATTRIBUTE, nullptr))
-		doc_alloc(DOC_LINE, concat);
+		/*
+		 * A line comment runs to the end of the line, so the break
+		 * after the type must be kept when the type ends with one;
+		 * otherwise the identifier would be joined onto the comment.
+		 */
+		doc_alloc(token_has_c99_comment(type.end) ?
+		    DOC_HARDLINE : DOC_LINE, concat);
 
 	for (;;) {
 		if (lexer_peek_if(lx, LEXER_EOF, nullptr))

@@ -67,7 +67,7 @@ ASAN_OPTIONS=detect_leaks=0 sh tests/cross-build.sh ./knfmt /tmp/opencode/p1-san
 Flat-expression reproducer:
 
 ```sh
-python3 -c "open('/tmp/ln.c','w').write('int x = ' + 'a+'*8000 + 'a;\n')"
+perl -e 'print "int x = " . ("a+" x 8000) . "a;\n"' >/tmp/ln.c
 knfmt /tmp/ln.c
 ```
 

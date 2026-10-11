@@ -2,37 +2,25 @@
 
 # Semantic-preservation regression.
 #
-# In normal mode the formatter changes layout, removes redundant semicolons and
-# backslash-newline continuations, and may relocate a comment within a line.
-# It must not lose or duplicate code tokens. This test formats each accepted
-# fixture and compares the non-comment, non-whitespace, non-semicolon,
-# non-backslash byte sequence before and after. It catches declaration/statement
-# loss and duplication that the idempotence oracle cannot see.
+# Formatting changes layout, removes redundant semicolons and joins
+# backslash-newline continuations, but it must not change the program's
+# preprocessing tokens. Each accepted fixture is formatted in normal mode and
+# the input and output are compared with tests/semanticoracle.pl, an
+# independent preprocessing-token scanner (it does not use knfmt's lexer).
 #
-# The comparison is independent of the formatter's lexer. It deliberately
-# ignores comments (their placement is covered by the .ok fixtures) and is not
-# applied to -s mode, where the simplifier legitimately rewrites tokens.
+# The comparison detects token loss, duplication, reordering, operator and
+# literal changes, directive changes and branch swaps. Comments may be
+# relocated, so only their multiset of spellings is compared. It is not applied
+# to -s mode, where the simplifier legitimately rewrites tokens.
 
 set -e
 
 [ -z "${VALGRINDRC:-}" ] || export "VALGRIND_OPTS=$(xargs <"${VALGRINDRC}")"
 
+perl semanticoracle.pl --selftest >/dev/null
+
 _wrkdir="$(mktemp -dt knfmt.XXXXXX)"
 trap 'rm -r "${_wrkdir}"' EXIT
-
-# strip file: remove comments, whitespace, semicolons and backslashes.
-strip() {
-	python3 - "$1" <<-'PY'
-	import re, sys
-	d = open(sys.argv[1], "rb").read()
-	d = re.sub(rb"\\\n", b"", d)            # translation phase 2 splicing
-	d = re.sub(rb"/\*.*?\*/", b"", d, flags=re.S)
-	d = re.sub(rb"//[^\n]*", b"", d)
-	d = re.sub(rb"\s", b"", d)              # all whitespace
-	d = re.sub(rb"[;\\]", b"", d)
-	sys.stdout.buffer.write(d)
-	PY
-}
 
 _fail=0
 _n=0
@@ -45,10 +33,9 @@ for _f in valid-*.c valid-*.h simple-*.c simple-*.h style-*.c style-*.h semantic
 	fi
 
 	_n=$((_n + 1))
-	strip "${_f}" >"${_wrkdir}/c1"
-	strip "${_wrkdir}/o1" >"${_wrkdir}/c2"
-	if ! cmp -s "${_wrkdir}/c1" "${_wrkdir}/c2"; then
-		echo "${_f}: code content changed" >&2
+	if ! perl semanticoracle.pl compare "${_f}" "${_wrkdir}/o1" \
+	    >"${_wrkdir}/why" 2>&1; then
+		echo "${_f}: $(cat "${_wrkdir}/why")" >&2
 		_fail=$((_fail + 1))
 	fi
 done

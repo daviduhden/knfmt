@@ -10,7 +10,7 @@ if [ "$#" -eq 0 ]; then
 	set -- 320 640 1280 2560 5120 10240
 fi
 for n in "$@"; do
-	python3 -c "open('${TMP}/d.c','w').write('\n'.join('int f%d () A B;'%i for i in range(${n}))+'\n')"
+	perl -e 'for my $i (0 .. $ARGV[0] - 1) { print "int f$i () A B;\n"; }' "${n}" >"${TMP}/d.c"
 	t0=$(date +%s.%N)
 	if command -v /usr/bin/time >/dev/null 2>&1; then
 		/usr/bin/time -f '%M' -o "${TMP}/rss" "${K}" "${TMP}/d.c" >"${TMP}/o1" 2>/dev/null || { echo "N=${n} FAILED"; continue; }

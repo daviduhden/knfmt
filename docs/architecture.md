@@ -188,7 +188,7 @@ they exist).
 | C23 | `bool`, `true`, `false` | used | already native |
 | C23 | `[[noreturn]]` | adopted | `usage()`; `format`/`cleanup` retained (no standard equivalent) |
 | C23 | `[[nodiscard]]` | adopted | checked-arithmetic helpers |
-| C23 | `<stdckdint.h>` | adopted | `KS_*_overflow` prefer `ckd_*`, fall back to builtins |
+| C23 | `<stdckdint.h>` | adopted | vendored in `libks/stdckdint.h`; `KS_*_overflow` call `ckd_*` |
 | C23 | `static_assert` | adopted | see C11 |
 | C23 | `alignas`/`alignof`, `typeof`, `auto`, `<stdbit.h>`, `#embed`, `_BitInt`, `#elifdef`/`#warning`/`__VA_OPT__` | n/a | no applicable site that would not add complexity or change layout/ABI |
 

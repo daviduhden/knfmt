@@ -18,90 +18,97 @@
 #include "libks/arithmetic.h"
 #include <limits.h>
 
-#define SIGNED_ADD_OVERFLOW(max, min, a, b, c) do {			\
-	if (((b) > 0 && (a) > ((max) - (b))) ||				\
-	    ((b) < 0 && (a) < ((min) - (b))))				\
-		return 1;						\
-	*(c) = (a) + (b);						\
-	return 0;							\
+/*
+ * Independent, division/sign-based implementation of the C23 7.20.1 checked
+ * arithmetic.  It is not used by the KS_*_overflow() wrappers (those call the
+ * compiler builtins through the vendored <stdckdint.h>); the test suite uses
+ * it as a reference that does not share an implementation with the builtins.
+ *
+ * Like C23, each function stores the mathematical result wrapped to the width
+ * of the result type and returns 1 exactly when that conversion is not value
+ * preserving.  The wrapped value is computed in the corresponding unsigned
+ * type, where the arithmetic is well defined, and converted back to the
+ * signed type (two's complement, as required by C23).
+ */
+
+#define SIGNED_ADD_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
+	utype _r = (utype)(a) + (utype)(b);				\
+	int _ovf = ((b) > 0 && (a) > ((max) - (b))) ||			\
+	    ((b) < 0 && (a) < ((min) - (b)));				\
+	*(c) = (stype)_r;						\
+	return _ovf;							\
 } while (0)
 
-#define SIGNED_SUB_OVERFLOW(max, min, a, b, c) do {			\
-	if (((b) > 0 && (a) < ((min) + (b))) ||				\
-	    ((b) < 0 && (a) > ((max) + (b))))				\
-		return 1;						\
-	*(c) = (a) - (b);						\
-	return 0;							\
+#define SIGNED_SUB_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
+	utype _r = (utype)(a) - (utype)(b);				\
+	int _ovf = ((b) > 0 && (a) < ((min) + (b))) ||			\
+	    ((b) < 0 && (a) > ((max) + (b)));				\
+	*(c) = (stype)_r;						\
+	return _ovf;							\
 } while (0)
 
-#define SIGNED_MUL_OVERFLOW(max, min, a, b, c) do {			\
-	if ((a) > 0 && (b) > 0 && (a) > (max) / (b))			\
-		return 1;						\
-	if ((a) > 0 && (b) < 0 && (b) < (min) / (a))			\
-		return 1;						\
-	if ((a) < 0 && (b) > 0 && (a) < (min) / (b))			\
-		return 1;						\
-	if ((a) < 0 && (b) < 0 && (b) < (max) / (a))			\
-		return 1;						\
-	*(c) = (a) * (b);						\
-	return 0;							\
+#define SIGNED_MUL_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
+	utype _r = (utype)(a) * (utype)(b);				\
+	int _ovf = ((a) > 0 && (b) > 0 && (a) > (max) / (b)) ||		\
+	    ((a) > 0 && (b) < 0 && (b) < (min) / (a)) ||		\
+	    ((a) < 0 && (b) > 0 && (a) < (min) / (b)) ||		\
+	    ((a) < 0 && (b) < 0 && (b) < (max) / (a));			\
+	*(c) = (stype)_r;						\
+	return _ovf;							\
 } while (0)
 
 #define UNSIGNED_ADD_OVERFLOW(max, a, b, c) do {			\
-	if ((a) > (max) - (b))						\
-		return 1;						\
+	int _ovf = (a) > (max) - (b);					\
 	*(c) = (a) + (b);						\
-	return 0;							\
+	return _ovf;							\
 } while (0)
 
 #define UNSIGNED_SUB_OVERFLOW(max, a, b, c) do {			\
-	if ((b) > (a))							\
-		return 1;						\
+	int _ovf = (b) > (a);						\
 	*(c) = (a) - (b);						\
-	return 0;							\
+	return _ovf;							\
 } while (0)
 
 #define UNSIGNED_MUL_OVERFLOW(max, a, b, c) do {			\
-	if ((b) != 0 && (a) > (max) / (b))				\
-		return 1;						\
+	int _ovf = (b) != 0 && (a) > (max) / (b);			\
 	*(c) = (a) * (b);						\
-	return 0;							\
+	return _ovf;							\
 } while (0)
 
 int
 KS_i32_add_overflow0(int32_t a, int32_t b, int32_t *c)
 {
-	SIGNED_ADD_OVERFLOW(INT32_MAX, INT32_MIN, a, b, c);
+	SIGNED_ADD_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
 int
 KS_i32_sub_overflow0(int32_t a, int32_t b, int32_t *c)
 {
-	SIGNED_SUB_OVERFLOW(INT32_MAX, INT32_MIN, a, b, c);
+	SIGNED_SUB_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
 int
 KS_i32_mul_overflow0(int32_t a, int32_t b, int32_t *c)
 {
-	SIGNED_MUL_OVERFLOW(INT32_MAX, INT32_MIN, a, b, c);
+	SIGNED_MUL_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
 int
 KS_i64_add_overflow0(int64_t a, int64_t b, int64_t *c)
 {
-	SIGNED_ADD_OVERFLOW(INT64_MAX, INT64_MIN, a, b, c);
+	SIGNED_ADD_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
 int
 KS_i64_sub_overflow0(int64_t a, int64_t b, int64_t *c)
 {
-	SIGNED_SUB_OVERFLOW(INT64_MAX, INT64_MIN, a, b, c);
+	SIGNED_SUB_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
 int
 KS_i64_mul_overflow0(int64_t a, int64_t b, int64_t *c)
 {
-	SIGNED_MUL_OVERFLOW(INT64_MAX, INT64_MIN, a, b, c);
+	SIGNED_MUL_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
 int

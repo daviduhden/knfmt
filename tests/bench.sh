@@ -9,7 +9,7 @@ trap 'rm -rf "${TMP}"' EXIT
 
 terms="${*:-1000 2000 4000 8000 16000 32000 64000 100000 200000}"
 for n in ${terms}; do
-	python3 -c "open('${TMP}/in.c','w').write('int x = ' + 'a+'*${n} + 'a;\n')"
+	perl -e 'print "int x = " . ("a+" x $ARGV[0]) . "a;\n"' "${n}" >"${TMP}/in.c"
 	in=$(wc -c <"${TMP}/in.c")
 	t0=$(date +%s.%N)
 	if command -v /usr/bin/time >/dev/null 2>&1; then

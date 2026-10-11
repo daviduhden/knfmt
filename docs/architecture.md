@@ -262,5 +262,5 @@ codebase.
   It is independent of the formatter's lexer and catches token loss and
   duplication that idempotence cannot see. Not applied to `-s`, which
   legitimately rewrites tokens.
-- `tests/mutate.py` runs the same check on every mutant, so the fuzzer
+- `tests/mutate.pl` runs the same check on every mutant, so the fuzzer
   reports `SEMANTIC` findings separately from `CRASH`/`TIMEOUT`.

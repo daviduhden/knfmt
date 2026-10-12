@@ -15,8 +15,16 @@ does not describe abstractions that are not present (for example there is no
 - Phase-2 backslash-newline splicing is recognised, including inside `//`
   comments and preprocessor directives.
 - Trigraphs are recognised (`??/` behaves as a backslash for splicing; the
-  punctuation mappings map to their tokens). knfmt has no language-version
-  selector, so this translation behaviour is uniform.
+  punctuation mappings map to their tokens). A replacement is a **character**,
+  not a token: when it combines with the following character the compound
+  punctuator is recognised too (`??'=` is `^=`, `??!=` is `|=`, `??!|` is
+  `||`). knfmt has no language-version selector, so this translation behaviour
+  is uniform (C23 removed the requirement, but the behaviour is kept).
+- A backslash-newline splice that joins the two halves of a preprocessing
+  token (for example an identifier split across physical lines) keeps the
+  token joined. When a macro's continuations are aligned, a splice between two
+  non-whitespace characters suppresses the alignment so the padding cannot
+  split the token.
 - NUL bytes are tolerated where the lexer can carry them (e.g. comments) and
   otherwise produce a clean parse error (`tests/nul.sh`).
 
@@ -317,6 +325,36 @@ covered by `tests/semantic-cpp-branches.c`.
 - Every reproducer (`tests/repro-idempotence-001..018.c`) is idempotent in
   normal and `-s` mode.
 
+
+## CPP branch-processing cost
+
+Sequential conditional *initializers* (`int v = #ifdef A 1 #else 2 #endif ;`)
+scale quadratically; top-level conditionals (`#ifdef A int v = 1; #endif`) do
+not. Measured with the semantic build (`int v_i =` construct):
+
+| constructs | time | peak RSS | documents |
+|---:|---:|---:|---:|
+| 100 | 0.27 s | 31 MB | 190 353 |
+| 200 | 0.69 s | 105 MB | 750 703 |
+| 400 | 2.39 s | 402 MB | 2 981 403 |
+| 800 | 9.11 s | 1588 MB | 11 882 803 |
+
+Cause: `clang_stamp()` is only taken on `GOOD`, but a conditional inside an
+initializer makes every top-level pass return `BRCH`. With `cl->stamps` empty,
+`clang_last_stamped()` returns `nullptr`, so `clang_branch()` rewinds to the
+**first token** on every crossing (measured: `laststamp_iter == 0` for all
+800 passes). Pass *i* therefore re-parses and re-emits the whole preceding
+file (muted by `DOC_MUTE`), producing O(i) documents per pass and O(N²)
+overall. The parse and render phases are each quadratic.
+
+Operations that are *not* the cause: the number of top-level passes is N+1 and
+the number of crossings is N (both linear); `lexer_seek()` is O(1); with a
+surviving stamp the rewind is O(1) and the same input is linear.
+
+A safe correction needs a rewind floor that is nearer than the first token —
+the start of the construct that contains the crossing — but the parser has no
+such position recorded when no stamp survives. This is not implemented; the
+behaviour is pre-existing and unchanged by the recovery corrections.
 
 ## Malformed declarations and punctuation
 

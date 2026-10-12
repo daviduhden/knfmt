@@ -165,7 +165,16 @@ struct arena_scope;
 	OP(TOKEN_BACKSLASH,	"?\?/", 0)				\
 	OP(TOKEN_CARET,		"?\?'", 0)				\
 	OP(TOKEN_PIPE,		"?\?!", 0)				\
-	OP(TOKEN_TILDE,		"?\?-", 0)
+	OP(TOKEN_TILDE,		"?\?-", 0)				\
+	/*								\
+	 * A trigraph replacement is a character, not a token: when the	\
+	 * replacement combines with the following character the compound	\
+	 * punctuator must be recognized, exactly as phase 1 followed by	\
+	 * tokenization would.							\
+	 */								\
+	OP(TOKEN_CARETEQUAL,	"?\?'=", 0)				\
+	OP(TOKEN_PIPEEQUAL,	"?\?!=", 0)				\
+	OP(TOKEN_PIPEPIPE,	"?\?!|", 0)
 
 #define FOR_TOKEN_CPP(OP)						\
 	/* type			normalized	keyword */		\

@@ -861,3 +861,65 @@ branch crossings (200/400/800 branches: 0.57 s / 2.36 s / 9.27 s), which the
 correction neither introduces nor removes. The correction adds no document
 scans: it checks two flags and, on the rare fallback, clears the document
 list once.
+
+## Update — four semantic findings triaged; three corrected; CPP cost measured
+
+The four outstanding semantic findings were recovered from
+`/tmp/opencode/fuzz/c15/` and investigated independently; two are parser
+recovery and two are lexical.
+
+### Corrected
+
+- **`_BitInt` with no width (semantic-3046, bitint-dropped).**
+  `parser_type_peek()` returned "not a type" for a bare `_BitInt`, so the
+  caller fell back to a preprocessor construct and dropped the token
+  (`int c;` + `_BitInt` formatted to `int c;`). A bare `_BitInt` is now treated
+  as a type specifier; the declaration then fails on the missing declarator and
+  is rejected, like every other bare type keyword. Fixture: `error-077.c`.
+
+- **Trigraph replacement combining with the next character (semantic-7808).**
+  knfmt maps each trigraph spelling to a token, which is not faithful to
+  phase 1: `??'=` should be the single `^=` punctuator, but was lexed as
+  `=` `??'` `=`, so the formatting inserted spaces and the oracle (which
+  replaces at the character level) reported a mismatch. Added the compound
+  spellings `??'=`, `??!=` and `??!|`. Fixture:
+  `semantic-trigraph-compound.c`. knfmt has no language selector and keeps
+  trigraph support uniformly, although C23 removed the requirement.
+
+- **Splice-joined token split by continuation alignment (semantic-2216).**
+  Aligning a macro's line continuations inserts padding before the backslash.
+  When the splice joins the two halves of an identifier (`consumer_descrip\`
+  + newline + `tor`) the padding split the token. `cpp_format()` now detects a
+  splice between two non-whitespace characters and leaves the macro unaligned,
+  as already done for a splice inside a literal. Fixture:
+  `semantic-splice-identifier.c`.
+
+### Remaining (precisely characterized)
+
+- **semantic-5390** (minimized to 8 lines): a branch crossing rewinds past a
+  `// clang-format off` comment. `parser_reset()` clears the recorded
+  off-comment (so the re-parse can re-emit it), but the `DOC_MUTE` it emitted
+  stays, and the re-parse skips re-emitting it (and `clang_format_on()` skips
+  its unmute plus verbatim region) because `pr_token.unmute != nullptr` during
+  branch re-parsing. The off-region is therefore suppressed. Not corrected;
+  the mute lifecycle across a rewind needs a consistent owner before it can be
+  changed safely.
+
+### CPP branch-processing cost
+
+Measured on sequential conditional initializers: 100/200/400/800 constructs
+cost 0.27/0.69/2.39/9.11 s and 31/105/402/1588 MB. Documents are O(N²)
+(190 k / 751 k / 2.98 M / 11.9 M). Cause: every pass returns `BRCH`, so no
+stamp is taken, `clang_last_stamped()` is always null, and `clang_branch()`
+rewinds to the first token, re-parsing the whole preceding file each pass.
+Top-level conditionals (which reach `GOOD`) are linear. Operations that are
+not the cause: passes, crossings, `lexer_seek()` are all O(1) or O(N).
+No safe correction was implemented; see `docs/architecture.md`.
+
+### Validation
+
+`bmake test` rc=0, semantic 795 files / 0 mismatches; reparse 1738 accepted /
+166 rejected / 0 failed; `diff-031.c` 7717 bytes and `diff-002.c` 160 bytes
+unchanged; `error-014.c` still rejected. Oracle self-tests extended to 46
+cases (trigraph compounds, identifier splices, backslash-CRLF, consecutive
+splices, a splice inside a line comment, non-trigraph question marks).

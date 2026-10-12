@@ -732,3 +732,24 @@ first pass whose output the formatter rejects as a known failure.
   reindentation misread as literal content) fall into this class.
 - Added the remaining reproducers to `tests/known-nonidempotent/`
   (`003.c` malformed declaration comma, `004.c` crossed-branch include guard).
+
+## Update — punctuation preservation and the CPP crossing class
+
+- `parser_decl_init()`: a malformed declarator list ending in a dangling
+  separator (`void (*cb)(void),;aux;`) consumed the comma, failed the next
+  declarator and then removed the whole initializer document because the
+  declarator count was zero. The document is now kept when a separator was
+  consumed, so the comma survives. `tests/known-nonidempotent/003.c` is
+  promoted to `tests/repro-idempotence-012.c`; `013.c` adds neighbouring
+  cases (`int a,;`, `int (*fp)(void),;`, `int b, c,;`).
+- The CPP branch-crossing class (001/002/004) was investigated at length.
+  `clang_branch()` removes the branch it crosses; when no stamp survives it
+  rewinds to the first token and the removed content cannot be re-emitted.
+  Five candidate corrections were implemented and rejected because each
+  regressed valid input or the expected rejection of `tests/error-014.c`
+  (details in `docs/architecture.md`). The discriminator the fix needs is
+  whether the crossed branch's content was represented in a surviving
+  document; a token-level "emitted" marker is set before the containing
+  document is discarded. The three reproducers stay under
+  `tests/known-nonidempotent/` and the root cause is documented for a
+  document-level ownership fix.

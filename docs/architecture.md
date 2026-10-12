@@ -232,30 +232,45 @@ codebase.
 
 ## Known non-idempotent reproducers
 
-- `tests/known-nonidempotent/001.c` remains unresolved: a function whose
-  parameter list contains a CPP conditional branch, and whose body then fails
-  to parse because of a stray non-ASCII byte. Recovery rewinds to the first
-  token with no usable stamp; the parameter branch's tokens are already
-  removed and its `#else` content is dropped, producing output the formatter
-  itself rejects on the second pass. `002.c` is the same root cause on a large
-  real-world file (an `#ifdef`/`#else` include guard whose else branch is
-  dropped wholesale). `003.c` is a malformed declaration
-  (`void (*cb)(void),;aux;`) whose comma is dropped during recovery, and
-  `004.c` is another instance of the crossed-branch class.
-  `tests/known-nonidempotent.sh` keeps them visible and fails once they start
-  round-tripping.
-
-  The precise root cause: `clang_branch()` removes the tokens of the branch it
-  crosses and rewinds to the last stamp. When a later failure has no stamp at
-  all and `clang_recover()` therefore rewinds to the first token, the crossed
-  branch's tokens are gone and the re-parse cannot re-emit their content. A
-  candidate correction (request the full-source verbatim fallback whenever
-  `seek_index == 0 && brch_docs > 0`) fixes all observed cases but also turns
-  genuinely unparseable input such as `tests/error-014.c` into "success",
-  breaking the rejection contract, so it is not applied. A stamp managed at
-  the last branch crossing is the likely safe fix.
-- Every other reproducer (`tests/repro-idempotence-001..011.c`) is idempotent
+- `tests/known-nonidempotent/001.c` (function whose parameter list contains a
+  CPP conditional branch and whose body then fails on a stray byte), `002.c`
+  (large include guard) and `004.c` (another instance) share one root cause:
+  `clang_branch()` removes the tokens of the branch it crosses and rewinds to
+  the last stamp. When no stamp survives the removal it rewinds to the first
+  token, so the removed branch can no longer be emitted. `001.c` also
+  produces output the formatter rejects on a second pass.
+- The candidate correction `seek_index == 0 && brch_docs > 0` -> full-source
+  verbatim preserves every observed case, but also turns `tests/error-014.c`
+  into a success; the token removal is what makes that input fail, so the
+  fallback cannot be used there. Replacing the rewind target or preserving
+  the removed text conditionally was tried too:
+  - skipping the removal when no stamp survives fixes `001.c` but accepts
+    `error-014.c`;
+  - adding a synthetic prefix holding the removed text fixes `001.c` but
+    duplicates `tests/valid-102.c` and `tests/diff-style-002.c`, whose first
+    branch *is* emitted;
+  - gating that prefix on "no committed construct inside the removed range"
+    fixes `001.c` but duplicates `valid-102.c`;
+  - resuming at the alternative branch instead of the first token breaks
+    `diff-031.c` and `diff-style-002.c`.
+  The missing discriminator is whether the first branch's content was
+  represented in a document that survives the recovery; a
+  `TOKEN_FLAG_EMITTED` marker is set too early (the containing document may
+  still be discarded). A correct fix needs document-level ownership
+  tracking, or a stamp recorded at each crossing, without weakening the
+  rejection of `error-014.c`.
+- Every other reproducer (`tests/repro-idempotence-001..013.c`) is idempotent
   in normal and `-s` mode.
+
+## Malformed declarations and punctuation
+
+- `parser_decl_init()` removes the ruler indent (and the whole initializer
+  document) when it parsed nothing. A declarator list that ends in a dangling
+  separator, e.g. `int a,;`, consumes the comma and then fails the following
+  declarator, leaving the initializer count at zero; the comma's document was
+  removed with it. A consumed separator now keeps the document, so the comma
+  survives (`int a, ;`). Regression: `tests/repro-idempotence-012.c`,
+  `tests/repro-idempotence-013.c`.
 
 ## Token separation
 

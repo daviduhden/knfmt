@@ -395,6 +395,15 @@ parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
 		doc_alloc(DOC_LINE, attr);
 	if (parser_type(pr, concat, &type, nullptr) & HALT)
 		return parser_fail(pr);
+	/*
+	 * The line between type and identifier above is suppressed in front of
+	 * an attribute, and an attribute with no argument list is not consumed
+	 * by parser_attributes() below. Seed the merge check with the type's
+	 * last token so a bare `__attribute__` still stays separated from the
+	 * identifier it follows.
+	 */
+	if (lexer_peek_if(lx, TOKEN_ATTRIBUTE, nullptr))
+		pv = type.end;
 
 	/* Put the argument identifier in its own group to trigger a refit. */
 	concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, concat));

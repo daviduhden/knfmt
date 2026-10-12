@@ -112,10 +112,17 @@ parser_type_peek(struct parser *pr, struct parser_type *type,
 			}
 			peek = 1;
 		} else if (lexer_if(lx, TOKEN_BITINT, &end)) {
-			if (!lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
+			/*
+			 * The C23 bit-precise type requires a width. A bare
+			 * `_BitInt` must still be treated as a type
+			 * specifier: reporting "not a type" makes the caller
+			 * fall back to a preprocessor construct and silently
+			 * drop the token instead of rejecting the declaration
+			 * as it does for any other bare type keyword.
+			 */
+			if (lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
 			    nullptr, &rparen))
-				return 0;
-			end = rparen;
+				end = rparen;
 			peek = 1;
 		} else if (peek_type_paren_ident(lx, CLANG_TOKEN_TYPEOF, &end) ||
 		    peek_type_paren_ident(lx, CLANG_TOKEN_TYPEOF_UNQUAL, &end)) {

@@ -15,14 +15,20 @@
 #
 # Usage: perl tests/mutate.pl <harness> [iterations] [outdir]
 
+# The filename match below is a short suffix test.  Requiring "/x" would add
+# noise, and "/m"/"/s" would change what "$" and "." match.
+## no critic (RegularExpressions::RequireExtendedFormatting, RegularExpressions::RequireLineBoundaryMatching, RegularExpressions::RequireDotMatchAnything)
+
 use strict;
 use warnings;
 use bytes;
+use Carp ();
 use FindBin qw($Bin);
-require "$Bin/semanticoracle.pl";
+# $Bin is only known at run time, so the include path cannot be a bareword.
+require "$Bin/semanticoracle.pl"; ## no critic (Modules::RequireBarewordIncludes)
 
 my $HARNESS = defined $ARGV[0] ? $ARGV[0] : './fuzz-parse';
-my $ITERS   = defined $ARGV[1] ? $ARGV[1] : 20000;
+my $ITERS   = defined $ARGV[1] ? $ARGV[1] : 20_000;
 my $OUT     = defined $ARGV[2] ? $ARGV[2] : 'crashes';
 my $KNFMT   = defined $ENV{KNFMT} ? $ENV{KNFMT} : './knfmt';
 my $TIMEOUT = 15;
@@ -45,56 +51,87 @@ sub load_seeds {
 	for my $d (@DIRS) {
 		opendir(my $dh, $d) or next;
 		for my $name (readdir $dh) {
-			next unless $name =~ /\.(c|h)$/;
+			next unless $name =~ /\.[ch]$/;
 			my $p = "$d/$name";
 			next unless -f $p;
 			open(my $fh, '<:raw', $p) or next;
-			local $/;
+			local $/ = undef;
 			push @seeds, scalar <$fh>;
-			close $fh;
+			close $fh or Carp::croak("$p: $!");
 		}
 		closedir $dh;
 	}
 	return \@seeds;
 }
 
+# Mutation operators.  Each takes the current data (and the seed corpus for
+# the splice operator) and returns the mutated data.
+my @MUTATORS = (
+	# 0: flip one bit of a random byte
+	sub {
+		my ($data) = @_;
+		my $i = int(rand(length $data));
+		my $b = ord(substr($data, $i, 1)) ^ (1 << int(rand(8)));
+		substr($data, $i, 1, chr($b));
+		return $data;
+	},
+	# 1: replace a byte with a random one
+	sub {
+		my ($data) = @_;
+		my $i = int(rand(length $data));
+		substr($data, $i, 1, chr(int(rand(256))));
+		return $data;
+	},
+	# 2: insert a random byte
+	sub {
+		my ($data) = @_;
+		my $i = int(rand(length($data) + 1));
+		substr($data, $i, 0, chr(int(rand(256))));
+		return $data;
+	},
+	# 3: delete a byte
+	sub {
+		my ($data) = @_;
+		my $i = int(rand(length $data));
+		substr($data, $i, 1, '');
+		return $data;
+	},
+	# 4: insert a dictionary token
+	sub {
+		my ($data) = @_;
+		my $tok = $DICT[int(rand(@DICT))];
+		my $i = int(rand(length($data) + 1));
+		substr($data, $i, 0, $tok);
+		return $data;
+	},
+	# 5: duplicate a random chunk
+	sub {
+		my ($data) = @_;
+		if (length($data) > 1) {
+			my $beg = int(rand(length $data));
+			my $end = $beg + 1 + int(rand(32));
+			$end = length $data if $end > length $data;
+			my $chunk = substr($data, $beg, $end - $beg);
+			my $i = int(rand(length($data) + 1));
+			substr($data, $i, 0, $chunk);
+		}
+		return $data;
+	},
+	# 6: splice another seed at a random cut point
+	sub {
+		my ($data, $seeds) = @_;
+		my $other = $seeds->[int(rand(@$seeds))];
+		my $cut = int(rand(length($data) + 1));
+		return substr($data, 0, $cut) . $other;
+	},
+);
+
 sub mutate {
 	my ($data, $seeds) = @_;
 	my $ops = 1 + int(rand(8));
 	for (1 .. $ops) {
-		my $op = int(rand(7));
 		$data = "int x;\n" unless length $data;
-		if ($op == 0) {
-			my $i = int(rand(length $data));
-			my $b = ord(substr($data, $i, 1)) ^ (1 << int(rand(8)));
-			substr($data, $i, 1) = chr($b);
-		} elsif ($op == 1) {
-			my $i = int(rand(length $data));
-			substr($data, $i, 1) = chr(int(rand(256)));
-		} elsif ($op == 2) {
-			my $i = int(rand(length($data) + 1));
-			substr($data, $i, 0) = chr(int(rand(256)));
-		} elsif ($op == 3) {
-			my $i = int(rand(length $data));
-			substr($data, $i, 1) = '';
-		} elsif ($op == 4) {
-			my $tok = $DICT[int(rand(@DICT))];
-			my $i = int(rand(length($data) + 1));
-			substr($data, $i, 0) = $tok;
-		} elsif ($op == 5) {
-			if (length($data) > 1) {
-				my $a = int(rand(length $data));
-				my $b = $a + 1 + int(rand(32));
-				$b = length $data if $b > length $data;
-				my $chunk = substr($data, $a, $b - $a);
-				my $i = int(rand(length($data) + 1));
-				substr($data, $i, 0) = $chunk;
-			}
-		} else {
-			my $other = $seeds->[int(rand(@$seeds))];
-			my $cut = int(rand(length($data) + 1));
-			$data = substr($data, 0, $cut) . $other;
-		}
+		$data = $MUTATORS[int(rand(@MUTATORS))]->($data, $seeds);
 	}
 	return $data;
 }
@@ -102,23 +139,47 @@ sub mutate {
 # Run $cmd with $data on stdin. Returns (exitcode, signal).
 sub run_stdin {
 	my ($cmd, $data, $wrk) = @_;
-	open(my $fh, '>:raw', "$wrk/in") or die "$wrk/in: $!";
-	print $fh $data;
-	close $fh;
+	open(my $fh, '>:raw', "$wrk/in") or Carp::croak("$wrk/in: $!");
+	print {$fh} $data or Carp::croak("$wrk/in: $!");
+	close $fh or Carp::croak("$wrk/in: $!");
 	my $st = system("timeout $TIMEOUT $cmd <$wrk/in >$wrk/out 2>/dev/null");
 	return (($st >> 8), ($st & 127));
 }
 
 sub save {
 	my ($path, $data) = @_;
-	open(my $fh, '>:raw', $path) or die "$path: $!";
-	print $fh $data;
-	close $fh;
+	open(my $fh, '>:raw', $path) or Carp::croak("$path: $!");
+	print {$fh} $data or Carp::croak("$path: $!");
+	close $fh or Carp::croak("$path: $!");
+	return;
+}
+
+# Run one mutated input through the harness and knfmt.  Returns a finding as
+# (kind, file_suffix, message), or the empty list when the input is clean.
+sub check {
+	my ($data, $wrk) = @_;
+	my ($code, $sig) = run_stdin($HARNESS, $data, $wrk);
+	return ('CRASH', "sig$sig", "sig=$sig") if $sig != 0;
+	return ('TIMEOUT', '', '') if $code == 124;
+	return () unless $code == 0;
+
+	my ($kcode, $ksig) = run_stdin($KNFMT, $data, $wrk);
+	return () unless $ksig == 0 && $kcode == 0;
+	open(my $of, '<:raw', "$wrk/out") or return ();
+	local $/ = undef;
+	my $out = <$of>;
+	close $of or Carp::croak("$wrk/out: $!");
+	my $r = compare($data, $out);
+	return () unless defined $r;
+	# The source could not be interpreted reliably (e.g. an unterminated
+	# literal); not a defect.
+	return ('UNSUPPORTED', '', '') if $r->[0] eq 'ORACLE_UNSUPPORTED';
+	return ('SEMANTIC', $r->[0], $r->[0]);
 }
 
 my $wrk = "/tmp/opencode/fuzz/work.$$";
 mkdir "/tmp/opencode/fuzz" unless -d "/tmp/opencode/fuzz";
-mkdir $wrk or die "$wrk: $!";
+mkdir $wrk or Carp::croak("$wrk: $!");
 mkdir $OUT unless -d $OUT;
 END { system("rm -rf $wrk"); }
 
@@ -126,53 +187,26 @@ my $seeds = load_seeds();
 die "no seeds\n" unless @$seeds;
 srand(20261010);
 
-my ($execs, $crashes, $timeouts, $semantic, $unsupported) = (0, 0, 0, 0, 0);
+my %count = (CRASH => 0, TIMEOUT => 0, SEMANTIC => 0, UNSUPPORTED => 0);
+my $execs = 0;
 my $started = time();
 
 for my $n (0 .. $ITERS - 1) {
 	my $data = mutate($seeds->[int(rand(@$seeds))], $seeds);
 	$execs++;
 
-	my ($code, $sig) = run_stdin($HARNESS, $data, $wrk);
-	if ($sig != 0) {
-		$crashes++;
-		my $p = "$OUT/crash-$n-sig$sig.bin";
-		save($p, $data);
-		print "CRASH sig=$sig $p\n";
-		next;
-	}
-	if ($code == 124) {
-		$timeouts++;
-		my $p = "$OUT/timeout-$n.bin";
-		save($p, $data);
-		print "TIMEOUT $p\n";
-		next;
-	}
-	next unless $code == 0;
+	my ($kind, $suffix, $msg) = check($data, $wrk);
+	next unless defined $kind;
+	$count{$kind}++;
 
-	my ($kcode, $ksig) = run_stdin($KNFMT, $data, $wrk);
-	next unless $ksig == 0 && $kcode == 0;
-	open(my $of, '<:raw', "$wrk/out") or next;
-	local $/;
-	my $out = <$of>;
-	close $of;
-	my $r = compare($data, $out);
-	next unless defined $r;
-	if ($r->[0] eq 'ORACLE_UNSUPPORTED') {
-		# The source could not be interpreted reliably (e.g. an
-		# unterminated literal); not a defect.
-		$unsupported++;
-		save("$OUT/unsupported-$n.bin", $data);
-		next;
-	}
-	$semantic++;
-	my $p = "$OUT/semantic-$n-$r->[0].bin";
-	save($p, $data);
-	print "SEMANTIC $r->[0] $p\n";
+	my $name = lc($kind) . "-$n" . ($suffix eq '' ? '' : "-$suffix") . ".bin";
+	save("$OUT/$name", $data);
+	next if $kind eq 'UNSUPPORTED';
+	print "$kind" . ($msg eq '' ? '' : " $msg") . " $OUT/$name\n";
 }
 
 my $dur = time() - $started;
 printf "target=%s seeds=%d execs=%d crashes=%d timeouts=%d semantic=%d unsupported=%d duration=%.1fs\n",
-    $HARNESS, scalar(@$seeds), $execs, $crashes, $timeouts, $semantic,
-    $unsupported, $dur;
-exit(($crashes || $timeouts || $semantic) ? 1 : 0);
+    $HARNESS, scalar(@$seeds), $execs, $count{CRASH}, $count{TIMEOUT},
+    $count{SEMANTIC}, $count{UNSUPPORTED}, $dur;
+exit(($count{CRASH} || $count{TIMEOUT} || $count{SEMANTIC}) ? 1 : 0);

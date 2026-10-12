@@ -27,6 +27,12 @@
 #
 # Run with --selftest to check the oracle itself.
 
+# The regular expressions below are token scans: they match a few characters,
+# not whole lines.  Requiring "/x" would add noise for one-character classes
+# and would change the meaning of "[ \t\v\f\r]"; requiring "/m" or "/s" would
+# change what "^"/"$" and "." match.
+## no critic (RegularExpressions::RequireExtendedFormatting, RegularExpressions::RequireLineBoundaryMatching, RegularExpressions::RequireDotMatchAnything)
+
 use strict;
 use warnings;
 use bytes;
@@ -52,6 +58,7 @@ sub tokenize {
 	$d =~ s/\?\?-/~/g;
 	# Translation phase 2: remove every backslash-newline.
 	$d =~ s/\\\r?\n//g;
+
 	my $n = length($d);
 	my $i = 0;
 	my @t;
@@ -59,36 +66,17 @@ sub tokenize {
 		my $c = substr($d, $i, 1);
 		if ($c =~ /[ \t\v\f\r]/) { $i++; next; }
 		if ($c eq "\n") { push @t, ['nl', "\n"]; $i++; next; }
-		if ($c eq '/' && substr($d, $i + 1, 1) eq '*') {
-			my $j = index($d, '*/', $i + 2);
-			$j = ($j < 0) ? $n : $j + 2;
-			push @t, ['comment', substr($d, $i, $j - $i)];
-			$i = $j;
-			next;
-		}
-		if ($c eq '/' && substr($d, $i + 1, 1) eq '/') {
-			my $j = index($d, "\n", $i + 2);
-			$j = ($j < 0) ? $n : $j;
-			push @t, ['comment', substr($d, $i, $j - $i)];
-			$i = $j;
-			next;
+		if ($c eq '/') {
+			my ($tk, $j) = _scan_comment($d, $i, $n);
+			if (defined $tk) {
+				push @t, $tk;
+				$i = $j;
+				next;
+			}
 		}
 		if ($c eq '"' || $c eq "'") {
-			my $j = $i + 1;
-			while ($j < $n) {
-				my $ch = substr($d, $j, 1);
-				last if $ch eq $c;
-				if ($ch eq '\\') { $j += 2; next; }
-				$j++;
-			}
-			$j = $n if $j > $n;
-			$j++;
-			$j = $n if $j > $n;
-			my $lit = substr($d, $i, $j - $i);
-			# A raw newline inside a string or character literal is a
-			# constraint violation: the literal cannot be interpreted
-			# as a preprocessing token, so mark it unsupported.
-			push @t, [($lit =~ /\n/ ? 'uliteral' : 'literal'), $lit];
+			my ($tk, $j) = _scan_literal($d, $i, $n);
+			push @t, $tk;
 			$i = $j;
 			next;
 		}
@@ -102,35 +90,105 @@ sub tokenize {
 		}
 		if ($c =~ /[0-9]/ ||
 		    ($c eq '.' && substr($d, $i + 1, 1) =~ /[0-9]/)) {
-			my $j = $i + 1;
-			while ($j < $n) {
-				my $ch = substr($d, $j, 1);
-				if ($ch =~ /[A-Za-z0-9_.]/) { $j++; next; }
-				if ($ch =~ /[eEpP]/ &&
-				    substr($d, $j + 1, 1) =~ /[+\-]/) {
-					$j += 2;
-					next;
-				}
-				last;
-			}
-			push @t, ['number', substr($d, $i, $j - $i)];
+			my ($tk, $j) = _scan_number($d, $i, $n);
+			push @t, $tk;
 			$i = $j;
 			next;
 		}
-		my $matched = 0;
-		for my $p (@PUNCT) {
-			if (substr($d, $i, length($p)) eq $p) {
-				push @t, ['punct', $p];
-				$i += length($p);
-				$matched = 1;
-				last;
-			}
+		my ($tk, $j) = _scan_punct($d, $i);
+		if (defined $tk) {
+			push @t, $tk;
+			$i = $j;
+			next;
 		}
-		next if $matched;
 		push @t, ['other', $c];
 		$i++;
 	}
 	return \@t;
+}
+
+# Scan a block comment (`/*`) or line comment (`//`) at $i.  Returns a
+# ('comment', text) token and the index just past it, or an empty list when
+# $i does not start a comment.
+sub _scan_comment {
+	my ($d, $i, $n) = @_;
+	my $next = substr($d, $i + 1, 1);
+	my $j;
+	if ($next eq '*') {
+		$j = index($d, '*/', $i + 2);
+		$j = ($j < 0) ? $n : $j + 2;
+	} elsif ($next eq '/') {
+		$j = index($d, "\n", $i + 2);
+		$j = ($j < 0) ? $n : $j;
+	} else {
+		return;
+	}
+	return ['comment', substr($d, $i, $j - $i)], $j;
+}
+
+# Scan a string or character literal at $i.  A raw newline inside it is a
+# constraint violation, so such a literal is reported as 'uliteral'.  Returns
+# a (type, text) token and the index just past it.
+sub _scan_literal {
+	my ($d, $i, $n) = @_;
+	my $q = substr($d, $i, 1);
+	my $j = $i + 1;
+	while ($j < $n) {
+		my $ch = substr($d, $j, 1);
+		last if $ch eq $q;
+		if ($ch eq '\\') { $j += 2; next; }
+		$j++;
+	}
+	$j = $n if $j > $n;
+	$j++;
+	$j = $n if $j > $n;
+	my $lit = substr($d, $i, $j - $i);
+	return [($lit =~ /\n/ ? 'uliteral' : 'literal'), $lit], $j;
+}
+
+# Scan a preprocessing number at $i.  Returns a (type, text) token and the
+# index just past it.
+sub _scan_number {
+	my ($d, $i, $n) = @_;
+	my $j = $i + 1;
+	while ($j < $n) {
+		my $ch = substr($d, $j, 1);
+		if ($ch =~ /[A-Za-z0-9_.]/) { $j++; next; }
+		if ($ch =~ /[eEpP]/ &&
+		    substr($d, $j + 1, 1) =~ /[+\-]/) {
+			$j += 2;
+			next;
+		}
+		last;
+	}
+	return ['number', substr($d, $i, $j - $i)], $j;
+}
+
+# Scan the longest punctuator at $i.  Returns a (type, text) token and the
+# index just past it, or an empty list when no punctuator matches.
+sub _scan_punct {
+	my ($d, $i) = @_;
+	for my $p (@PUNCT) {
+		if (substr($d, $i, length($p)) eq $p) {
+			return ['punct', $p], $i + length($p);
+		}
+	}
+	return;
+}
+
+# True when $tk is the given punctuator.
+sub _is_punct {
+	my ($tk, $p) = @_;
+	return defined $tk && $tk->[0] eq 'punct' && $tk->[1] eq $p;
+}
+
+# A ';' is dropped before '}', when trailing, and before a directive.
+sub _drop_semi {
+	my ($prev, $next) = @_;
+	return 1 if _is_punct($prev, '}');
+	return 1 if !defined $next;
+	return 1 if _is_punct($next, '}') || _is_punct($next, '#');
+	return 0;
 }
 
 # Normalize the token stream: drop comments/backslashes/newlines, collapse
@@ -141,10 +199,9 @@ sub _normalize {
 	my @out;
 	my $i = 0;
 	while ($i < @seq) {
-		if ($seq[$i][0] eq 'punct' && $seq[$i][1] eq ';') {
+		if (_is_punct($seq[$i], ';')) {
 			my $j = $i;
-			$j++ while $j < @seq &&
-			    $seq[$j][0] eq 'punct' && $seq[$j][1] eq ';';
+			$j++ while $j < @seq && _is_punct($seq[$j], ';');
 			push @out, $seq[$j - 1];
 			$i = $j;
 			next;
@@ -156,18 +213,10 @@ sub _normalize {
 	my @final;
 	for my $k (0 .. $#out) {
 		my $tk = $out[$k];
-		if ($tk->[0] eq 'punct' && $tk->[1] eq ';') {
+		if (_is_punct($tk, ';')) {
 			my $prev = @final ? $final[-1] : undef;
 			my $next = $k + 1 <= $#out ? $out[$k + 1] : undef;
-			my $drop = 0;
-			$drop = 1 if defined $prev && $prev->[0] eq 'punct'
-			    && $prev->[1] eq '}';
-			$drop = 1 if defined $next && $next->[0] eq 'punct'
-			    && $next->[1] eq '}';
-			$drop = 1 if !defined $next;	# trailing empty declaration
-			$drop = 1 if defined $next && $next->[0] eq 'punct'
-			    && $next->[1] eq '#';	# empty statement before a directive
-			next if $drop;
+			next if _drop_semi($prev, $next);
 		}
 		push @final, $tk;
 	}
@@ -193,7 +242,7 @@ sub _comments {
 	return join("\x00", sort @c);
 }
 
-# Returns undef when equivalent, else a (category, detail) list.
+# Returns nothing (false) when equivalent, else a (category, detail) list.
 sub compare {
 	my ($a, $b) = @_;
 	my $ta = tokenize($a);
@@ -219,7 +268,7 @@ sub compare {
 	if (_comments($ta) ne _comments($tb)) {
 		return ['COMMENT_CHANGE', ''];
 	}
-	return undef;
+	return;
 }
 
 sub _selftest {
@@ -286,7 +335,7 @@ sub _selftest {
 		} else {
 			$pass = $ok ? !defined($r) : defined($r);
 		}
-		unless ($pass) {
+		if (!$pass) {
 			$bad++;
 			print "SELFTEST FAIL: $a -> $b\n";
 		}
@@ -302,9 +351,11 @@ if (@ARGV && $ARGV[0] eq '--selftest') {
 }
 if (@ARGV == 3 && $ARGV[0] eq 'compare') {
 	open(my $fa, '<:raw', $ARGV[1]) or die "$ARGV[1]: $!\n";
-	local $/; my $a = <$fa>;
+	local $/ = undef; my $a = <$fa>;
+	close $fa or die "$ARGV[1]: $!\n";
 	open(my $fb, '<:raw', $ARGV[2]) or die "$ARGV[2]: $!\n";
 	my $b = <$fb>;
+	close $fb or die "$ARGV[2]: $!\n";
 	my $r = compare($a, $b);
 	exit 0 unless defined $r;
 	print "$r->[0]\n";

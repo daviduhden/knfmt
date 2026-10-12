@@ -324,6 +324,27 @@ sub _selftest {
 		 "#if A\nint a;\n#else\nint a;\n#else\nint b;\n#endif\n", 0],
 		# Unterminated literal (raw newline) is unsupported.
 		["char *s = \"a\nb\";\n", "char *s = \"a\nb\";\n", 2],
+		# Trigraph replacement is a character: a replacement that
+		# combines with the next character forms a compound punctuator.
+		["a ??'= b;\n", "a ??'= b;\n", 1],
+		["a ??'= b;\n", "a ??' = b;\n", 0],
+		["a ??!= b;\n", "a ??!= b;\n", 1],
+		["a ??!| b;\n", "a ??!| b;\n", 1],
+		["a ??!| b;\n", "a ??! | b;\n", 0],
+		# A trigraph replacement stays a single character next to its
+		# neighbours: ??' before a digit is not a comment or literal.
+		["x = a ??' b;\n", "x = a??'b;\n", 1],
+		# Identifier split across a backslash-newline splice.
+		["int ab\\\ncd;\n", "int abcd;\n", 1],
+		["int ab\\\ncd;\n", "int ab cd;\n", 0],
+		# Backslash-CRLF splice and consecutive splices.
+		["a\\\r\nb;\n", "ab;\n", 1],
+		["a\\\n\\\nb;\n", "ab;\n", 1],
+		# Splice inside a line comment continues the comment onto the
+		# next physical line, unlike a real line break.
+		["// c\\\nx\nint a;\n", "// c\nx\nint a;\n", 0],
+		# Question marks that are not trigraphs stay punctuators.
+		["a ? b : c;\n", "a?b:c;\n", 1],
 	);
 	my $bad = 0;
 	for my $c (@cases) {

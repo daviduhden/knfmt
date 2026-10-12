@@ -252,6 +252,11 @@ sub _selftest {
 		["a->b;\n", "a - >b;\n", 0],
 		# Deleted punctuation.
 		["int f(int a, int b);\n", "int f(int a int b);\n", 0],
+		["int a, b;\n", "int a b;\n", 0],
+		["int *a, *b;\n", "int *a *b;\n", 0],
+		["int a; int b;\n", "int a int b;\n", 0],
+		# Truncated source at end of file.
+		["int a; int b;\n", "int a;\n", 0],
 		# Duplicate punctuation.
 		["int f(int a);\n", "int f(int a,,);\n", 0],
 		# Changed literal bytes.

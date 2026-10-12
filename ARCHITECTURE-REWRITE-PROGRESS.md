@@ -836,3 +836,28 @@ subsystems:
   clean on the promoted reproducers; `-fanalyzer` reports only the
   pre-existing `VECTOR_POP` false positive. ASan/UBSan runtimes are still
   unavailable, so no sanitizer run is claimed.
+
+### Corpus re-evaluation after the correction
+
+Re-running the saved c10–c17 corpora (111 inputs) against the corrected
+formatter: 18 rejected, 44 unsupported, and 4 semantic mismatches, all in c15
+and all reproduced unchanged at the pre-correction HEAD. Eight of the twelve
+mismatches previously attributed to the branch-crossing family are now clean.
+The four that remain are outside that family:
+
+- `semantic-5390` (CPP branch inside an initializer, `int x = #ifdef FOO ...`)
+  and `semantic-3046` (`_BitInt` interleaving) take a recovery path with a
+  surviving stamp, so the crossing/missing-stamp condition does not apply.
+- `semantic-2216` (backslash line-continuation inside an identifier) and
+  `semantic-7808` (trigraph `??'`) are lexer splice/trigraph cases.
+
+### Performance
+
+No regression on the changed paths. A 4000-line flat input formats in 0.57 s
+(HEAD 0.54 s); a 10500-line input of 1500 sequential conditional initializers
+takes 31.8 s and peaks at ~5.6 GB (HEAD 32.1 s, same peak). That input
+reproduces a pre-existing roughly quadratic cost in the number of sequential
+branch crossings (200/400/800 branches: 0.57 s / 2.36 s / 9.27 s), which the
+correction neither introduces nor removes. The correction adds no document
+scans: it checks two flags and, on the rare fallback, clears the document
+list once.

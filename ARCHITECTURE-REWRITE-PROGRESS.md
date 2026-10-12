@@ -923,3 +923,31 @@ No safe correction was implemented; see `docs/architecture.md`.
 unchanged; `error-014.c` still rejected. Oracle self-tests extended to 46
 cases (trigraph compounds, identifier splices, backslash-CRLF, consecutive
 splices, a splice inside a line comment, non-trigraph question marks).
+
+### Corpus re-evaluation after the corrections
+
+Re-running the saved c10–c17 corpora (138 inputs): 18 rejected, 68 unsupported
+(unterminated literals, unchanged oracle classification) and 2 semantic
+mismatches, both in the clang-format-directive machinery rather than the
+corrected classes:
+
+- `semantic-5390` (the clang-format-off rewind described above).
+- `semantic-4592`: a trigraph line splice turns `// clang-??/` + `format on`
+  into a real `// clang-format on` directive comment, and `// clang-format off`
+  is emitted twice.
+
+Valgrind (`--leak-check=full`, outside the repository so `.valgrindrc`'s
+`--quiet` does not hide the report): 0 errors from 0 contexts on the three new
+fixtures, `error-014.c` and `repro-idempotence-014.c`.
+
+### Mutation campaign c18
+
+6000 executions, 0 crashes, 0 timeouts, 21 unsupported, 1 semantic
+(TOKEN_DUPLICATION). The semantic finding (c18/semantic-1276) is the `004.c`
+class with a preceding declaration: a stamp survives, `clang_recover()` folds
+the `#ifdef ... #else ... #endif` attribute branch, and the include-guard
+`#ifndef` is dropped while `#else` is emitted first. It reproduces byte for
+byte at the pre-session HEAD (`dd2aeb8`), so it is not caused by these
+corrections. Minimized to 14 lines and kept as
+`tests/known-nonidempotent/005.c` (normal-mode idempotent but content-lossy,
+`-s` non-idempotent).

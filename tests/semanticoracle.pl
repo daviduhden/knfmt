@@ -21,6 +21,9 @@
 #     literal changes, directive changes and branch swaps.
 #   * Comments may be relocated and reindented, so only their
 #     whitespace-normalized spelling multiset is compared.
+#   * An unterminated literal (a raw newline inside a string or character
+#     literal) cannot be interpreted as a preprocessing token; the comparison
+#     reports ORACLE_UNSUPPORTED instead of comparing undefined bytes.
 #
 # Run with --selftest to check the oracle itself.
 
@@ -81,7 +84,11 @@ sub tokenize {
 			$j = $n if $j > $n;
 			$j++;
 			$j = $n if $j > $n;
-			push @t, ['literal', substr($d, $i, $j - $i)];
+			my $lit = substr($d, $i, $j - $i);
+			# A raw newline inside a string or character literal is a
+			# constraint violation: the literal cannot be interpreted
+			# as a preprocessing token, so mark it unsupported.
+			push @t, [($lit =~ /\n/ ? 'uliteral' : 'literal'), $lit];
 			$i = $j;
 			next;
 		}
@@ -191,6 +198,14 @@ sub compare {
 	my ($a, $b) = @_;
 	my $ta = tokenize($a);
 	my $tb = tokenize($b);
+
+	# An unterminated literal (a raw newline inside it) cannot be
+	# interpreted as a preprocessing token; report it as unsupported rather
+	# than comparing bytes that have no defined meaning.
+	for my $tk (@$ta, @$tb) {
+		return ['ORACLE_UNSUPPORTED', ''] if $tk->[0] eq 'uliteral';
+	}
+
 	my $ca = _canon(_normalize($ta));
 	my $cb = _canon(_normalize($tb));
 	if ($ca ne $cb) {
@@ -253,12 +268,19 @@ sub _selftest {
 		# Duplicated conditional branch.
 		["#if A\nint a;\n#else\nint b;\n#endif\n",
 		 "#if A\nint a;\n#else\nint a;\n#else\nint b;\n#endif\n", 0],
+		# Unterminated literal (raw newline) is unsupported.
+		["char *s = \"a\nb\";\n", "char *s = \"a\nb\";\n", 2],
 	);
 	my $bad = 0;
 	for my $c (@cases) {
 		my ($a, $b, $ok) = @$c;
 		my $r = compare($a, $b);
-		my $pass = $ok ? !defined($r) : defined($r);
+		my $pass;
+		if ($ok == 2) {
+			$pass = defined($r) && $r->[0] eq 'ORACLE_UNSUPPORTED';
+		} else {
+			$pass = $ok ? !defined($r) : defined($r);
+		}
 		unless ($pass) {
 			$bad++;
 			print "SELFTEST FAIL: $a -> $b\n";

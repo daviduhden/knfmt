@@ -126,7 +126,7 @@ my $seeds = load_seeds();
 die "no seeds\n" unless @$seeds;
 srand(20261010);
 
-my ($execs, $crashes, $timeouts, $semantic) = (0, 0, 0, 0);
+my ($execs, $crashes, $timeouts, $semantic, $unsupported) = (0, 0, 0, 0, 0);
 my $started = time();
 
 for my $n (0 .. $ITERS - 1) {
@@ -158,6 +158,13 @@ for my $n (0 .. $ITERS - 1) {
 	close $of;
 	my $r = compare($data, $out);
 	next unless defined $r;
+	if ($r->[0] eq 'ORACLE_UNSUPPORTED') {
+		# The source could not be interpreted reliably (e.g. an
+		# unterminated literal); not a defect.
+		$unsupported++;
+		save("$OUT/unsupported-$n.bin", $data);
+		next;
+	}
 	$semantic++;
 	my $p = "$OUT/semantic-$n-$r->[0].bin";
 	save($p, $data);
@@ -165,6 +172,7 @@ for my $n (0 .. $ITERS - 1) {
 }
 
 my $dur = time() - $started;
-printf "target=%s seeds=%d execs=%d crashes=%d timeouts=%d semantic=%d duration=%.1fs\n",
-    $HARNESS, scalar(@$seeds), $execs, $crashes, $timeouts, $semantic, $dur;
+printf "target=%s seeds=%d execs=%d crashes=%d timeouts=%d semantic=%d unsupported=%d duration=%.1fs\n",
+    $HARNESS, scalar(@$seeds), $execs, $crashes, $timeouts, $semantic,
+    $unsupported, $dur;
 exit(($crashes || $timeouts || $semantic) ? 1 : 0);

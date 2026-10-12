@@ -373,6 +373,19 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 	struct token *tk;
 	int error;
 
+	/*
+	 * A malformed field sequence may be recovered as several adjacent
+	 * fields, e.g. `.ar g`. Keep a separator when dropping it would merge
+	 * the boundary tokens into a different one.
+	 */
+	{
+		struct token *pv, *nx;
+
+		if (lexer_back(lx, &pv) && lexer_peek(lx, &nx) &&
+		    token_pair_needs_space(pv, nx))
+			doc_literal(" ", dc);
+	}
+
 	if (parser_attributes_std_peek(pr, nullptr)) {
 		doc_literal(" ", dc);
 		if (parser_attributes_std(pr, dc) & FAIL)

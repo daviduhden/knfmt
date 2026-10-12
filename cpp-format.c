@@ -82,6 +82,41 @@ trim_line(const char *str, size_t len, struct arena_scope *s, size_t *lenp)
 }
 
 /*
+ * Returns non-zero if a line continuation joins two non-whitespace
+ * characters, i.e. it sits inside a preprocessing token such as an identifier
+ * split across physical lines. Aligning such a continuation inserts padding
+ * between the halves of the token, changing the program; the macro must be
+ * preserved as is instead.
+ */
+static int
+splice_joins_token(const char *str, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i + 1 < len; i++) {
+		unsigned char before, after;
+		size_t next;
+
+		if (str[i] != '\\')
+			continue;
+		if (str[i + 1] == '\n')
+			next = i + 2;
+		else if (i + 2 < len && str[i + 1] == '\r' &&
+		    str[i + 2] == '\n')
+			next = i + 3;
+		else
+			continue;
+		if (i == 0 || next >= len)
+			continue;
+		before = (unsigned char)str[i - 1];
+		after = (unsigned char)str[next];
+		if (!isspace(before) && !isspace(after))
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * Returns non-zero if any line continuation (backslash immediately followed by
  * a newline) occurs inside a string or character literal. Aligning such a
  * continuation inserts padding into the literal, changing its value; the macro
@@ -341,9 +376,10 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 
 	/*
 	 * Never realign a macro whose line continuation sits inside a string or
-	 * character literal: the padding would become part of the literal.
+	 * character literal, or joins the two halves of a preprocessing token:
+	 * the padding would become part of the literal or split the token.
 	 */
-	if (splice_inside_literal(str, len))
+	if (splice_inside_literal(str, len) || splice_joins_token(str, len))
 		return nullptr;
 
 	arena_scope(arena->ruler, ruler_scope);

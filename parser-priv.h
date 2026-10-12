@@ -61,6 +61,15 @@ struct parser {
 	unsigned int	pr_verbatim;
 
 	/*
+	 * Set when a recovery crosses a branch with no surviving stamp after
+	 * an earlier crossing already destroyed content. The parse may still
+	 * succeed by rebuilding part of the input; if it does, the whole
+	 * source is emitted verbatim instead of the corrupted result. If the
+	 * parse fails, the failure is reported unchanged.
+	 */
+	unsigned int	pr_lossy;
+
+	/*
 	 * Number of active clang-format off mutes emitted as documents. A
 	 * recovery may discard the recorded off comment, leaving the mute
 	 * unbalanced; the parser cancels it before emitting the result.

@@ -1254,8 +1254,17 @@ expr_doc_field(struct expr *ex, struct expr_state *es, struct doc *dc)
 		doc_alloc(DOC_LINE, dc);
 	token_trim(ex->ex_tk);
 	expr_doc_token(es, ex->ex_tk, dc);
-	if (ex->ex_rhs != nullptr)
+	if (ex->ex_rhs != nullptr) {
+		/*
+		 * The member designator and its operand must stay separated
+		 * when merging them would form a different token, e.g. `.` and
+		 * a digit forming a preprocessing number.
+		 */
+		if (token_pair_needs_space(ex->ex_tk,
+		    token_next(ex->ex_tk)))
+			doc_alloc(DOC_LINE, dc);
 		dc = expr_doc(ex->ex_rhs, es, dc);
+	}
 	return dc;
 }
 

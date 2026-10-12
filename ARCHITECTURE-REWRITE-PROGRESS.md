@@ -701,3 +701,34 @@ Unresolved: `tests/known-nonidempotent/001.c` (CPP-branched parameter list
 plus a stray byte in the body; recovery rewinds to the first token with no
 stamp and drops the parameter branch). `known-nonidempotent.sh` also treats a
 first pass whose output the formatter rejects as a known failure.
+
+## Update — bracket fields and remaining CPP class
+
+- `parser_braces_field1()`: a malformed field sequence such as `.ar g` was
+  recovered as two adjacent fields with no separator, emitting `.arg`. A
+  separator is now kept when the boundary tokens would merge.
+  Regression: covered by the fuzzer, no dedicated fixture.
+- A second, larger CPP class remains: a branch crossed by `clang_branch()`
+  whose tokens are removed and a later no-stamp recovery rewinding to the
+  first token. Reproducers: `tests/known-nonidempotent/001.c` (parameter list)
+  and `002.c` (include guard in a large file). The candidate fix
+  (`seek_index == 0 && brch_docs > 0` -> full-source verbatim) fixes every
+  observed case but also turns `tests/error-014.c` into a success, so it is
+  deferred pending a stamp recorded at the last branch crossing.
+- Fresh 12000-execution campaign (c14) on the fixed binary: the only findings
+  are the two known CPP classes above plus the brace-field case addressed
+  here.
+
+## Update — further fuzzing classes
+
+- `expr_doc_field()`: a member designator and its operand could also merge
+  (`.` + `1` -> `.1`); the separator check is now applied there too.
+- `parser_braces_field1()`: see the previous update.
+- The semantic oracle now reports `ORACLE_UNSUPPORTED` for unterminated
+  literals (a raw newline inside a string/character literal is a constraint
+  violation and the bytes have no defined preprocessing-token meaning).
+  `tests/mutate.pl` counts these separately and does not treat them as
+  defects; `tests/semantic.sh` skips them. Two c14 findings (asm operand
+  reindentation misread as literal content) fall into this class.
+- Added the remaining reproducers to `tests/known-nonidempotent/`
+  (`003.c` malformed declaration comma, `004.c` crossed-branch include guard).

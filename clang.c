@@ -45,6 +45,14 @@ struct clang {
 	 * stamp was taken, used to roll back exactly on recovery.
 	 */
 	VECTOR(unsigned int)	 stamp_docs;
+
+	/*
+	 * Set when a branch crossing had to rewind to the first token because
+	 * no stamp survived: the crossed branch's tokens were then removed and
+	 * cannot be re-emitted, so the parse can no longer reproduce their
+	 * content.
+	 */
+	int			 lossy;
 };
 
 struct clang_token {
@@ -346,10 +354,17 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
 	if (seek != nullptr) {
 		if (!lexer_seek_after(lx, seek))
 			error = 1;
-	} else if (lexer_peek_first(lx, &seek)) {
-		lexer_seek(lx, seek);
 	} else {
-		error = 1;
+		/*
+		 * No stamp survives, so the parse resumes at the first token.
+		 * The tokens of the branch just crossed were removed and
+		 * cannot be re-emitted; remember that their content is lost.
+		 */
+		cl->lossy = 1;
+		if (lexer_peek_first(lx, &seek))
+			lexer_seek(lx, seek);
+		else
+			error = 1;
 	}
 
 	token_rele(dst);
@@ -371,7 +386,8 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
  */
 int
 clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
-    unsigned int cur_docs, unsigned int brch_docs, int *verbatim)
+    unsigned int cur_docs, unsigned int brch_docs, int *verbatim,
+    int *deferred)
 {
 	struct token *seek = nullptr;
 	struct token *back, *cpp_dst, *cpp_src, *dst, *src, *stamp;
@@ -381,6 +397,8 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 
 	if (verbatim != nullptr)
 		*verbatim = 0;
+	if (deferred != nullptr)
+		*deferred = 0;
 
 	if (!lexer_back(lx, &back) && !lexer_peek_first(lx, &back))
 		return 0;
@@ -426,6 +444,15 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 			*verbatim = 1;
 		return 0;
 	}
+
+	/*
+	 * No committed position precedes the branch and an earlier crossing
+	 * already removed content that cannot be reconstructed. Fall through
+	 * to the normal rollback, which the caller overrides with verbatim
+	 * output if parsing ultimately succeeds.
+	 */
+	if (seek_index == 0 && cl->lossy && deferred != nullptr)
+		*deferred = 1;
 
 	/*
 	 * Turn the whole branch into a prefix. As the branch is about to be

@@ -177,10 +177,12 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 			brch_docs = ndocs;
 			parser_reset(pr);
 		} else if (error & (FAIL | NONE)) {
-			int r, verbatim = 0;
+			int r, verbatim = 0, deferred = 0;
 
 			r = clang_recover(clang, lx, &pr->pr_token.unmute,
-			    ndocs, brch_docs, &verbatim);
+			    ndocs, brch_docs, &verbatim, &deferred);
+			if (deferred)
+				pr->pr_lossy = 1;
 
 			/*
 			 * Either the parser declined an extern block whose
@@ -213,6 +215,21 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 	if (error) {
 		lexer_error_flush(lx);
 		return 1;
+	}
+
+	/*
+	 * A branch was crossed with no surviving stamp, so the crossed
+	 * branch's tokens were removed and cannot be re-emitted. The parse
+	 * nevertheless succeeded, which means the documents built since are
+	 * missing that content. Emit the whole source verbatim instead. If the
+	 * parse had failed, the error above would already have been reported,
+	 * so genuinely unrecoverable input keeps its rejection.
+	 */
+	if (pr->pr_lossy) {
+		pr->pr_lossy = 0;
+		while (doc_remove_tail(dc))
+			continue;
+		parser_verbatim_all(pr, dc);
 	}
 
 	clang_format_verbatim(pr, dc, 0);

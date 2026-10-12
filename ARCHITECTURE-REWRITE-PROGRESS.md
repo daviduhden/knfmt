@@ -782,3 +782,57 @@ first pass whose output the formatter rejects as a known failure.
 - Mutation campaign c15: 8000 executions, corpus 943, 0 crashes, 0 timeouts,
   5 semantic findings, 31 unsupported. Findings: 3 TOKEN_LOSS and 2
   TOKEN_DUPLICATION; all reproduce the same crossing/recovery class.
+
+## Update — CPP branch-crossing content loss corrected
+
+- `clang_branch()` now records `cl->lossy` when it must rewind to the first
+  token because no stamp survived: the crossed branch's tokens are gone and
+  re-parsing cannot reproduce their content.
+- `clang_recover()` reports `deferred` when a recovery has no surviving stamp
+  *and* `cl->lossy` is set. `parser_exec()` records `pr_lossy` and lets the
+  normal rollback run. If parsing fails, the failure is reported unchanged, so
+  `tests/error-014.c` is still rejected; only on success does it clear the
+  document list (`while (doc_remove_tail(dc))`) and emit the whole source
+  verbatim.
+- Requiring the crossing marker as well as the missing stamp keeps valid
+  inputs out of the fallback: `valid-339`, `diff-style-002` (rewind without a
+  crossing) and `diff-031` (crossing with a stamp) are unaffected.
+- The three reproducers are promoted to
+  `tests/repro-idempotence-014.c` (`001.c`), `-015.c` (`002.c`) and `-016.c`
+  (`004.c`). All three are idempotent in normal and `-s` mode and pass the
+  semantic oracle.
+- Fuzzing found two pre-existing token-merge defects, both of which the
+  formatter now avoids:
+  - A bitfield whose following comma is missing merged `1` and `b` into
+    `1b`. `parser_decl_init()` keeps a separator when the previous field token
+    is a number and `token_pair_needs_space()` reports a merge. Reproducer:
+    `tests/repro-idempotence-017.c`.
+  - A bare `__attribute__` with no argument list merged with the parameter
+    identifier (`x __attribute__` became `x__attribute__`). The line between
+    type and identifier is suppressed in front of an attribute and the bare
+    keyword is not consumed by `parser_attributes()`, so `parser_func_arg()`
+    now seeds its merge check with the type's last token. Reproducer:
+    `tests/repro-idempotence-018.c`.
+
+### Remaining findings (pre-existing, unrelated subsystems)
+
+Two further findings from the same campaign reproduce unchanged at the
+previous HEAD, so they are not caused by the branch-crossing correction. They
+are kept minimized rather than fixed, since they live in different
+subsystems:
+
+- A bare `_BitInt` with no declarator after a declaration is dropped:
+  `int c;` then `_BitInt` formats to `int c;` (TOKEN_DUPLICATION). This is the
+  root cause behind the larger `_BitInt` stress input. Minimized as
+  `/tmp/opencode/fuzz/c17-minimized/bitint-dropped.c`.
+- A `clang-format` directive hidden by a trigraph line splice
+  (`// clang-??/` + `format on`) is rewritten to a literal
+  `// clang-format on` and `// clang-format off` is duplicated
+  (COMMENT_CHANGE). Minimized as
+  `/tmp/opencode/fuzz/c17-minimized/trigraph-clang-format.c`.
+
+- Validation: `bmake test` rc=0 (semantic 793/0); reparse 1734 accepted / 164
+  rejected / 0 failed; `bmake fault` rc=0; `lint-shellcheck` rc=0; Valgrind
+  clean on the promoted reproducers; `-fanalyzer` reports only the
+  pre-existing `VECTOR_POP` false positive. ASan/UBSan runtimes are still
+  unavailable, so no sanitizer run is claimed.

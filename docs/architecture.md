@@ -230,17 +230,7 @@ codebase.
   now attaches such a brace as the assignment operand. Regression:
   `tests/repro-idempotence-005.c`.
 
-## Known non-idempotent reproducers
-
-- `tests/known-nonidempotent/001.c` (function whose parameter list contains a
-  CPP conditional branch and whose body then fails on a stray byte), `002.c`
-  (large include guard) and `004.c` (another instance) share one root cause,
-  described under "CPP branch emission model" below.
-
 ## CPP branch emission model
-
-This is the contract the formatter relies on; the remaining defect is a
-violation of it.
 
 - A conditional group is emitted one branch per parse. When the parser meets
   the next directive (`#elif`, `#else`, `#endif`) it returns `BRCH`;
@@ -265,26 +255,37 @@ violation of it.
   from "emitted in the parse that is committed".
 - A recovery stamp is a token plus the number of top-level documents that
   existed when it was taken. It is only a valid rollback point if the tokens
-  and documents up to that point are still intact. That is exactly what a
-  branch crossing breaks: it destroys the branch's tokens, so a stamp before
-  the crossing no longer identifies a recoverable position.
+  and documents up to that point are still intact. A crossing destroys the
+  branch's tokens, so a stamp before the crossing no longer identifies a
+  recoverable position.
 
-### The remaining defect
+## CPP branch content loss
 
-When the construct *after* a crossed branch fails (e.g. the body of `001.c`),
-`clang_recover()` takes the no-stamp path and removes documents back to
-`brch_docs`. That number is reset to zero by any intervening `GOOD`, so the
-recovery removes the documents that carry both the crossed branch's muted
-structure and the branch content already emitted. The re-parse cannot restore
-them because their tokens were removed by the crossing, and the mute balance
-is lost because the `DOC_MUTE(-1)` lived in a removed document.
-
-Two measurements confirm the ordering: with the stock rollback the countered
-parameter is lost; keeping one, two or all three documents (via the committed
-document count, the last stamp at any position, or a branch-crossing floor)
-produces a lost branch, a duplicated `addr2str(` prefix, or duplication
-respectively. None is correct, because the rollback boundary and the mute
-boundary are independent and neither alone is the commit point.
+- `clang_branch()` sets `cl->lossy` when it has to rewind to the first token
+  because no stamp survived. At that point the tokens of the branch just
+  crossed have been removed and re-parsing cannot reproduce their content:
+  the input is recoverable only by reproducing it verbatim.
+- The loss is not decided at the crossing. A later `clang_recover()` that also
+  finds no surviving stamp *and* sees `cl->lossy` reports `deferred`; the
+  caller records `pr->pr_lossy` and lets the normal rollback run. If parsing
+  then **fails**, the failure is reported unchanged, so genuinely unparseable
+  input is still rejected. Only when parsing **succeeds** does `parser_exec()`
+  discard the (incomplete) speculative documents and emit the whole source
+  verbatim through `parser_verbatim_all()`.
+- Requiring `cl->lossy` as well as the missing stamp is what keeps valid
+  inputs out of the fallback: `tests/valid-339.c` and `tests/diff-style-002.c`
+  also rewind to the first token, but never after a crossing, so they are
+  formatted normally. `tests/diff-031.c` crosses with a surviving stamp and is
+  likewise unaffected.
+- Rejection is preserved because the decision is deferred to the parse result:
+  a failed parse returns 1 before the verbatim block is reached. This is the
+  property the previously rejected blanket conditions lacked — they
+  substituted output at the recovery point itself and so turned a failure into
+  a success.
+- The rollback that removes documents uses `while (doc_remove_tail(dc))`
+  rather than a document count: the recovery may have adjusted the counter, so
+  only clearing the list guarantees that no stale speculative document (and no
+  unmatched `DOC_MUTE`) survives into the verbatim output.
 
 ### Corrections tried and rejected
 
@@ -296,26 +297,26 @@ boundary are independent and neither alone is the commit point.
 | Resume at the alternative branch | fixed | **accepted** | empty diffs |
 | Blanket verbatim for `seek_index == 0 && brch_docs > 0` | fixed | **accepted** | — |
 | Keep documents down to the committed count | partial | rejected | duplicated prefix |
-| Prefer the last stamp at any position | partial | rejected | duplicated prefix |
+| Deferred verbatim keyed only on the missing stamp | fixed | rejected | `valid-339`, `diff-style-002` verbatim |
 
-`error-014.c` is accepted whenever the tokens of the crossed branch are kept,
-because the removal is what makes its parse fail; the fallback and the
-keep-token variants therefore both change rejection into success.
+Each of these substitutes output at the recovery point, so none can tell a
+failure from a success; the accepted designs failed exactly when the input
+should have been rejected.
 
-### What a correct fix needs
+### What made it correct
 
-The rollback boundary must be the crossing point itself, and it must be
-recorded independently of `brch_docs` (which is reset on every `GOOD`). That
-checkpoint has to carry: the document count at the crossing, whether the
-crossed branch's content was already represented by a *surviving* document,
-and the mute depth. Because the crossings and the recovery both manipulate the
-top-level document list, this is document-level ownership rather than a token
-flag. Until that exists, the three reproducers stay under
-`tests/known-nonidempotent/` and the valid CPP forms are covered by
-`tests/semantic-cpp-branches.c`.
+The commit point is the pair *(a crossing that had to rewind to the first
+token)* and *(a later recovery with no surviving stamp)*, and the commit
+decision is taken only after the whole parse has been attempted. A crossing
+alone is harmless, and a missing stamp alone is harmless; together they mark
+content that only verbatim reproduction can preserve, while the success test
+leaves rejection intact. The three reproducers are now
+`tests/repro-idempotence-014.c`, `-015.c` and `-016.c`; the valid CPP forms are
+covered by `tests/semantic-cpp-branches.c`.
 
-- Every other reproducer (`tests/repro-idempotence-001..013.c`) is idempotent
-  in normal and `-s` mode.
+- Every reproducer (`tests/repro-idempotence-001..018.c`) is idempotent in
+  normal and `-s` mode.
+
 
 ## Malformed declarations and punctuation
 

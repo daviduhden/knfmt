@@ -234,35 +234,91 @@ codebase.
 
 - `tests/known-nonidempotent/001.c` (function whose parameter list contains a
   CPP conditional branch and whose body then fails on a stray byte), `002.c`
-  (large include guard) and `004.c` (another instance) share one root cause:
-  `clang_branch()` removes the tokens of the branch it crosses and rewinds to
-  the last stamp. When no stamp survives the removal it rewinds to the first
-  token, so the removed branch can no longer be emitted. `001.c` also
-  produces output the formatter rejects on a second pass.
-- The candidate correction `seek_index == 0 && brch_docs > 0` -> full-source
-  verbatim preserves every observed case, but also turns `tests/error-014.c`
-  into a success; the token removal is what makes that input fail, so the
-  fallback cannot be used there. Replacing the rewind target or preserving
-  the removed text conditionally was tried too:
-  - skipping the removal when no stamp survives fixes `001.c` but accepts
-    `error-014.c`;
-  - adding a synthetic prefix holding the removed text fixes `001.c` but
-    duplicates `tests/valid-102.c` and `tests/diff-style-002.c`, whose first
-    branch *is* emitted;
-  - gating that prefix on "no committed construct inside the removed range"
-    fixes `001.c` but duplicates `valid-102.c`;
-  - resuming at the alternative branch instead of the first token breaks
-    `diff-031.c` and `diff-style-002.c`.
-  The missing discriminator is whether the first branch's content was
-  represented in a document that survives the recovery; a
-  `TOKEN_FLAG_EMITTED` marker is set too early (the containing document may
-  still be discarded). A correct fix needs document-level ownership
-  tracking, or a stamp recorded at each crossing, without weakening the
-  rejection of `error-014.c`.
+  (large include guard) and `004.c` (another instance) share one root cause,
+  described under "CPP branch emission model" below.
+
+## CPP branch emission model
+
+This is the contract the formatter relies on; the remaining defect is a
+violation of it.
+
+- A conditional group is emitted one branch per parse. When the parser meets
+  the next directive (`#elif`, `#else`, `#endif`) it returns `BRCH`;
+  `clang_branch()` crosses by removing the tokens of the branch it leaves and
+  rewinding to the last stamp (or to the first token when no stamp survives).
+  The enclosing `parser_exec()` loop then allocates a **new top-level
+  document** and parses the same construct again. Each parse therefore
+  contributes one branch's content.
+- The repeated prefix (everything before the branch point) is not emitted
+  twice: `parser_doc_token_impl()` emits `DOC_MUTE(+1)` when the token after
+  it starts a branch and `DOC_MUTE(-1)` when the crossed-to token is emitted.
+  The resulting mute spans the following document(s), so only the branch
+  content of each parse reaches the output. `tests/valid-102.c` is the
+  reference case: three parses, three documents, three branches, one shared
+  prefix.
+- `TOKEN_FLAG_EMITTED` (or any per-token marker set in
+  `parser_doc_token_impl()`) is therefore **not** evidence of surviving
+  output. A token is put into a document during speculative parsing, and the
+  document may later be removed by `doc_remove_tail()` in the recovery path.
+  The flag is also shared across the repeated parses of the same source token,
+  so it cannot distinguish "emitted in the parse that is being rolled back"
+  from "emitted in the parse that is committed".
+- A recovery stamp is a token plus the number of top-level documents that
+  existed when it was taken. It is only a valid rollback point if the tokens
+  and documents up to that point are still intact. That is exactly what a
+  branch crossing breaks: it destroys the branch's tokens, so a stamp before
+  the crossing no longer identifies a recoverable position.
+
+### The remaining defect
+
+When the construct *after* a crossed branch fails (e.g. the body of `001.c`),
+`clang_recover()` takes the no-stamp path and removes documents back to
+`brch_docs`. That number is reset to zero by any intervening `GOOD`, so the
+recovery removes the documents that carry both the crossed branch's muted
+structure and the branch content already emitted. The re-parse cannot restore
+them because their tokens were removed by the crossing, and the mute balance
+is lost because the `DOC_MUTE(-1)` lived in a removed document.
+
+Two measurements confirm the ordering: with the stock rollback the countered
+parameter is lost; keeping one, two or all three documents (via the committed
+document count, the last stamp at any position, or a branch-crossing floor)
+produces a lost branch, a duplicated `addr2str(` prefix, or duplication
+respectively. None is correct, because the rollback boundary and the mute
+boundary are independent and neither alone is the commit point.
+
+### Corrections tried and rejected
+
+| Candidate | `001`/`002`/`004` | `error-014` | Other |
+|---|---|---|---|
+| Skip removal when no stamp survives | fixed | **accepted** | — |
+| Synthetic prefix with the removed text | fixed | rejected | `valid-102`, `diff-style-002` duplicated |
+| Prefix gated on "no committed construct inside the range" | fixed | rejected | `valid-102` duplicated |
+| Resume at the alternative branch | fixed | **accepted** | empty diffs |
+| Blanket verbatim for `seek_index == 0 && brch_docs > 0` | fixed | **accepted** | — |
+| Keep documents down to the committed count | partial | rejected | duplicated prefix |
+| Prefer the last stamp at any position | partial | rejected | duplicated prefix |
+
+`error-014.c` is accepted whenever the tokens of the crossed branch are kept,
+because the removal is what makes its parse fail; the fallback and the
+keep-token variants therefore both change rejection into success.
+
+### What a correct fix needs
+
+The rollback boundary must be the crossing point itself, and it must be
+recorded independently of `brch_docs` (which is reset on every `GOOD`). That
+checkpoint has to carry: the document count at the crossing, whether the
+crossed branch's content was already represented by a *surviving* document,
+and the mute depth. Because the crossings and the recovery both manipulate the
+top-level document list, this is document-level ownership rather than a token
+flag. Until that exists, the three reproducers stay under
+`tests/known-nonidempotent/` and the valid CPP forms are covered by
+`tests/semantic-cpp-branches.c`.
+
 - Every other reproducer (`tests/repro-idempotence-001..013.c`) is idempotent
   in normal and `-s` mode.
 
 ## Malformed declarations and punctuation
+
 
 - `parser_decl_init()` removes the ruler indent (and the whole initializer
   document) when it parsed nothing. A declarator list that ends in a dangling

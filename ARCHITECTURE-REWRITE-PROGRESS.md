@@ -753,3 +753,32 @@ first pass whose output the formatter rejects as a known failure.
   document is discarded. The three reproducers stay under
   `tests/known-nonidempotent/` and the root cause is documented for a
   document-level ownership fix.
+
+## Update — CPP branch emission model and rollback boundary
+
+- Reconstructed the intended branch emission contract: each branch is emitted
+  by one parse into its own top-level document, and the repeated prefix is
+  suppressed by the `DOC_MUTE(+1)`/`DOC_MUTE(-1)` pair emitted in
+  `parser_doc_token_impl()`. `tests/valid-102.c` is the reference case. This
+  explains why a synthetic-prefix fix duplicated `valid-102` and
+  `diff-style-002`: the content was already emitted, correctly.
+- Established that a token-level "emitted" flag cannot express surviving
+  ownership: the flag is set during speculative parsing and the document may
+  be removed afterwards, and the same token is emitted again by each repeated
+  branch parse.
+- Traced the remaining defect to the recovery's rollback boundary:
+  `clang_recover()` removes documents back to `brch_docs`, which any
+  intervening `GOOD` resets to zero, so it removes the documents holding the
+  crossed branch's content and mute. The re-parse cannot restore them (tokens
+  removed) and the mute balance is lost. Keeping one, two or all three
+  documents was measured; each yields a lost branch, a duplicated prefix or
+  duplication.
+- Confirmed with the existing instrumentation that `error-014.c` is rejected
+  precisely because the crossed branch's tokens are removed; every candidate
+  that keeps them changes rejection into success.
+- Added `tests/semantic-cpp-branches.c` covering `#if/#else`,
+  `#ifdef/#elif/#else`, `#ifndef/#elifdef/#elifndef` and a conditional
+  parameter list.
+- Mutation campaign c15: 8000 executions, corpus 943, 0 crashes, 0 timeouts,
+  5 semantic findings, 31 unsupported. Findings: 3 TOKEN_LOSS and 2
+  TOKEN_DUPLICATION; all reproduce the same crossing/recovery class.

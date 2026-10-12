@@ -344,6 +344,21 @@ parser_decl_init(struct parser *pr, struct doc **out,
 			    doc_alloc(DOC_GROUP, concat));
 		}
 
+		/*
+		 * A malformed declarator list, e.g. a bitfield missing its
+		 * following comma, can leave a field width directly before the
+		 * next declarator. Keep a separator when dropping it would merge
+		 * the boundary tokens.
+		 */
+		if (ninit > 0) {
+			struct token *pv, *nx;
+
+			if (lexer_back(lx, &pv) && lexer_peek(lx, &nx) &&
+			    pv->tk_type == TOKEN_LITERAL &&
+			    token_pair_needs_space(pv, nx))
+				doc_literal(" ", concat);
+		}
+
 		error = parser_decl_init1(pr, concat, out);
 		if (error & NONE)
 			error = parser_decl_init_assign(pr, concat, out, arg);

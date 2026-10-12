@@ -308,6 +308,7 @@ parser_decl_init(struct parser *pr, struct doc **out,
 	struct lexer *lx = pr->pr_lx;
 	struct ruler_indent *cookie = nullptr;
 	int ninit = 0;
+	int nconsumed = 0;
 
 	indent = ruler_indent(arg->rl, arg->dc, &cookie);
 	dc = doc_alloc(DOC_CONCAT, indent);
@@ -324,6 +325,7 @@ parser_decl_init(struct parser *pr, struct doc **out,
 			int hasline = token_has_line(comma, 1);
 
 			parser_doc_token(pr, comma, concat);
+			nconsumed++;
 			doc_alloc(hasline ? DOC_HARDLINE : DOC_LINE, concat);
 
 			if (is_simple_enabled(pr->pr_si, SIMPLE_DECL))
@@ -349,7 +351,7 @@ parser_decl_init(struct parser *pr, struct doc **out,
 			break;
 		ninit++;
 	}
-	if (ninit == 0) {
+	if (ninit == 0 && nconsumed == 0) {
 		ruler_indent_remove(arg->rl, cookie);
 		doc_remove(indent, arg->dc);
 	}

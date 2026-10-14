@@ -1,7 +1,56 @@
 # knfmt architecture rewrite — progress checkpoint
 
-Base/head: `c85c18f` on `main` (in sync with `origin/main`).
+Base/head: `8ca00d2` on `main`, six commits ahead of `origin/main`.
 Working tree clean. All commits below are on `main`.
+
+This file is a chronological record of the rewrite. The most recent state is
+summarised in [Current status](#current-status); the dated `Update —` sections
+below are kept as an evidence log.
+
+## Current status
+
+Verified on `8ca00d2` (2026-10-13):
+
+- **Scalability.** Flat binary expressions build and render iteratively, so
+  process-stack use is O(1) in the number of terms. 200k flat terms format in
+  ~5.2 s and are one-pass idempotent; the `DOC_MAX_EXEC_DEPTH` guard is gone.
+  Declaration scanning is near-linear (`int fN() A B;`: 5120 declarations in
+  0.222 s) after the negative cache in `struct parser`; flat brace
+  initializers no longer rescan to end of input.
+- **Reentrancy.** The in-process A/B/A contract holds for normal, `-s`, `-d`
+  and `-D`; a failed input does not contaminate the following file. The
+  mutable-global audit found no per-invocation state, so a monolithic
+  `knfmt_ctx` was deliberately not introduced (see `architecture.md`,
+  "Parser").
+- **Correctness.** `bmake test`, `tests/reparse.sh`, `tests/fault.sh` and
+  `lint-shellcheck` are green. All `tests/repro-idempotence-001..018.c` are
+  idempotent in normal and `-s` mode. The semantic-preservation oracle and the
+  mutation driver cover token loss, duplication and reordering.
+- **Memory safety.** Valgrind (`--leak-check=full`) is clean over the fixture
+  corpus; UBSan and the unsigned-integer-overflow build are clean; GCC
+  `-fanalyzer` reports only the pre-existing `VECTOR_POP` false positives.
+
+Outstanding, in priority order:
+
+1. `tests/known-nonidempotent/005.c` (campaign c18): a surviving stamp lets
+   `clang_recover()` fold a conditional attribute branch and drop the
+   include-guard `#ifndef`. Pre-existing at `dd2aeb8`; the
+   crossing/verbatim corrections do not cover it because a stamp survives.
+2. The `clang-format` mute lifecycle across a branch rewind
+   (`semantic-5390`, `semantic-4592`): the `DOC_MUTE` emitted before the
+   rewind stays while the off-comment is cleared, so the off-region is
+   suppressed or the directive is duplicated.
+3. Quadratic CPP branch processing for sequential conditional *initializers*
+   (100/200/400/800 constructs: 0.27/0.69/2.39/9.11 s). No safe rewind floor
+   below the first token is recorded, so no correction is implemented;
+   top-level conditionals are linear. See `architecture.md`,
+   "CPP branch-processing cost".
+4. Clang sanitizer coverage (ASan/UBSan/unsigned-overflow, libFuzzer) and
+   LeakSanitizer are unavailable in this environment; the last instrumented
+   run predates recent fixes, so leak-freedom rests on Valgrind.
+
+Deferred/optional: `DOC_SEQ` n-ary sequences (the current `DOC_CONCAT` is
+already a list node), per-run context, and a committed declaration benchmark.
 
 ## Completed milestones (verified)
 
@@ -747,7 +796,7 @@ first pass whose output the formatter rejects as a known failure.
   rewinds to the first token and the removed content cannot be re-emitted.
   Five candidate corrections were implemented and rejected because each
   regressed valid input or the expected rejection of `tests/error-014.c`
-  (details in `docs/architecture.md`). The discriminator the fix needs is
+  (details in `architecture.md`). The discriminator the fix needs is
   whether the crossed branch's content was represented in a surviving
   document; a token-level "emitted" marker is set before the containing
   document is discarded. The three reproducers stay under
@@ -914,7 +963,7 @@ stamp is taken, `clang_last_stamped()` is always null, and `clang_branch()`
 rewinds to the first token, re-parsing the whole preceding file each pass.
 Top-level conditionals (which reach `GOOD`) are linear. Operations that are
 not the cause: passes, crossings, `lexer_seek()` are all O(1) or O(N).
-No safe correction was implemented; see `docs/architecture.md`.
+No safe correction was implemented; see `architecture.md`.
 
 ### Validation
 

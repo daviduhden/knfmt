@@ -4,7 +4,7 @@ include ${.CURDIR}/config.mk
 # well so that build-metadata scanners recognise the standard.
 CFLAGS +=	-std=c23
 
-VERSION=	6.0.0
+VERSION=	6.1.0
 
 SRCS+=	arenas.c
 SRCS+=	clang.c

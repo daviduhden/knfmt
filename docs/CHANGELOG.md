@@ -1,3 +1,64 @@
+# 6.1.0 - 2026-10-14
+
+## News
+
+- Use the standard C23 `nullptr`, `[[noreturn]]`, `[[nodiscard]]` and
+  `<stdckdint.h>` facilities, and compile the project and libks as ISO C23.
+  (68924ba, 2c503ef, 0b1e6f6, c1f83da, c55de83, 6e0e437)
+  (David Uhden Collado)
+
+- Compile the C++ benchmark harness as ISO C++23.
+  (1e169bf)
+  (David Uhden Collado)
+
+- Add a semantic-preservation oracle plus a mutation-fuzzing driver and a
+  deterministic allocation fault-injection target to the test suite.
+  (527f3d9, 5d3426b, b991f65)
+  (David Uhden Collado)
+
+## Bug fixes
+
+- Preserve the input verbatim when malformed preprocessor branches or
+  conditional block terminators cannot be recovered, instead of dropping or
+  duplicating their content.
+  (389c016, b4473c6, c1d0b0d, 13164f8, f07a74c, 19a0f5b)
+  (David Uhden Collado)
+
+- Keep a separator between adjacent tokens that would otherwise merge into a
+  different token (`voiint` and `i`, `.` and `1`).
+  (13164f8, 6931fc3, d55861f)
+  (David Uhden Collado)
+
+- Attach a brace initializer that is the right-hand side of an assignment,
+  fixing non-idempotent recovery of malformed field sequences.
+  (8369c38)
+  (David Uhden Collado)
+
+- Emit a hard line after a C99 comment in a declaration so the following
+  declaration is not swallowed.
+  (6a196a5)
+  (David Uhden Collado)
+
+- Reject a bare `_BitInt` without a width instead of dropping the token.
+  (5f91219)
+  (David Uhden Collado)
+
+- Format the compound punctuators formed by a trigraph and its neighbour
+  (`??'=`, `??!=`, `??!|`) and keep a splice-joined token intact when aligning
+  macro continuations.
+  (5b489c7, 8f539e2)
+  (David Uhden Collado)
+
+- Avoid a quadratic scan for flat brace initializers and fix a latent
+  zero-line-number underflow.
+  (2dbef70, d33e642)
+  (David Uhden Collado)
+
+- Keep recovered expressions associated with their original line breaks stable
+  across passes.
+  (93e1529)
+  (David Uhden Collado)
+
 # 6.0.0 - 2026-10-06
 
 ## News
@@ -1289,7 +1350,7 @@
 
   	int	n;
   };
-  
+
   # after
   struct s {
   	const char	*p;

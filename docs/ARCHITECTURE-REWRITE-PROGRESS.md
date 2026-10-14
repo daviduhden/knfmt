@@ -20,7 +20,7 @@ Verified on `8ca00d2` (2026-10-13):
 - **Reentrancy.** The in-process A/B/A contract holds for normal, `-s`, `-d`
   and `-D`; a failed input does not contaminate the following file. The
   mutable-global audit found no per-invocation state, so a monolithic
-  `knfmt_ctx` was deliberately not introduced (see `architecture.md`,
+  `knfmt_ctx` was deliberately not introduced (see `ARCHITECTURE.md`,
   "Parser").
 - **Correctness.** `bmake test`, `tests/reparse.sh`, `tests/fault.sh` and
   `lint-shellcheck` are green. All `tests/repro-idempotence-001..018.c` are
@@ -43,7 +43,7 @@ Outstanding, in priority order:
 3. Quadratic CPP branch processing for sequential conditional *initializers*
    (100/200/400/800 constructs: 0.27/0.69/2.39/9.11 s). No safe rewind floor
    below the first token is recorded, so no correction is implemented;
-   top-level conditionals are linear. See `architecture.md`,
+   top-level conditionals are linear. See `ARCHITECTURE.md`,
    "CPP branch-processing cost".
 4. Clang sanitizer coverage (ASan/UBSan/unsigned-overflow, libFuzzer) and
    LeakSanitizer are unavailable in this environment; the last instrumented
@@ -796,7 +796,7 @@ first pass whose output the formatter rejects as a known failure.
   rewinds to the first token and the removed content cannot be re-emitted.
   Five candidate corrections were implemented and rejected because each
   regressed valid input or the expected rejection of `tests/error-014.c`
-  (details in `architecture.md`). The discriminator the fix needs is
+  (details in `ARCHITECTURE.md`). The discriminator the fix needs is
   whether the crossed branch's content was represented in a surviving
   document; a token-level "emitted" marker is set before the containing
   document is discarded. The three reproducers stay under
@@ -963,7 +963,7 @@ stamp is taken, `clang_last_stamped()` is always null, and `clang_branch()`
 rewinds to the first token, re-parsing the whole preceding file each pass.
 Top-level conditionals (which reach `GOOD`) are linear. Operations that are
 not the cause: passes, crossings, `lexer_seek()` are all O(1) or O(N).
-No safe correction was implemented; see `architecture.md`.
+No safe correction was implemented; see `ARCHITECTURE.md`.
 
 ### Validation
 

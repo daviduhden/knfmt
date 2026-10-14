@@ -4,6 +4,42 @@ This document describes the implementation as it exists. It intentionally
 does not describe abstractions that are not present (for example there is no
 `DOC_SEQ` node and no monolithic `knfmt_ctx`).
 
+It opens with a per-file walkthrough in order of execution and then documents
+the cross-cutting contracts and the evidence that supports them.
+
+## Source layout
+
+- `lexer.c` turns source code into a list of tokens and owns the associated
+  memory, so tokens are constant, comparable by pointer, and valid until
+  `lexer_free()`. The API is split into `lexer_if_*` routines that consume one
+  or many tokens and `lexer_peek_*` routines that peek at them; both return
+  non-zero when the tokens satisfy the criterion. A token may carry dangling
+  tokens (`tk_prefixes`/`tk_suffixes`) holding preprocessor directives and
+  comments, see "Preprocessor handling".
+- `clang.c` holds the C-specific routines used by the lexer: the keyword and
+  identifier lookup tables and the tracking of preprocessor conditionals
+  (`clang_stamp()`, `clang_branch()`, `clang_recover()`). Not to be confused
+  with LLVM Clang.
+- `parser.c` recognizes tokens by recursive descent and builds the document
+  that represents the formatted output, so parsing is not a separate phase of
+  execution.
+- `simple-*.c` implements the `-s` transformations, each a pass tracked by
+  `simple.c`.
+- `expr.c` parses expressions with Pratt parsing and hands constructs it cannot
+  recognize on its own (such as `sizeof(type)`) back to the parser through
+  `expr_recover()`, see "Preprocessor handling".
+- `doc.c` defines the document tree and renders it, see "Document model" and
+  "Document types".
+- `cpp-format.c` formats preprocessor constructs such as line-continuation
+  alignment; `cpp-include.c` and `cpp-include-guard.c` implement the
+  clang-format include-block and include-guard interop.
+- `ruler.c` aligns prototypes and declarations: the parser calls
+  `ruler_insert()` for each line and column it wants to align, and `ruler_exec()`
+  computes the alignment once every line has been emitted.
+- `error.c` buffers diagnostics so they can be discarded if a later cpp branch
+  turns out to be valid; the lexer reports through `lexer_error()` and its
+  `lexer_error_flush()`/`lexer_error_reset()` helpers.
+
 ## Input and translation
 
 - Input is **byte oriented**. High-bit bytes (0x80-0xFF) are opaque and
@@ -64,6 +100,71 @@ does not describe abstractions that are not present (for example there is no
   instead of walking its left spine, making fitting near-linear.
 - There is no document-height guard; `DOC_MAX_EXEC_DEPTH` was removed.
 
+## Document types
+
+Kept in sync with `enum doc_type` in `doc.h`. A group is the only document
+type that can trigger a refit between break mode (line breaks allowed) and
+munge mode (no line breaks).
+
+- `DOC_CONCAT`: zero or more nested documents; often the child of a group.
+- `DOC_GROUP`: something intended to fit on a single line.
+- `DOC_INDENT`: increases indentation; not emitted until the next new line.
+- `DOC_NOINDENT`: trims the current line, assuming only indentation was
+  emitted; used for goto labels, which are never indented.
+- `DOC_ALIGN`: emits white space up to the column associated with the same
+  document; used by the ruler.
+- `DOC_LITERAL`: a string emitted as is; tokens become literal documents.
+- `DOC_VERBATIM`: source taken as is, such as comments and preprocessor
+  directives; often carries a trailing new line.
+- `DOC_LINE`: a new line in break mode and a space in munge mode.
+- `DOC_SOFTLINE`: a new line in break mode and nothing in munge mode.
+- `DOC_HARDLINE`: a new line in both modes.
+- `DOC_OPTLINE`: honored only inside `DOC_OPTIONAL`.
+- `DOC_MUTE`: suppresses emission except `DOC_HARDLINE`; used while
+  traversing cpp branches.
+- `DOC_UNMUTE`: the `DOC_MUTE` counterpart used for clang-format off/on
+  comments; new lines missed while muted are not honored on unmute.
+- `DOC_OPTIONAL`: allows `DOC_OPTLINE` to be emitted.
+- `DOC_MINIMIZE`: selects, from a list of potential indentations, the one that
+  minimizes the number of new line(s) and line(s) exceeding the column limit.
+- `DOC_SCOPE`: enters a new scope in an arbitrary sense and resets document
+  related state; used by `DOC_INDENT_NEWLINE`.
+- `DOC_MAXLINES`: alters the maximum number of allowed consecutive new line(s).
+
+The document representation and the decisions taken between the two modes can
+be examined with `knfmt -td`.
+
+## Preprocessor handling
+
+knfmt does not run the source through the preprocessor: that would require
+supplying include path(s), which in my opinion makes the utility less user
+friendly. The downside is that preprocessor directives cannot be distinguished
+from other well defined language constructs, and they can appear literally
+anywhere.
+
+Instead, directives are made completely transparent to the parser. A token
+emitted by the lexer never directly represents a directive; it always
+represents a well defined language construct and may carry dangling tokens
+(`tk_prefixes`/`tk_suffixes`) that hold the directives and comments. The
+dangling tokens are emitted by `doc_token()`.
+
+Two macro shapes need special attention:
+
+- Macros that expand to a loop construct, often with `foreach` in the
+  identifier. Without knowing about the loop, the parser would halt on what
+  looks like a function call followed by a brace or a statement; see
+  `parser_stmt_cpp()`. An example is the set provided by
+  [queue(3)](https://man.openbsd.org/queue.3).
+- Macros that expand to a binary expression, often with a binary operator as a
+  distinct argument. Encountering such an operator in a unary context makes the
+  expr parser halt and hand control back to the parser through
+  `expr_recover()`. An example is the set provided by
+  [timercmp(3)](https://man.openbsd.org/timercmp.3).
+
+Conditional constructs (branches) are tracked by `clang.c` and the lexer, see
+"CPP branch emission model", "CPP branch content loss" and "Recovery rewinds
+and crossed branches".
+
 ## Simplifier (`-s`)
 
 - `simple_enter()`/`simple_leave()` track per-pass state; a pass is
@@ -76,7 +177,7 @@ does not describe abstractions that are not present (for example there is no
 
 ## Verification
 
-See `ARCHITECTURE-REWRITE-PROGRESS.md` for measured results. Commands:
+See [ARCHITECTURE-REWRITE-PROGRESS.md](ARCHITECTURE-REWRITE-PROGRESS.md) for measured results. Commands:
 
 ```sh
 LC_ALL=C bmake test                       # fixtures (C89-C23, GNU, error, diff)
@@ -325,7 +426,6 @@ covered by `tests/semantic-cpp-branches.c`.
 - Every reproducer (`tests/repro-idempotence-001..018.c`) is idempotent in
   normal and `-s` mode.
 
-
 ## CPP branch-processing cost
 
 Sequential conditional *initializers* (`int v = #ifdef A 1 #else 2 #endif ;`)
@@ -357,7 +457,6 @@ such position recorded when no stamp survives. This is not implemented; the
 behaviour is pre-existing and unchanged by the recovery corrections.
 
 ## Malformed declarations and punctuation
-
 
 - `parser_decl_init()` removes the ruler indent (and the whole initializer
   document) when it parsed nothing. A declarator list that ends in a dangling

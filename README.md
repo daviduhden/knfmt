@@ -39,13 +39,13 @@ any directory along the current working path, see [knfmt(1)][knfmt] for
 further details.
 
 The implementation is further described in
-[docs/architecture.md](docs/architecture.md).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 
 All documentation lives under [`docs/`](docs/):
 
-- [docs/architecture.md](docs/architecture.md) — implementation, contracts and
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implementation, contracts and
   verification.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — release history.
 - [docs/FUZZ.md](docs/FUZZ.md) — fuzzing guide.

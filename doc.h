@@ -4,7 +4,7 @@ struct arena_scope;
 struct doc;
 struct token;
 
-/* Keep in sync with docs/architecture.md. */
+/* Keep in sync with docs/ARCHITECTURE.md. */
 enum doc_type {
 	DOC_CONCAT,
 	DOC_GROUP,

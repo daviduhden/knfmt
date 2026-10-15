@@ -20,56 +20,53 @@
 
 #include <assert.h>
 #include <stdint.h>
+
 #include "libks/buffer.h"
 #include "libks/compiler.h"
 #include "libks/fs.h"
 #include "libks/section.h"
 
 #if !defined(FUZZER_AFL) && !defined(FUZZER_LLVM)
-#  define FUZZER_AFL
+#define FUZZER_AFL
 #endif
 
 struct fuzzer_target {
-	void		(*buffer_cb)(const struct buffer *, void *);
-	void		(*file_cb)(const char *, void *);
+	void (*buffer_cb)(const struct buffer *, void *);
+	void (*file_cb)(const char *, void *);
 
-	unsigned int	buffer:1,
-			file:1;
+	unsigned int buffer:1, file:1;
 };
 
 union fuzzer_callback {
 	void *(*init)(int, char **);
-	void (*teardown)(void *);
+	void  (*teardown)(void *);
 } __attribute__((aligned(16)));
 
 extern const struct fuzzer_target fuzzer_target;
 
-#define FUZZER_INIT(func)						\
-	static union fuzzer_callback					\
-	__attribute__((used)) SECTION(fz_init)				\
-	_fuzzer_init_impl = {.init = (func)}
+#define FUZZER_INIT(func)                                                      \
+	static union fuzzer_callback __attribute__((used)) SECTION(fz_init)    \
+	    _fuzzer_init_impl = {.init = (func)}
 
-#define FUZZER_TEARDOWN(func)						\
-	static union fuzzer_callback					\
-	__attribute__((used)) SECTION(fz_teardown)			\
-	_fuzzer_teardown_impl = {.teardown = (func)}
+#define FUZZER_TEARDOWN(func)                                                  \
+	static union fuzzer_callback __attribute__((used)) SECTION(            \
+	    fz_teardown) _fuzzer_teardown_impl = {.teardown = (func)}
 
-#define FUZZER_TARGET_BUFFER(func)					\
-	const struct fuzzer_target fuzzer_target = {			\
-		.buffer_cb	= (func),				\
-		.buffer		= 1,					\
+#define FUZZER_TARGET_BUFFER(func)                                             \
+	const struct fuzzer_target fuzzer_target = {                           \
+	    .buffer_cb = (func),                                               \
+	    .buffer = 1,                                                       \
 	}
 
-#define FUZZER_TARGET_FILE(func)					\
-	const struct fuzzer_target fuzzer_target = {			\
-		.file_cb	= (func),				\
-		.file		= 1,					\
+#define FUZZER_TARGET_FILE(func)                                               \
+	const struct fuzzer_target fuzzer_target = {                           \
+	    .file_cb = (func),                                                 \
+	    .file = 1,                                                         \
 	}
 
-#define FUZZER_SECTION(type)						\
-	static union fuzzer_callback					\
-	__attribute__((used)) SECTION(fz_ ## type)			\
-	_fuzzer_ ## type ## _default = {0}
+#define FUZZER_SECTION(type)                                                   \
+	static union fuzzer_callback __attribute__((used)) SECTION(fz_##type)  \
+	    _fuzzer_##type##_default = {0}
 
 /*
  * Since init and teardown callbacks are optional, ensure respective section is
@@ -79,8 +76,7 @@ FUZZER_SECTION(init);
 FUZZER_SECTION(teardown);
 
 /* Work around what seems to be a GCC UBSan bug. */
-__attribute__((NO_SANITIZE_UNDEFINED))
-static inline void *
+__attribute__((NO_SANITIZE_UNDEFINED)) static inline void *
 fuzzer_init(int argc, char *argv[])
 {
 	union fuzzer_callback *it = nullptr;
@@ -94,8 +90,7 @@ fuzzer_init(int argc, char *argv[])
 }
 
 /* Work around what seems to be a GCC UBSan bug. */
-__attribute__((NO_SANITIZE_UNDEFINED))
-static inline void
+__attribute__((NO_SANITIZE_UNDEFINED)) static inline void
 fuzzer_teardown(void *userdata)
 {
 	union fuzzer_callback *it = nullptr;
@@ -140,8 +135,8 @@ main(int argc, char *argv[])
 #include <limits.h>
 #include <unistd.h>
 
-extern int	LLVMFuzzerTestOneInput(const uint8_t *, size_t);
-extern int	LLVMFuzzerInitialize(int *, char ***);
+extern int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
+extern int LLVMFuzzerInitialize(int *, char ***);
 
 static void *fuzzer_llvm_userdata;
 
@@ -159,7 +154,7 @@ LLVMFuzzerTestOneInput(const uint8_t *buf, size_t buflen)
 		buffer_free(bf);
 	} else if (fuzzer_target.file) {
 		char path[PATH_MAX];
-		int fd;
+		int  fd;
 
 		fd = KS_fs_tmpfd((const char *)buf, buflen, path, sizeof(path));
 		if (fd == -1)

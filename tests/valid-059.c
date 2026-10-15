@@ -7,5 +7,5 @@ int
 #endif
 
 #ifdef notyet
-int
+    int
 #endif

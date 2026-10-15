@@ -7,7 +7,9 @@ main(void)
 {
 
 	if ((aaaaaaaaaaa(pr, dc,
-	     CCCCCCCCCCCCCCCCC | CCCCCCCCCCCCCCCCCC | CCCCCCCCCCCCCCCCCCCCC) & XXXX) ||
+		 CCCCCCCCCCCCCCCCC | CCCCCCCCCCCCCCCCCC |
+		     CCCCCCCCCCCCCCCCCCCCC) &
+		XXXX) ||
 	    (bbbbbbbbbbbbbbbb(pr, dc) & XXXX) ||
 	    (ccccccccccccccccc(pr, dc) & XXXX))
 		return 1;

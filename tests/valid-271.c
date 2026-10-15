@@ -5,8 +5,6 @@
 int
 main(void)
 {
-	if (ptr != NULL &&
-	    (ptr->type != 0)
-    	    ) {
+	if (ptr != NULL && (ptr->type != 0)) {
 	}
 }

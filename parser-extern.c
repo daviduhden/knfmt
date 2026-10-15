@@ -1,10 +1,8 @@
-#include "parser-extern.h"
-
-#include "config.h"
-
 #include "clang.h"
+#include "config.h"
 #include "doc.h"
 #include "lexer.h"
+#include "parser-extern.h"
 #include "parser-priv.h"
 #include "token.h"
 
@@ -12,16 +10,16 @@ int
 parser_extern(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *rbrace, *tk;
-	int peek = 0;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *rbrace, *tk;
+	int		   peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_EXTERN, nullptr) &&
 	    lexer_if(lx, TOKEN_STRING, nullptr) &&
 	    lexer_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, nullptr, &rbrace)) {
 		struct token *prefix;
-		int conditional = 0;
+		int	      conditional = 0;
 
 		/*
 		 * A closing brace that immediately follows a conditional
@@ -34,7 +32,8 @@ parser_extern(struct parser *pr, struct doc *dc)
 		 * brace without an alternative (the usual C++ linkage guard) is
 		 * safe.
 		 */
-		LIST_FOREACH(prefix, &rbrace->tk_prefixes) {
+		LIST_FOREACH(prefix, &rbrace->tk_prefixes)
+		{
 			struct token *alt;
 
 			if (token_type_normalize(prefix) != TOKEN_CPP_IF)
@@ -70,7 +69,7 @@ parser_extern(struct parser *pr, struct doc *dc)
 	doc_alloc(DOC_HARDLINE, dc);
 	for (;;) {
 		struct token *nx;
-		int error;
+		int	      error;
 
 		if (lexer_peek(lx, &nx) && nx == rbrace)
 			break;

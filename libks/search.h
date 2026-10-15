@@ -20,29 +20,30 @@
 
 #include "libks/arithmetic.h"
 
-#define KS_binary_search(v, n, cmp, needle) __extension__ ({		\
-	__typeof__(*(v)) *_out = nullptr;					\
-	if ((n) > 0) {							\
-		size_t _l = 0;						\
-		size_t _r = (size_t)(n) - 1;				\
-		while (_l <= _r) {					\
-			size_t _m = (_r + _l) / 2;			\
-			int _c = (cmp)(&(v)[_m], (needle));		\
-			if (_c == 0) {					\
-				_out = &(v)[_m];			\
-				break;					\
-			} else if (_c < 0) {				\
-				if (KS_size_add_overflow(_m, 1, &_l))	\
-					break;				\
-			} else if (_c > 0) {				\
-				if (KS_size_sub_overflow(_m, 1, &_r))	\
-					break;				\
-			} else {					\
-				break;					\
-			}						\
-		}							\
-	}								\
-	_out;								\
-})
+#define KS_binary_search(v, n, cmp, needle)                                    \
+	__extension__({                                                        \
+		__typeof__(*(v)) *_out = nullptr;                              \
+		if ((n) > 0) {                                                 \
+			size_t _l = 0;                                         \
+			size_t _r = (size_t)(n) - 1;                           \
+			while (_l <= _r) {                                     \
+				size_t _m = (_r + _l) / 2;                     \
+				int    _c = (cmp)(&(v)[_m], (needle));         \
+				if (_c == 0) {                                 \
+					_out = &(v)[_m];                       \
+					break;                                 \
+				} else if (_c < 0) {                           \
+					if (KS_size_add_overflow(_m, 1, &_l))  \
+						break;                         \
+				} else if (_c > 0) {                           \
+					if (KS_size_sub_overflow(_m, 1, &_r))  \
+						break;                         \
+				} else {                                       \
+					break;                                 \
+				}                                              \
+			}                                                      \
+		}                                                              \
+		_out;                                                          \
+	})
 
 #endif /* !LIBKS_SEARCH_H */

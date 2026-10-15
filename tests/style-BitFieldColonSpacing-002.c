@@ -3,5 +3,5 @@
  */
 
 struct s {
-	unsigned int a :1;
+	unsigned int a:1;
 };

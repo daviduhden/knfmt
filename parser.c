@@ -1,23 +1,20 @@
-#include "parser.h"
-
-#include "config.h"
-
 #include <string.h>
 
+#include "clang.h"
+#include "config.h"
+#include "doc.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/compiler.h"
 #include "libks/list.h"
-
-#include "clang.h"
-#include "doc.h"
-#include "lexer.h"
 #include "options.h"
 #include "parser-decl.h"
 #include "parser-extern.h"
 #include "parser-func.h"
 #include "parser-priv.h"
 #include "parser-stmt-asm.h"
+#include "parser.h"
 #include "token.h"
 #include "trace-types.h"
 
@@ -25,9 +22,9 @@ static void
 clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 {
 	struct token *off, *verbatim;
-	const char *str;
-	size_t len;
-	unsigned int beg;
+	const char   *str;
+	size_t	      len;
+	unsigned int  beg;
 
 	off = pr->pr_token.clang_format_off;
 	pr->pr_token.clang_format_off = nullptr;
@@ -52,11 +49,12 @@ clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 	if (!lexer_get_lines(pr->pr_lx, beg, end, &str, &len))
 		return;
 
-	verbatim = lexer_emit_synthetic(pr->pr_lx, &(struct token){
-	    .tk_type	= TOKEN_LITERAL,
-	    .tk_str	= str,
-	    .tk_len	= len,
-	});
+	verbatim = lexer_emit_synthetic(pr->pr_lx,
+	    &(struct token){
+		.tk_type = TOKEN_LITERAL,
+		.tk_str = str,
+		.tk_len = len,
+	    });
 	doc_token(verbatim, dc, DOC_VERBATIM, __func__, __LINE__);
 	token_rele(verbatim);
 }
@@ -69,18 +67,19 @@ static void
 parser_verbatim_all(struct parser *pr, struct doc *dc)
 {
 	struct token *verbatim;
-	const char *str;
-	size_t len;
+	const char   *str;
+	size_t	      len;
 
 	doc_alloc_impl(DOC_UNMUTE, dc, -1, __func__, __LINE__);
 	if (!lexer_get_lines(pr->pr_lx, 1, 0, &str, &len))
 		return;
 
-	verbatim = lexer_emit_synthetic(pr->pr_lx, &(struct token){
-	    .tk_type	= TOKEN_LITERAL,
-	    .tk_str	= str,
-	    .tk_len	= len,
-	});
+	verbatim = lexer_emit_synthetic(pr->pr_lx,
+	    &(struct token){
+		.tk_type = TOKEN_LITERAL,
+		.tk_str = str,
+		.tk_len = len,
+	    });
 	doc_token(verbatim, dc, DOC_VERBATIM, __func__, __LINE__);
 	token_rele(verbatim);
 }
@@ -101,8 +100,7 @@ static void
 clang_format_off(struct parser *pr, struct token *comment, struct doc *dc)
 {
 	/* Ignore while peeking, branching and already off. */
-	if (lexer_get_peek(pr->pr_lx) ||
-	    pr->pr_token.unmute != nullptr ||
+	if (lexer_get_peek(pr->pr_lx) || pr->pr_token.unmute != nullptr ||
 	    pr->pr_token.clang_format_off != nullptr)
 		return;
 
@@ -135,16 +133,16 @@ parser_alloc(const struct parser_arg *arg, struct arena_scope *s)
 }
 
 int
-parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
-    struct buffer *bf)
+parser_exec(
+    struct parser *pr, const struct diffchunk *diff_chunks, struct buffer *bf)
 {
-	struct doc *dc;
+	struct doc   *dc;
 	struct clang *clang = pr->pr_clang;
 	struct lexer *lx = pr->pr_lx;
-	unsigned int doc_flags = 0;
-	unsigned int ndocs = 0;
-	unsigned int brch_docs = 0;
-	int error = 0;
+	unsigned int  doc_flags = 0;
+	unsigned int  ndocs = 0;
+	unsigned int  brch_docs = 0;
+	int	      error = 0;
 
 	arena_scope(pr->pr_arena.doc, doc_scope);
 	parser_arena_scope(&pr->pr_arena_scope.doc, &doc_scope, cookie);
@@ -152,7 +150,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 	dc = doc_root(&doc_scope);
 
 	for (;;) {
-		struct doc *concat;
+		struct doc   *concat;
 		struct token *tk;
 
 		/* Always emit EOF token as it could have prefixes. */
@@ -255,13 +253,13 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks,
 	if (options_trace_level(pr->pr_op, TRACE_DOC) > 0)
 		doc_flags |= DOC_EXEC_TRACE;
 	doc_exec(&(struct doc_exec_arg){
-	    .dc			= dc,
-	    .lx			= pr->pr_op->diffparse ? pr->pr_lx : nullptr,
-	    .scratch		= pr->pr_arena.scratch,
-	    .diff_chunks	= pr->pr_op->diffparse ? diff_chunks : nullptr,
-	    .bf			= bf,
-	    .st			= pr->pr_st,
-	    .flags		= doc_flags,
+	    .dc = dc,
+	    .lx = pr->pr_op->diffparse ? pr->pr_lx : nullptr,
+	    .scratch = pr->pr_arena.scratch,
+	    .diff_chunks = pr->pr_op->diffparse ? diff_chunks : nullptr,
+	    .bf = bf,
+	    .st = pr->pr_st,
+	    .flags = doc_flags,
 	});
 
 	return 0;
@@ -273,9 +271,8 @@ parser_root(struct parser *pr, struct doc *dc)
 	int error;
 
 	error = parser_decl(pr, dc,
-	    PARSER_DECL_BREAK | PARSER_DECL_LINE |
-	    PARSER_DECL_ROOT | PARSER_DECL_TRIM_SEMI |
-	    PARSER_DECL_SIMPLE_FORWARD);
+	    PARSER_DECL_BREAK | PARSER_DECL_LINE | PARSER_DECL_ROOT |
+		PARSER_DECL_TRIM_SEMI | PARSER_DECL_SIMPLE_FORWARD);
 	if (error & NONE)
 		error = parser_func_impl(pr, dc);
 	if (error & NONE)
@@ -298,7 +295,7 @@ is_branch(const struct lexer *lx)
 int
 parser_fail_impl(struct parser *pr, const char *fun, int lno)
 {
-	struct token fallback = {.tk_lno = 1, .tk_cno = 1};
+	struct token  fallback = {.tk_lno = 1, .tk_cno = 1};
 	struct lexer *lx = pr->pr_lx;
 	struct token *tk = nullptr;
 
@@ -316,8 +313,8 @@ parser_fail_impl(struct parser *pr, const char *fun, int lno)
 
 	if (!lexer_back(lx, &tk) && !lexer_peek_first(lx, &tk))
 		tk = &fallback;
-	lexer_error(pr->pr_lx, tk, fun, lno,
-	    "error at %s", lexer_serialize(lx, tk));
+	lexer_error(
+	    pr->pr_lx, tk, fun, lno, "error at %s", lexer_serialize(lx, tk));
 
 	return FAIL;
 }
@@ -359,10 +356,10 @@ parser_width(struct parser *pr, const struct doc *dc)
 
 	bf = arena_buffer_alloc(&s, 1 << 10);
 	return doc_width(&(struct doc_exec_arg){
-	    .dc		= dc,
-	    .scratch	= pr->pr_arena.scratch,
-	    .bf		= bf,
-	    .st		= pr->pr_st,
+	    .dc = dc,
+	    .scratch = pr->pr_arena.scratch,
+	    .bf = bf,
+	    .st = pr->pr_st,
 	});
 }
 
@@ -402,9 +399,9 @@ struct doc *
 parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
     const char *fun, int lno)
 {
-	struct doc *out;
+	struct doc   *out;
 	struct token *nx, *prefix, *suffix;
-	int c99comment = 0;
+	int	      c99comment = 0;
 
 	if (tk == pr->pr_token.unmute) {
 		if (!lexer_get_peek(pr->pr_lx))
@@ -412,7 +409,8 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 		doc_alloc_impl(DOC_MUTE, dc, -1, __func__, __LINE__);
 	}
 
-	LIST_FOREACH(prefix, &tk->tk_prefixes) {
+	LIST_FOREACH(prefix, &tk->tk_prefixes)
+	{
 		if (prefix->tk_flags & TOKEN_FLAG_COMMENT_CLANG_FORMAT_ON)
 			clang_format_on(pr, prefix, dc);
 
@@ -424,7 +422,8 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 
 	out = doc_token(tk, dc, DOC_LITERAL, fun, lno);
 
-	LIST_FOREACH(suffix, &tk->tk_suffixes) {
+	LIST_FOREACH(suffix, &tk->tk_suffixes)
+	{
 		if (suffix->tk_flags & TOKEN_FLAG_DISCARD) {
 			/*
 			 * A discarded optional line must still be honored
@@ -434,8 +433,8 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 			 */
 			if (c99comment &&
 			    (suffix->tk_flags & TOKEN_FLAG_OPTLINE))
-				doc_alloc_impl(DOC_OPTLINE, dc, 1, __func__,
-				    __LINE__);
+				doc_alloc_impl(
+				    DOC_OPTLINE, dc, 1, __func__, __LINE__);
 			continue;
 		}
 		if (suffix->tk_flags & TOKEN_FLAG_OPTLINE) {
@@ -446,8 +445,8 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 			 * by the comment. Force the line while keeping the
 			 * deferred indentation.
 			 */
-			doc_alloc_impl(DOC_OPTLINE, dc, c99comment, __func__,
-			    __LINE__);
+			doc_alloc_impl(
+			    DOC_OPTLINE, dc, c99comment, __func__, __LINE__);
 		} else {
 			doc_token(suffix, dc, DOC_VERBATIM, __func__, __LINE__);
 			if (suffix->tk_flags & TOKEN_FLAG_COMMENT_C99)
@@ -467,9 +466,9 @@ int
 parser_semi(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *last = nullptr;
-	struct token *nx, *semi;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *last = nullptr;
+	struct token	  *nx, *semi;
 
 	if (!lexer_expect(lx, TOKEN_SEMI, &semi))
 		return parser_fail(pr);
@@ -479,8 +478,7 @@ parser_semi(struct parser *pr, struct doc *dc)
 	 * emitted in order to honor optional lines.
 	 */
 	lexer_peek_enter(lx, &s);
-	while (lexer_peek_if(lx, TOKEN_SEMI, &nx) &&
-	    token_cmp(semi, nx) == 0 &&
+	while (lexer_peek_if(lx, TOKEN_SEMI, &nx) && token_cmp(semi, nx) == 0 &&
 	    lexer_pop(lx, &nx))
 		last = nx;
 	lexer_peek_leave(lx, &s);

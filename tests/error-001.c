@@ -6,5 +6,6 @@ int
 main(void)
 {
 	do
-	while (1);
+		while (1)
+			;
 }

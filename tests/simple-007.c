@@ -5,8 +5,6 @@
 int
 main(void)
 {
-	secs = (time_t)((days
-	    * 24 + dt->dt_hour)
-	    * 60 + dt->dt_min)
-	    * 60 + dt->dt_sec;
+	secs = (time_t)((days * 24 + dt->dt_hour) * 60 + dt->dt_min) * 60 +
+	    dt->dt_sec;
 }

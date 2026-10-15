@@ -1,23 +1,21 @@
-#include "config.h"
-
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "arenas.h"
+#include "clang.h"
+#include "config.h"
+#include "diff.h"
+#include "expr.h"
+#include "file.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/exec.h"
 #include "libks/fs.h"
 #include "libks/vector.h"
-
-#include "arenas.h"
-#include "clang.h"
-#include "diff.h"
-#include "expr.h"
-#include "file.h"
-#include "lexer.h"
 #include "options.h"
 #include "parser.h"
 #include "simple.h"
@@ -25,34 +23,35 @@
 #include "trace-types.h"
 
 struct main_context {
-	struct options	 options;
-	struct style	*style;
-	struct simple	*simple;
-	struct buffer	*src;
-	struct buffer	*dst;
-	struct arenas	 arena;
+	struct options options;
+	struct style  *style;
+	struct simple *simple;
+	struct buffer *src;
+	struct buffer *dst;
+	struct arenas  arena;
 };
 
-[[noreturn]] static void	usage(void);
+[[noreturn]] static void usage(void);
 
-static int	filelist(int, char **, struct files *, struct arena_scope *,
+static int filelist(int, char **, struct files *, struct arena_scope *,
     struct arena *, const struct options *);
-static int	fileformat(struct main_context *, struct file *);
-static int	filediff(struct main_context *, const struct file *);
-static int	filewrite(struct main_context *, const struct file *);
-static int	fileprint(const struct buffer *);
+static int fileformat(struct main_context *, struct file *);
+static int filediff(struct main_context *, const struct file *);
+static int filewrite(struct main_context *, const struct file *);
+static int fileprint(const struct buffer *);
 
 int
 main(int argc, char *argv[])
 {
 	struct main_context c = {0};
-	struct files files = {0};
-	const char *clang_format = nullptr;
-	size_t i;
-	int error = 0;
-	int ch;
+	struct files	    files = {0};
+	const char	   *clang_format = nullptr;
+	size_t		    i;
+	int		    error = 0;
+	int		    ch;
 
-	if (pledge("stdio rpath wpath cpath fattr chown proc exec", nullptr) == -1)
+	if (pledge("stdio rpath wpath cpath fattr chown proc exec", nullptr) ==
+	    -1)
 		err(1, "pledge");
 
 	options_init(&c.options);
@@ -100,8 +99,8 @@ main(int argc, char *argv[])
 	arenas_init(&c.arena);
 	arena_scope(c.arena.eternal, eternal_scope);
 	arena_scope(c.arena.buffer, buffer_scope);
-	c.style = style_parse(clang_format, &eternal_scope, c.arena.scratch,
-	    &c.options);
+	c.style = style_parse(
+	    clang_format, &eternal_scope, c.arena.scratch, &c.options);
 	if (c.style == nullptr) {
 		error = 1;
 		goto out;
@@ -111,7 +110,8 @@ main(int argc, char *argv[])
 		if (pledge("stdio rpath wpath cpath proc exec", nullptr) == -1)
 			err(1, "pledge");
 	} else if (c.options.inplace) {
-		if (pledge("stdio rpath wpath cpath fattr chown", nullptr) == -1)
+		if (pledge("stdio rpath wpath cpath fattr chown", nullptr) ==
+		    -1)
 			err(1, "pledge");
 	} else {
 		if (pledge("stdio rpath", nullptr) == -1)
@@ -124,7 +124,7 @@ main(int argc, char *argv[])
 	c.dst = arena_buffer_alloc(&buffer_scope, 1 << 12);
 
 	if (filelist(argc, argv, &files, &eternal_scope, c.arena.scratch,
-	    &c.options)) {
+		&c.options)) {
 		error = 1;
 		goto out;
 	}
@@ -178,40 +178,42 @@ filelist(int argc, char **argv, struct files *files,
 }
 
 static int
-format_buffer(struct main_context *c, struct file *fe,
-    const struct buffer *in, struct buffer *out, struct arena_scope *scope)
+format_buffer(struct main_context *c, struct file *fe, const struct buffer *in,
+    struct buffer *out, struct arena_scope *scope)
 {
-	struct clang *clang;
-	struct lexer *lx;
+	struct clang  *clang;
+	struct lexer  *lx;
 	struct parser *pr;
 
-	clang = clang_alloc(c->style, c->simple, &c->arena,
-	    fe->fe_diff, &c->options, scope);
+	clang = clang_alloc(
+	    c->style, c->simple, &c->arena, fe->fe_diff, &c->options, scope);
 	lx = lexer_tokenize(&(const struct lexer_arg){
-	    .path		= fe->fe_path,
-	    .bf			= in,
-	    .op			= &c->options,
-	    .error_flush	= options_trace_level(&c->options,
-		TRACE_LEXER) > 0,
-	    .arena		= {
-		.eternal_scope	= scope,
-		.scratch	= c->arena.scratch,
-	    },
-	    .callbacks		= clang_lexer_callbacks(clang),
+	    .path = fe->fe_path,
+	    .bf = in,
+	    .op = &c->options,
+	    .error_flush = options_trace_level(&c->options, TRACE_LEXER) > 0,
+	    .arena =
+		{
+		    .eternal_scope = scope,
+		    .scratch = c->arena.scratch,
+		},
+	    .callbacks = clang_lexer_callbacks(clang),
 	});
 	if (lx == nullptr)
 		return 1;
 	if (options_trace_level(&c->options, TRACE_TOKEN) > 0)
 		lexer_dump(lx);
 
-	pr = parser_alloc(&(struct parser_arg){
-	    .lexer	= lx,
-	    .options	= &c->options,
-	    .style	= c->style,
-	    .simple	= c->simple,
-	    .clang	= clang,
-	    .arena	= &c->arena,
-	}, scope);
+	pr = parser_alloc(
+	    &(struct parser_arg){
+		.lexer = lx,
+		.options = &c->options,
+		.style = c->style,
+		.simple = c->simple,
+		.clang = clang,
+		.arena = &c->arena,
+	    },
+	    scope);
 	return parser_exec(pr, fe->fe_diff, out);
 }
 
@@ -241,9 +243,9 @@ filediff(struct main_context *c, const struct file *fe)
 	if (buffer_cmp(c->src, c->dst) == 0)
 		return 0;
 
-	error = KS_exec_diff(fe->fe_path,
-	    buffer_get_ptr(c->src), buffer_get_len(c->src),
-	    buffer_get_ptr(c->dst), buffer_get_len(c->dst));
+	error = KS_exec_diff(fe->fe_path, buffer_get_ptr(c->src),
+	    buffer_get_len(c->src), buffer_get_ptr(c->dst),
+	    buffer_get_len(c->dst));
 	if (error == -1)
 		warn("%s", fe->fe_path);
 	return error;
@@ -257,8 +259,8 @@ filewrite(struct main_context *c, const struct file *fe)
 
 	if (buffer_cmp(src, dst) == 0)
 		return 0;
-	if (KS_fs_replace(fe->fe_path,
-	    buffer_get_ptr(dst), buffer_get_len(dst)) == -1) {
+	if (KS_fs_replace(
+		fe->fe_path, buffer_get_ptr(dst), buffer_get_len(dst)) == -1) {
 		warn("%s", fe->fe_path);
 		return 1;
 	}
@@ -269,7 +271,7 @@ static int
 fileprint(const struct buffer *dst)
 {
 	const char *buf = buffer_get_ptr(dst);
-	size_t buflen = buffer_get_len(dst);
+	size_t	    buflen = buffer_get_len(dst);
 
 	while (buflen > 0) {
 		ssize_t nw;

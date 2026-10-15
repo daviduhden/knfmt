@@ -1,21 +1,18 @@
-#include "comment.h"
-
-#include "config.h"
-
 #include <ctype.h>
 #include <string.h>
 
+#include "comment.h"
+#include "config.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
-
 #include "style.h"
 #include "token.h"
 #include "util.h"
 
-static const char	*nextline(const char *, size_t);
-static const char	*skipws(const char *, size_t);
-static size_t		 rskipws(const char *, size_t);
+static const char *nextline(const char *, size_t);
+static const char *skipws(const char *, size_t);
+static size_t	   rskipws(const char *, size_t);
 
 static int
 is_comment_trimmed(const struct token *tk, const struct buffer *bf)
@@ -34,9 +31,9 @@ comment_trim(const struct token *tk, const struct style *st,
     struct arena *scratch, struct arena_scope *s, size_t *lenp)
 {
 	struct buffer *bf;
-	const char *sp = tk->tk_str;
-	size_t len = tk->tk_len;
-	int iscrlf;
+	const char    *sp = tk->tk_str;
+	size_t	       len = tk->tk_len;
+	int	       iscrlf;
 
 	if (lenp != nullptr)
 		*lenp = 0;
@@ -49,15 +46,15 @@ comment_trim(const struct token *tk, const struct style *st,
 	bf = arena_buffer_alloc(&scratch_scope, len + 1);
 	for (;;) {
 		const char *ep;
-		size_t commlen;
+		size_t	    commlen;
 
 		ep = skipws(sp, len);
 		if (ep != nullptr && (*ep == '*' || *ep == '/')) {
 			size_t wslen;
 
 			wslen = (size_t)(ep - sp);
-			strindent_buffer(bf, strwidth(sp, wslen, 0),
-			    style_use_tabs(st), 0);
+			strindent_buffer(
+			    bf, strwidth(sp, wslen, 0), style_use_tabs(st), 0);
 			len -= wslen;
 			sp += wslen;
 		}

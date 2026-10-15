@@ -1,16 +1,14 @@
-#include "error.h"
-
-#include "config.h"
-
 #include <stdio.h>
 
+#include "config.h"
+#include "error.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 
 struct error {
-	struct buffer	*er_bf;
-	int		 er_flush;
+	struct buffer *er_bf;
+	int	       er_flush;
 };
 
 struct error *

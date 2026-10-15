@@ -1,1 +1,1 @@
-int	 searchpath(const char *, int *);
+int searchpath(const char *, int *);

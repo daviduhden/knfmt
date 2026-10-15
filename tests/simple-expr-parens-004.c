@@ -5,7 +5,7 @@
 int
 main(void)
 {
-	if (/* DISABLES CODE */(1))
+	if (/* DISABLES CODE */ (1))
 		return 0;
 	return 1;
 }

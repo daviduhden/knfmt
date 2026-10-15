@@ -15,8 +15,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/arena-vector.h"
 #include <err.h>
+
+#include "libks/arena-vector.h"
 #include "libks/arena.h"
 #include "libks/compiler.h"
 #include "libks/vector.h"
@@ -46,12 +47,13 @@ callback_free(void *ptr, size_t size, void *UNUSED(arg))
 void
 arena_vector_init(struct arena_scope *s, void **vv, size_t stride, size_t n)
 {
-	vector_init_impl(VECTOR_ARENA, vv, stride, &(struct vector_callbacks){
-	    .calloc	= callback_calloc,
-	    .realloc	= callback_realloc,
-	    .free	= callback_free,
-	    .arg	= s,
-	});
+	vector_init_impl(VECTOR_ARENA, vv, stride,
+	    &(struct vector_callbacks){
+		.calloc = callback_calloc,
+		.realloc = callback_realloc,
+		.free = callback_free,
+		.arg = s,
+	    });
 	if (n > 0)
 		vector_reserve(vv, n);
 }

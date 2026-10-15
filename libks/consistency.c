@@ -22,8 +22,8 @@
 #include <stdio.h>
 
 int
-assert_consistency(int consistent, const char *a, const char *b,
-    const char *fun, int lno)
+assert_consistency(
+    int consistent, const char *a, const char *b, const char *fun, int lno)
 {
 	if (consistent)
 		return 0;

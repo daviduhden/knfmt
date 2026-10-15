@@ -3,6 +3,6 @@
  */
 
 union u {
-	int i;
+	int  i;
 	char c[4];
 };

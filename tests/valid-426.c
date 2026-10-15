@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	return { x((VA){y}).y };
+	return {x((VA){y}).y};
 }

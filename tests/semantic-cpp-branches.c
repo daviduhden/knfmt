@@ -5,35 +5,36 @@
  */
 
 #if 1
-int	a;
+int a;
 #else
-int	b;
+int b;
 #endif
 
 #ifdef A
-int	c;
+int c;
 #elif defined(B)
-int	d;
+int d;
 #else
-int	e;
+int e;
 #endif
 
 #ifndef C
-int	f;
+int f;
 #elifdef D
-int	g;
+int g;
 #elifndef E
-int	h;
+int h;
 #endif
 
 int
 conditional_args(
 #ifdef A
-    int	x
+    int x
 #else
-    int	y
+    int y
 #endif
-    , int z)
+    ,
+    int z)
 {
 	return 0;
 }

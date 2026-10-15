@@ -22,12 +22,12 @@ sysctl_tty(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
 		return (sysctl_rdquad(oldp, oldlenp, newp, tk_cancc));
 	case KERN_TTY_INFO: {
 		struct itty *ttystats;
-		size_t ttystatssiz;
-		int ttyc;
+		size_t	     ttystatssiz;
+		int	     ttyc;
 
 		ttystats_init(&ttystats, &ttyc, &ttystatssiz);
-		err = sysctl_rdstruct(oldp, oldlenp, newp, ttystats,
-		    ttyc * sizeof(struct itty));
+		err = sysctl_rdstruct(
+		    oldp, oldlenp, newp, ttystats, ttyc * sizeof(struct itty));
 		free(ttystats, M_SYSCTL, ttystatssiz);
 		return (err);
 	}

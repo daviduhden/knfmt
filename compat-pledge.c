@@ -1,6 +1,6 @@
 #include "config.h"
 
-extern int	unused;
+extern int unused;
 
 #ifndef HAVE_PLEDGE
 

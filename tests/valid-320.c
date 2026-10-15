@@ -2,10 +2,12 @@
  * Excessive semicolon.
  */
 
-int x;;
+int x;
+;
 
 int
 main(void)
 {
-	int y;;
+	int y;
+	;
 }

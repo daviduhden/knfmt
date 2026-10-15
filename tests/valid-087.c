@@ -5,6 +5,7 @@
 int
 main(void)
 {
-	foreach_diff_atom(atom, start_atom, count) {
+	foreach_diff_atom(atom, start_atom, count)
+	{
 	}
 }

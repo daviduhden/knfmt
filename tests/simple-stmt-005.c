@@ -8,7 +8,7 @@ main(void)
 	if (0) {
 	} else {
 		if (1)
-			indent = parser_simple_stmt_ifelse_enter(pr, indent,
-			    &simple);
+			indent = parser_simple_stmt_ifelse_enter(
+			    pr, indent, &simple);
 	}
 }

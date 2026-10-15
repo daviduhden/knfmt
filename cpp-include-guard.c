@@ -1,26 +1,23 @@
-#include "cpp-include-guard.h"
-
-#include "config.h"
-
 #include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "clang.h"
+#include "config.h"
+#include "cpp-include-guard.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
-
-#include "clang.h"
-#include "lexer.h"
 #include "style.h"
 #include "token.h"
 #include "util.h"
 
 struct include_guard_context {
 	struct {
-		struct token	*parent;
-		struct token	*tk;
+		struct token *parent;
+		struct token *tk;
 	} ifndef, define, endif;
 };
 
@@ -28,9 +25,9 @@ static int
 is_guard_define(const struct token *tk)
 {
 	const char *str = tk->tk_str;
-	size_t len = tk->tk_len;
-	int nwords = 0;
-	int threshold = 2;
+	size_t	    len = tk->tk_len;
+	int	    nwords = 0;
+	int	    threshold = 2;
 
 	while (len > 0) {
 		int word = 0;
@@ -52,8 +49,8 @@ static const char *
 path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 {
 	struct buffer *bf;
-	const char *sliced_path;
-	char *resolved_path;
+	const char    *sliced_path;
+	char	      *resolved_path;
 
 	resolved_path = arena_malloc(s, PATH_MAX);
 	if (realpath(path, resolved_path) == nullptr)
@@ -91,8 +88,7 @@ sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
 		return 0;
 
 	define = token_list_find(&first->tk_prefixes, TOKEN_CPP_DEFINE, 0);
-	if (define == nullptr ||
-	    token_next(ifndef) != define ||
+	if (define == nullptr || token_next(ifndef) != define ||
 	    !is_guard_define(define))
 		return 0;
 
@@ -113,30 +109,32 @@ sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
 static struct token *
 emit_cpp(struct lexer *lx, int token_type, const char *str)
 {
-	return lexer_emit_synthetic(lx, &(struct token){
-	    .tk_type		= token_type,
-	    .tk_flags		= TOKEN_FLAG_CPP,
-	    .tk_str		= str,
-	    .tk_len		= strlen(str),
-	});
+	return lexer_emit_synthetic(lx,
+	    &(struct token){
+		.tk_type = token_type,
+		.tk_flags = TOKEN_FLAG_CPP,
+		.tk_str = str,
+		.tk_len = strlen(str),
+	    });
 }
 
 static struct token *
 emit_line(struct lexer *lx)
 {
-	return lexer_emit_synthetic(lx, &(struct token){
-	    .tk_type = TOKEN_SPACE,
-	    .tk_str = "\n",
-	    .tk_len = 1,
-	});
+	return lexer_emit_synthetic(lx,
+	    &(struct token){
+		.tk_type = TOKEN_SPACE,
+		.tk_str = "\n",
+		.tk_len = 1,
+	    });
 }
 
 static unsigned int
 token_count_lines(const struct token *tk)
 {
-	const char *str = tk->tk_str;
-	size_t len = tk->tk_len;
-	size_t i;
+	const char  *str = tk->tk_str;
+	size_t	     len = tk->tk_len;
+	size_t	     i;
 	unsigned int count = 0;
 
 	for (i = 0; i < len; i++) {
@@ -184,14 +182,14 @@ emit_ifndef(struct lexer *lx, struct token *tk, const char *cpp)
 
 	if (comment != nullptr) {
 		if (token_has_verbatim_line(comment, 2)) {
-			token_list_append_after(&tk->tk_prefixes, comment,
-			    ifndef);
+			token_list_append_after(
+			    &tk->tk_prefixes, comment, ifndef);
 		} else {
 			struct token *line;
 
 			line = emit_line(lx);
-			token_list_append_after(&tk->tk_prefixes, comment,
-			    line);
+			token_list_append_after(
+			    &tk->tk_prefixes, comment, line);
 			token_list_append_after(&tk->tk_prefixes, line, ifndef);
 		}
 	} else {
@@ -236,13 +234,13 @@ remove_include_guards(struct include_guard_context *c)
 }
 
 void
-cpp_include_guard(const struct style *st, struct lexer *lx,
-    struct arena *scratch)
+cpp_include_guard(
+    const struct style *st, struct lexer *lx, struct arena *scratch)
 {
 	struct include_guard_context c = {0};
-	struct arena_scope *eternal_scope;
-	struct token *define, *endif, *ifndef;
-	const char *cpp_define, *cpp_endif, *cpp_ifndef, *guard, *path;
+	struct arena_scope	    *eternal_scope;
+	struct token		    *define, *endif, *ifndef;
+	const char  *cpp_define, *cpp_endif, *cpp_ifndef, *guard, *path;
 	unsigned int ncomponents;
 
 	path = lexer_get_path(lx);
@@ -258,7 +256,8 @@ cpp_include_guard(const struct style *st, struct lexer *lx,
 	cpp_define = arena_sprintf(eternal_scope, "#define %s\n\n", guard);
 	cpp_endif = arena_sprintf(eternal_scope, "#endif /* !%s */\n", guard);
 
-	int has_include_guards = sense_include_guards(lx, cpp_ifndef, cpp_define, cpp_endif, &c);
+	int has_include_guards =
+	    sense_include_guards(lx, cpp_ifndef, cpp_define, cpp_endif, &c);
 	/*
 	 * A negative result means the lexer could not be inspected; the
 	 * context is left zeroed, so bail out rather than dereference null
@@ -282,8 +281,7 @@ cpp_include_guard(const struct style *st, struct lexer *lx,
 	if (c.define.tk != nullptr)
 		token_list_remove(&c.define.parent->tk_prefixes, c.define.tk);
 	define = emit_cpp(lx, TOKEN_CPP_DEFINE, cpp_define);
-	token_list_append_after(&c.define.parent->tk_prefixes, ifndef,
-	    define);
+	token_list_append_after(&c.define.parent->tk_prefixes, ifndef, define);
 
 	if (c.endif.tk != nullptr)
 		remove_branch_token(c.endif.tk, c.endif.parent);

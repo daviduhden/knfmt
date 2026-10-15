@@ -1,3 +1,3 @@
 struct lexer;
 
-void	simple_attributes(struct lexer *);
+void simple_attributes(struct lexer *);

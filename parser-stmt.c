@@ -1,13 +1,9 @@
-#include "parser-stmt.h"
-
-#include "config.h"
-
-#include "libks/arena.h"
-
 #include "clang.h"
+#include "config.h"
 #include "doc.h"
 #include "expr.h"
 #include "lexer.h"
+#include "libks/arena.h"
 #include "options.h"
 #include "parser-attributes.h"
 #include "parser-decl.h"
@@ -15,6 +11,7 @@
 #include "parser-priv.h"
 #include "parser-stmt-asm.h"
 #include "parser-stmt-expr.h"
+#include "parser-stmt.h"
 #include "simple-stmt-empty-loop.h"
 #include "simple-stmt-switch.h"
 #include "simple-stmt.h"
@@ -22,42 +19,40 @@
 #include "style.h"
 #include "token.h"
 
-#define PARSER_STMT_EXPR_DOWHILE		0x00000001u
-#define PARSER_STMT_EXPR_ELSEIF			0x00000002u
+#define PARSER_STMT_EXPR_DOWHILE 0x00000001u
+#define PARSER_STMT_EXPR_ELSEIF 0x00000002u
 
-static int	parser_stmt(struct parser *, struct doc *);
-static int	parser_stmt1(struct parser *, struct doc *);
-static int	parser_stmt_if(struct parser *, struct doc *);
-static int	parser_stmt_for(struct parser *, struct doc *);
-static int	parser_stmt_dowhile(struct parser *, struct doc *);
-static int	parser_stmt_kw_expr(struct parser *, struct doc *, int,
-    unsigned int);
-static int	parser_stmt_label(struct parser *, struct doc *);
-static int	parser_stmt_case(struct parser *, struct doc *);
-static int	parser_stmt_goto(struct parser *, struct doc *);
-static int	parser_stmt_switch(struct parser *, struct doc *);
-static int	parser_stmt_while(struct parser *, struct doc *);
-static int	parser_stmt_break(struct parser *, struct doc *);
-static int	parser_stmt_continue(struct parser *, struct doc *);
-static int	parser_stmt_return(struct parser *, struct doc *);
-static int	parser_stmt_semi(struct parser *, struct doc *);
-static int	parser_stmt_cpp(struct parser *, struct doc *);
+static int parser_stmt(struct parser *, struct doc *);
+static int parser_stmt1(struct parser *, struct doc *);
+static int parser_stmt_if(struct parser *, struct doc *);
+static int parser_stmt_for(struct parser *, struct doc *);
+static int parser_stmt_dowhile(struct parser *, struct doc *);
+static int parser_stmt_kw_expr(
+    struct parser *, struct doc *, int, unsigned int);
+static int parser_stmt_label(struct parser *, struct doc *);
+static int parser_stmt_case(struct parser *, struct doc *);
+static int parser_stmt_goto(struct parser *, struct doc *);
+static int parser_stmt_switch(struct parser *, struct doc *);
+static int parser_stmt_while(struct parser *, struct doc *);
+static int parser_stmt_break(struct parser *, struct doc *);
+static int parser_stmt_continue(struct parser *, struct doc *);
+static int parser_stmt_return(struct parser *, struct doc *);
+static int parser_stmt_semi(struct parser *, struct doc *);
+static int parser_stmt_cpp(struct parser *, struct doc *);
 
-static int		 parser_simple_stmt_enter(struct parser *,
-    struct simple_cookie *);
-static struct doc	*parser_simple_stmt_no_braces_enter(struct parser *,
-    struct doc *, void **);
-static void		 parser_simple_stmt_no_braces_leave(struct parser *,
-    void *);
-static int		 is_loop_stmt(const struct token *);
-static int		 is_simple_stmt(const struct token *);
-static int		 peek_simple_stmt(struct parser *);
+static int parser_simple_stmt_enter(struct parser *, struct simple_cookie *);
+static struct doc *parser_simple_stmt_no_braces_enter(
+    struct parser *, struct doc *, void **);
+static void parser_simple_stmt_no_braces_leave(struct parser *, void *);
+static int  is_loop_stmt(const struct token *);
+static int  is_simple_stmt(const struct token *);
+static int  peek_simple_stmt(struct parser *);
 
 int
 parser_stmt_peek(struct parser *pr)
 {
 	struct doc *dc;
-	int error, simple;
+	int	    error, simple;
 
 	arena_scope(pr->pr_arena.doc, doc_scope);
 	parser_arena_scope(&pr->pr_arena_scope.doc, &doc_scope, cookie);
@@ -88,9 +83,9 @@ static int
 parser_stmt1(struct parser *pr, struct doc *dc)
 {
 	struct parser_stmt_block_arg ps = {
-		.head	= dc,
-		.tail	= dc,
-		.flags	= PARSER_STMT_BLOCK_TRIM,
+	    .head = dc,
+	    .tail = dc,
+	    .flags = PARSER_STMT_BLOCK_TRIM,
 	};
 
 	/* C23 standard attributes may prefix a statement. */
@@ -121,8 +116,9 @@ parser_stmt1(struct parser *pr, struct doc *dc)
 	    (parser_stmt_if(pr, dc) & GOOD) ||
 	    (parser_stmt_return(pr, dc) & GOOD) ||
 	    (parser_decl(pr, dc,
-	     PARSER_DECL_BREAK | PARSER_DECL_SIMPLE |
-	     PARSER_DECL_TRIM_SEMI) & GOOD) ||
+		 PARSER_DECL_BREAK | PARSER_DECL_SIMPLE |
+		     PARSER_DECL_TRIM_SEMI) &
+		GOOD) ||
 	    (parser_stmt_case(pr, dc) & GOOD) ||
 	    (parser_stmt_break(pr, dc) & GOOD) ||
 	    (parser_stmt_goto(pr, dc) & GOOD) ||
@@ -158,17 +154,17 @@ is_case_on_same_line(struct parser *pr, const struct token *pv)
 int
 parser_stmt_block(struct parser *pr, struct parser_stmt_block_arg *arg)
 {
-	struct doc *dc = arg->tail;
-	struct doc *concat, *indent, *line;
+	struct doc   *dc = arg->tail;
+	struct doc   *concat, *indent, *line;
 	struct lexer *lx = pr->pr_lx;
 	struct token *lbrace, *nx, *pv, *rbrace, *tk;
-	int isswitch = arg->flags & PARSER_STMT_BLOCK_SWITCH;
+	int	      isswitch = arg->flags & PARSER_STMT_BLOCK_SWITCH;
 	int doindent = !isswitch && !is_simple_enabled(pr->pr_si, SIMPLE_STMT);
 	int nstmt = 0;
 	int error;
 
-	if (!lexer_peek_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace,
-	    &rbrace))
+	if (!lexer_peek_if_pair(
+		lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace))
 		return parser_none(pr);
 
 	/*
@@ -258,14 +254,13 @@ static int
 peek_else_if(struct parser *pr)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *tkelse, *tkif;
-	int peek;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *tkelse, *tkif;
+	int		   peek;
 
 	lexer_peek_enter(lx, &s);
 	peek = lexer_if(lx, TOKEN_ELSE, &tkelse) &&
-	    lexer_peek_if(lx, TOKEN_IF, &tkif) &&
-	    token_cmp(tkelse, tkif) == 0;
+	    lexer_peek_if(lx, TOKEN_IF, &tkif) && token_cmp(tkelse, tkif) == 0;
 	lexer_peek_leave(lx, &s);
 	return peek;
 }
@@ -274,8 +269,8 @@ static int
 has_if_stmt_braces(struct parser *pr, int elseif)
 {
 	struct lexer_state ls;
-	struct lexer *lx = pr->pr_lx;
-	int peek = 0;
+	struct lexer	  *lx = pr->pr_lx;
+	int		   peek = 0;
 
 	lexer_peek_enter(lx, &ls);
 	if ((elseif ? lexer_if(lx, TOKEN_ELSE, nullptr) : 1) &&
@@ -290,7 +285,8 @@ has_if_stmt_braces(struct parser *pr, int elseif)
 static int
 has_line_before_comment(const struct token *tk)
 {
-	const struct token *comment = token_list_find(&tk->tk_prefixes, TOKEN_COMMENT, 0);
+	const struct token *comment =
+	    token_list_find(&tk->tk_prefixes, TOKEN_COMMENT, 0);
 	if (comment == nullptr)
 		return 0;
 
@@ -306,7 +302,7 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct token *nx;
-	int has_braces;
+	int	      has_braces;
 
 	if (!lexer_peek_if(lx, TOKEN_IF, nullptr))
 		return parser_none(pr);
@@ -327,8 +323,8 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 
 		if (peek_else_if(pr)) {
 			has_braces = has_if_stmt_braces(pr, 1);
-			int error = parser_stmt_kw_expr(pr, dc, TOKEN_IF,
-			    PARSER_STMT_EXPR_ELSEIF);
+			int error = parser_stmt_kw_expr(
+			    pr, dc, TOKEN_IF, PARSER_STMT_EXPR_ELSEIF);
 			if (error & HALT)
 				return parser_fail(pr);
 		} else {
@@ -346,12 +342,12 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 			} else {
 				void *simple = nullptr;
 
-				dc = doc_indent(style(pr->pr_st, IndentWidth),
-				    dc);
+				dc = doc_indent(
+				    style(pr->pr_st, IndentWidth), dc);
 				doc_alloc(DOC_HARDLINE, dc);
 
-				dc = parser_simple_stmt_no_braces_enter(pr, dc,
-				    &simple);
+				dc = parser_simple_stmt_no_braces_enter(
+				    pr, dc, &simple);
 				int error = parser_stmt(pr, dc);
 				parser_simple_stmt_no_braces_leave(pr, simple);
 				if (error & (FAIL | NONE))
@@ -370,13 +366,13 @@ static int
 parser_stmt_for(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *expr = nullptr;
-	struct doc *indent, *loop;
+	struct doc   *expr = nullptr;
+	struct doc   *indent, *loop;
 	struct token *semi = nullptr;
 	struct token *tk;
-	void *simple = nullptr;
-	unsigned int w;
-	int error;
+	void	     *simple = nullptr;
+	unsigned int  w;
+	int	      error;
 
 	if (!lexer_if(lx, TOKEN_FOR, &tk))
 		return parser_none(pr);
@@ -397,10 +393,11 @@ parser_stmt_for(struct parser *pr, struct doc *dc)
 	if (parser_decl(pr, loop, 0) & GOOD) {
 		expr = loop;
 	} else {
-		error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-		    .dc		= loop,
-		    .indent	= w,
-		});
+		error = parser_expr(pr, &expr,
+		    &(struct parser_expr_arg){
+			.dc = loop,
+			.indent = w,
+		    });
 		if (error & (FAIL | BRCH))
 			return parser_fail(pr);
 		/* Let the semicolon hang of the expression unless empty. */
@@ -411,11 +408,12 @@ parser_stmt_for(struct parser *pr, struct doc *dc)
 	}
 
 	/* If the expression does not fit, break after the semicolon. */
-	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-	    .dc		= loop,
-	    .indent	= w,
-	    .flags	= EXPR_EXEC_LINE,
-	});
+	error = parser_expr(pr, &expr,
+	    &(struct parser_expr_arg){
+		.dc = loop,
+		.indent = w,
+		.flags = EXPR_EXEC_LINE,
+	    });
 	if (error & (FAIL | BRCH))
 		return parser_fail(pr);
 	if (error & NONE)
@@ -425,11 +423,12 @@ parser_stmt_for(struct parser *pr, struct doc *dc)
 	parser_doc_token(pr, semi, expr);
 
 	/* If the expression does not fit, break after the semicolon. */
-	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-	    .dc		= loop,
-	    .indent	= w,
-	    .flags	= EXPR_EXEC_LINE,
-	});
+	error = parser_expr(pr, &expr,
+	    &(struct parser_expr_arg){
+		.dc = loop,
+		.indent = w,
+		.flags = EXPR_EXEC_LINE,
+	    });
 	if (error & (FAIL | BRCH))
 		return parser_fail(pr);
 	if (error & NONE)
@@ -466,14 +465,14 @@ static int
 parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 {
 	struct parser_stmt_block_arg ps = {
-		.head	= dc,
-		.tail	= dc,
-		.flags	= PARSER_STMT_BLOCK_TRIM,
+	    .head = dc,
+	    .tail = dc,
+	    .flags = PARSER_STMT_BLOCK_TRIM,
 	};
 	struct lexer *lx = pr->pr_lx;
-	struct doc *concat = dc;
+	struct doc   *concat = dc;
 	struct token *tk;
-	int error;
+	int	      error;
 
 	if (!lexer_if(lx, TOKEN_DO, &tk))
 		return parser_none(pr);
@@ -503,8 +502,8 @@ parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 		return parser_fail(pr);
 
 	if (lexer_peek_if(lx, TOKEN_WHILE, nullptr)) {
-		return parser_stmt_kw_expr(pr, concat, TOKEN_WHILE,
-		    PARSER_STMT_EXPR_DOWHILE);
+		return parser_stmt_kw_expr(
+		    pr, concat, TOKEN_WHILE, PARSER_STMT_EXPR_DOWHILE);
 	}
 	return parser_fail(pr);
 }
@@ -514,15 +513,15 @@ parser_stmt_dowhile(struct parser *pr, struct doc *dc)
  * and followed by additional nested statement(s).
  */
 static int
-parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
-    unsigned int flags)
+parser_stmt_kw_expr(
+    struct parser *pr, struct doc *dc, int token_type, unsigned int flags)
 {
-	struct doc *expr = nullptr;
-	struct doc *stmt;
+	struct doc   *expr = nullptr;
+	struct doc   *stmt;
 	struct lexer *lx = pr->pr_lx;
 	struct token *kw, *lparen, *prefix, *rparen;
-	unsigned int w;
-	int error;
+	unsigned int  w;
+	int	      error;
 
 	if (flags & PARSER_STMT_EXPR_ELSEIF) {
 		if (!lexer_expect(lx, TOKEN_ELSE, &prefix))
@@ -530,8 +529,8 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 	}
 
 	if (!lexer_expect(lx, token_type, &kw) ||
-	    !lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
-	    &rparen))
+	    !lexer_peek_if_pair(
+		lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
 		return parser_fail(pr);
 	parser_token_trim_before(pr, rparen);
 	parser_token_trim_after(pr, rparen);
@@ -564,8 +563,8 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 		struct doc *optional = stmt;
 
 		if (token_has_suffix(lparen, TOKEN_COMMENT)) {
-			optional = doc_alloc(DOC_CONCAT,
-			    doc_alloc(DOC_OPTIONAL, stmt));
+			optional = doc_alloc(
+			    DOC_CONCAT, doc_alloc(DOC_OPTIONAL, stmt));
 		}
 		parser_doc_token(pr, lparen, optional);
 	}
@@ -575,12 +574,13 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 	 * expression since we want to fit everything until the following
 	 * statement on a single line.
 	 */
-	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-	    .dc		= stmt,
-	    .stop	= rparen,
-	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
-	    .align	= w,
-	});
+	error = parser_expr(pr, &expr,
+	    &(struct parser_expr_arg){
+		.dc = stmt,
+		.stop = rparen,
+		.indent = style(pr->pr_st, ContinuationIndentWidth),
+		.align = w,
+	    });
 	if (error & (FAIL | BRCH))
 		return parser_fail(pr);
 	if (error & NONE)
@@ -615,20 +615,21 @@ parser_stmt_kw_expr(struct parser *pr, struct doc *dc, int token_type,
 		parser_stmt_flags |= PARSER_STMT_BLOCK_TRIM;
 		if (token_type == TOKEN_SWITCH)
 			parser_stmt_flags |= PARSER_STMT_BLOCK_SWITCH;
-		return parser_stmt_block(pr, &(struct parser_stmt_block_arg){
-		    .head	= expr,
-		    .tail	= dc,
-		    .flags	= parser_stmt_flags,
-		});
+		return parser_stmt_block(pr,
+		    &(struct parser_stmt_block_arg){
+			.head = expr,
+			.tail = dc,
+			.flags = parser_stmt_flags,
+		    });
 	} else {
 		struct doc *indent;
-		void *simple = nullptr;
+		void	   *simple = nullptr;
 
 		indent = doc_indent(style(pr->pr_st, IndentWidth), dc);
 		doc_alloc(DOC_HARDLINE, indent);
 		if (is_simple_stmt(kw)) {
-			indent = parser_simple_stmt_no_braces_enter(pr, indent,
-			    &simple);
+			indent = parser_simple_stmt_no_braces_enter(
+			    pr, indent, &simple);
 		}
 		error = parser_stmt(pr, indent);
 		if (is_simple_stmt(kw))
@@ -641,11 +642,11 @@ static int
 parser_stmt_label(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct doc *noindent;
-	struct lexer *lx = pr->pr_lx;
-	struct token *colon = nullptr;
-	struct token *ident;
-	int peek = 0;
+	struct doc	  *noindent;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *colon = nullptr;
+	struct token	  *ident;
+	int		   peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, nullptr) &&
@@ -666,8 +667,8 @@ parser_stmt_label(struct parser *pr, struct doc *dc)
 		 * comment(s).
 		 */
 		if (token_has_indent(ident)) {
-			doc_move_before(doc_literal(" ", noindent), label,
-			    noindent);
+			doc_move_before(
+			    doc_literal(" ", noindent), label, noindent);
 		}
 	}
 
@@ -694,7 +695,7 @@ parser_stmt_label(struct parser *pr, struct doc *dc)
 static int
 parser_stmt_case(struct parser *pr, struct doc *dc)
 {
-	struct doc *indent, *lhs;
+	struct doc   *indent, *lhs;
 	struct lexer *lx = pr->pr_lx;
 	struct token *kw, *tk;
 
@@ -709,9 +710,10 @@ parser_stmt_case(struct parser *pr, struct doc *dc)
 		int error;
 
 		doc_alloc(DOC_LINE, lhs);
-		error = parser_expr(pr, nullptr, &(struct parser_expr_arg){
-		    .dc	= lhs,
-		});
+		error = parser_expr(pr, nullptr,
+		    &(struct parser_expr_arg){
+			.dc = lhs,
+		    });
 		if (error & HALT)
 			return parser_fail(pr);
 	}
@@ -733,7 +735,7 @@ parser_stmt_case(struct parser *pr, struct doc *dc)
 	pr->pr_stmt.depth++;
 	indent = doc_indent(style(pr->pr_st, IndentWidth), dc);
 	for (;;) {
-		struct doc *line;
+		struct doc   *line;
 		struct token *nx;
 
 		if (lexer_peek_if(lx, TOKEN_CASE, nullptr) ||
@@ -765,7 +767,7 @@ static int
 parser_stmt_goto(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *concat;
+	struct doc   *concat;
 	struct token *tk;
 
 	if (!lexer_if(lx, TOKEN_GOTO, &tk))
@@ -831,7 +833,7 @@ static int
 parser_stmt_return(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *concat, *expr;
+	struct doc   *concat, *expr;
 	struct token *tk;
 
 	if (!lexer_if(lx, TOKEN_RETURN, &tk))
@@ -844,10 +846,11 @@ parser_stmt_return(struct parser *pr, struct doc *dc)
 		int error;
 
 		doc_literal(" ", concat);
-		error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-		    .dc		= concat,
-		    .indent	= style(pr->pr_st, ContinuationIndentWidth),
-		});
+		error = parser_expr(pr, &expr,
+		    &(struct parser_expr_arg){
+			.dc = concat,
+			.indent = style(pr->pr_st, ContinuationIndentWidth),
+		    });
 		if (error & HALT)
 			return parser_fail(pr);
 	} else {
@@ -870,9 +873,9 @@ static int
 parser_stmt_cpp(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *ident;
-	int peek = 0;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *ident;
+	int		   peek = 0;
 
 	/* Statement hidden behind cpp, such as loop construct from queue(3). */
 	lexer_peek_enter(lx, &s);
@@ -907,9 +910,9 @@ static int
 parser_simple_stmt_enter(struct parser *pr, struct simple_cookie *simple)
 {
 	struct lexer_state s;
-	struct doc *dc;
-	struct lexer *lx = pr->pr_lx;
-	int error;
+	struct doc	  *dc;
+	struct lexer	  *lx = pr->pr_lx;
+	int		   error;
 
 	if (!simple_enter(pr->pr_si, SIMPLE_STMT, 0, simple))
 		return parser_good(pr);
@@ -919,9 +922,8 @@ parser_simple_stmt_enter(struct parser *pr, struct simple_cookie *simple)
 	arena_scope(pr->pr_arena.doc, doc_scope);
 	parser_arena_scope(&pr->pr_arena_scope.doc, &doc_scope, cookie);
 
-	pr->pr_simple.stmt = simple_stmt_enter(lx, pr->pr_st,
-	    &scratch_scope, pr->pr_arena.scratch,
-	    pr->pr_arena.buffer, pr->pr_op);
+	pr->pr_simple.stmt = simple_stmt_enter(lx, pr->pr_st, &scratch_scope,
+	    pr->pr_arena.scratch, pr->pr_arena.buffer, pr->pr_op);
 	dc = doc_root(&doc_scope);
 	lexer_peek_enter(lx, &s);
 	error = parser_stmt1(pr, dc);
@@ -936,20 +938,20 @@ parser_simple_stmt_enter(struct parser *pr, struct simple_cookie *simple)
 }
 
 static struct doc *
-parser_simple_stmt_no_braces_enter(struct parser *pr, struct doc *dc,
-    void **cookie)
+parser_simple_stmt_no_braces_enter(
+    struct parser *pr, struct doc *dc, void **cookie)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct token *lbrace;
-	unsigned int indent;
+	unsigned int  indent;
 
 	if (!is_simple_enabled(pr->pr_si, SIMPLE_STMT) ||
 	    !lexer_peek(lx, &lbrace))
 		return dc;
 
 	indent = (pr->pr_stmt.depth + 1) * style(pr->pr_st, IndentWidth);
-	return simple_stmt_no_braces_enter(pr->pr_simple.stmt, dc, lbrace,
-	    indent, cookie);
+	return simple_stmt_no_braces_enter(
+	    pr->pr_simple.stmt, dc, lbrace, indent, cookie);
 }
 
 static void
@@ -993,9 +995,9 @@ static int
 peek_simple_stmt(struct parser *pr)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *tk;
-	int peek = 0;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *tk;
+	int		   peek = 0;
 
 	if (!pr->pr_op->simple)
 		return 0;

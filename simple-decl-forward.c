@@ -1,28 +1,25 @@
-#include "simple-decl-forward.h"
-
-#include "config.h"
-
 #include <err.h>
 
+#include "config.h"
+#include "lexer.h"
 #include "libks/arena.h"
 #include "libks/compiler.h"
 #include "libks/vector.h"
-
-#include "lexer.h"
 #include "options.h"
+#include "simple-decl-forward.h"
 #include "token.h"
 
 struct simple_decl_forward {
-	VECTOR(struct decl_forward)	 decls;
-	const struct options		*op;
-	struct lexer			*lx;
-	struct token			*after;
+	VECTOR(struct decl_forward) decls;
+	const struct options *op;
+	struct lexer	     *lx;
+	struct token	     *after;
 };
 
 struct decl_forward {
-	struct token	*beg;
-	struct token	*ident;
-	struct token	*semi;
+	struct token *beg;
+	struct token *ident;
+	struct token *semi;
 };
 
 struct simple_decl_forward *
@@ -55,7 +52,7 @@ simple_decl_forward_reset(struct simple_decl_forward *sd)
 static struct token *
 first_token(struct simple_decl_forward *sd)
 {
-	static struct token fallback;
+	static struct token  fallback;
 	struct decl_forward *df;
 
 	df = VECTOR_FIRST(sd->decls);
@@ -65,7 +62,7 @@ first_token(struct simple_decl_forward *sd)
 static struct token *
 last_token(struct simple_decl_forward *sd)
 {
-	static struct token fallback;
+	static struct token  fallback;
 	struct decl_forward *df;
 
 	df = VECTOR_LAST(sd->decls);
@@ -76,7 +73,8 @@ void
 simple_decl_forward_leave(struct simple_decl_forward *sd)
 {
 	struct token *after = sd->after;
-	struct token *first_sorted, *first_unsorted, *last_sorted, *last_unsorted;
+	struct token *first_sorted, *first_unsorted, *last_sorted,
+	    *last_unsorted;
 	unsigned int i;
 
 	if (VECTOR_LENGTH(sd->decls) < 2)
@@ -95,7 +93,7 @@ simple_decl_forward_leave(struct simple_decl_forward *sd)
 
 	for (i = 0; i < VECTOR_LENGTH(sd->decls); i++) {
 		struct decl_forward *df = &sd->decls[i];
-		struct token *tk = df->beg;
+		struct token	    *tk = df->beg;
 
 		for (;;) {
 			struct token *nx;
@@ -124,15 +122,15 @@ static int
 is_forward_decl(const struct token *beg, const struct token *end)
 {
 	const int token_types[2][6] = {
-		{ TOKEN_TYPEDEF, TOKEN_STRUCT, TOKEN_IDENT, TOKEN_IDENT,
-		  TOKEN_SEMI, TOKEN_NONE },
-		{ TOKEN_STRUCT, TOKEN_IDENT, TOKEN_SEMI, TOKEN_NONE },
+	    {TOKEN_TYPEDEF, TOKEN_STRUCT, TOKEN_IDENT, TOKEN_IDENT, TOKEN_SEMI,
+		TOKEN_NONE},
+	    {TOKEN_STRUCT, TOKEN_IDENT, TOKEN_SEMI, TOKEN_NONE},
 	};
 	unsigned int i;
 
 	for (i = 0; i < countof(token_types); i++) {
 		const struct token *tk = beg;
-		int j;
+		int		    j;
 
 		for (j = 0; token_types[i][j] != TOKEN_NONE; j++) {
 			if (tk->tk_type != token_types[i][j])
@@ -172,8 +170,8 @@ is_covered_by_diff(struct token *beg, struct token *end)
 }
 
 void
-simple_decl_forward(struct simple_decl_forward *sd, struct token *beg,
-    struct token *semi)
+simple_decl_forward(
+    struct simple_decl_forward *sd, struct token *beg, struct token *semi)
 {
 	struct decl_forward *df;
 

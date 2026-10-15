@@ -7,14 +7,14 @@ main(void)
 #if 0
 {
 #else
-	f
+    f
 #else
-	
+
 #if 1
 }
 #endif
 
 #else
-	outS();
+    outS();
 #endif
 }

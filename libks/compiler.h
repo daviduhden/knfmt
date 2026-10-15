@@ -19,10 +19,10 @@
 #define LIBKS_COMPILER_H
 
 #if !defined(__has_attribute)
-#  define __has_attribute(x) 0
+#define __has_attribute(x) 0
 #endif
 
-#define UNUSED(x)	_##x __attribute__((unused))
+#define UNUSED(x) _##x __attribute__((unused))
 
 #ifndef NDEBUG
 #define NDEBUG_UNUSED(x) x
@@ -32,58 +32,63 @@
 
 /* _Static_assert() was introduced in C11; C23 makes it a keyword. */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-#  define STATIC_ASSERT(expression, message) static_assert(expression, message)
+#define STATIC_ASSERT(expression, message) static_assert(expression, message)
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#  define STATIC_ASSERT(expression, message) _Static_assert(expression, message)
+#define STATIC_ASSERT(expression, message) _Static_assert(expression, message)
 #else
-#  define STATIC_ASSERT(expression, message)
+#define STATIC_ASSERT(expression, message)
 #endif
 
-#define countof(x)	(sizeof((x)) / sizeof((x)[0]))
+#define countof(x) (sizeof((x)) / sizeof((x)[0]))
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-#  define FALLTHROUGH	[[fallthrough]]
+#define FALLTHROUGH [[fallthrough]]
 #elif __has_attribute(fallthrough)
-#  define FALLTHROUGH	__attribute__((fallthrough))
+#define FALLTHROUGH __attribute__((fallthrough))
 #else
-#  define FALLTHROUGH	do {} while (0) /* FALLTHROUGH */
+#define FALLTHROUGH                                                            \
+	do {                                                                   \
+	} while (0) /* FALLTHROUGH */
 #endif
 
-#define UNSAFE_CAST(type, ptr) __extension__ ({			\
-	union {							\
-		__typeof__(ptr) src;				\
-		type dst;					\
-	} _u = {.src = (ptr)};					\
-	_u.dst;							\
-})
+#define UNSAFE_CAST(type, ptr)                                                 \
+	__extension__({                                                        \
+		union {                                                        \
+			__typeof__(ptr) src;                                   \
+			type		dst;                                   \
+		} _u = {.src = (ptr)};                                         \
+		_u.dst;                                                        \
+	})
 
-#if defined(__clang__) && defined(__has_attribute) && __has_attribute(no_sanitize)
-#  define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
-#  define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
-#  define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW \
+#if defined(__clang__) && defined(__has_attribute) &&                          \
+    __has_attribute(no_sanitize)
+#define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
+#define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
+#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW                                    \
 	no_sanitize("signed-integer-overflow")
-#  define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW \
+#define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW                                  \
 	no_sanitize("unsigned-integer-overflow")
 #endif
 
-#if defined(__GNUC__) && defined(__has_attribute) && __has_attribute(no_sanitize)
-#  define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
-#  define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
-#  define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW \
+#if defined(__GNUC__) && defined(__has_attribute) &&                           \
+    __has_attribute(no_sanitize)
+#define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
+#define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
+#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW                                    \
 	no_sanitize("signed-integer-overflow")
 #endif
 
 #if !defined(NO_SANITIZE_ALIGNMENT)
-#  define NO_SANITIZE_ALIGNMENT
+#define NO_SANITIZE_ALIGNMENT
 #endif
 #if !defined(NO_SANITIZE_UNDEFINED)
-#  define NO_SANITIZE_UNDEFINED
+#define NO_SANITIZE_UNDEFINED
 #endif
 #if !defined(NO_SANITIZE_SIGNED_INTEGER_OVERFLOW)
-#  define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW
+#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW
 #endif
 #if !defined(NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)
-#  define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW
+#define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW
 #endif
 
 #endif /* !LIBKS_COMPILER_H */

@@ -1,12 +1,11 @@
-#include "options.h"
-
-#include "config.h"
-
 #include <err.h>
 #include <limits.h>
 #include <string.h>
 
-static int	ctotrace(char c);
+#include "config.h"
+#include "options.h"
+
+static int ctotrace(char c);
 
 void
 options_init(struct options *op)
@@ -40,8 +39,10 @@ static int
 ctotrace(char c)
 {
 	switch (c) {
-#define OP(name, shortname) case shortname: return TRACE_ ## name;
-	FOR_TRACE_TYPES(OP)
+#define OP(name, shortname)                                                    \
+	case shortname:                                                        \
+		return TRACE_##name;
+		FOR_TRACE_TYPES(OP)
 #undef OP
 	}
 	return -1;

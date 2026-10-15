@@ -1,14 +1,11 @@
-#include "parser-braces.h"
-
-#include "config.h"
-
-#include "libks/arena.h"
-
 #include "clang.h"
+#include "config.h"
 #include "doc.h"
 #include "expr.h"
 #include "lexer.h"
+#include "libks/arena.h"
 #include "parser-attributes.h"
+#include "parser-braces.h"
 #include "parser-cpp.h"
 #include "parser-expr.h"
 #include "parser-priv.h"
@@ -17,39 +14,37 @@
 #include "token.h"
 
 struct braces_field_arg {
-	struct doc		*parent;
-	struct doc		*dc;
-	struct ruler		*rl;
-	struct token		*rbrace;
-	unsigned int		 indent;
-	unsigned int		 col;
-	unsigned int		 flags;
+	struct doc   *parent;
+	struct doc   *dc;
+	struct ruler *rl;
+	struct token *rbrace;
+	unsigned int  indent;
+	unsigned int  col;
+	unsigned int  flags;
 };
 
 struct lbrace_cache {
-	int		 searched;
-	struct token	*lbrace;
+	int	      searched;
+	struct token *lbrace;
 };
 
-static int	parser_braces_with_ruler(struct parser *, struct doc *,
-    struct doc *, struct ruler *, unsigned int, unsigned int);
-static int	parser_braces_field(struct parser *, struct braces_field_arg *);
-static int	parser_braces_field1(struct parser *,
-    struct braces_field_arg *);
+static int parser_braces_with_ruler(struct parser *, struct doc *, struct doc *,
+    struct ruler *, unsigned int, unsigned int);
+static int parser_braces_field(struct parser *, struct braces_field_arg *);
+static int parser_braces_field1(struct parser *, struct braces_field_arg *);
 
-static struct token	*peek_expr_stop(struct parser *, struct lbrace_cache *,
-    struct token *);
-static struct token	*lbrace_cache_lookup(struct parser *,
-    struct lbrace_cache *, struct token *);
-static void		 insert_trailing_comma(struct parser *,
-    struct token *);
+static struct token *peek_expr_stop(
+    struct parser *, struct lbrace_cache *, struct token *);
+static struct token *lbrace_cache_lookup(
+    struct parser *, struct lbrace_cache *, struct token *);
+static void insert_trailing_comma(struct parser *, struct token *);
 
 int
 parser_braces(struct parser *pr, struct doc *parent, struct doc *dc,
     unsigned int indent, unsigned int flags)
 {
 	struct ruler rl;
-	int error;
+	int	     error;
 
 	arena_scope(pr->pr_arena.ruler, ruler_scope);
 
@@ -96,15 +91,15 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
     struct ruler *rl, unsigned int indent_width, unsigned int flags)
 {
 	struct lbrace_cache lbrace_cache = {0};
-	struct doc *braces, *indent;
-	struct lexer *lx = pr->pr_lx;
-	struct token *lbrace, *pv, *rbrace, *tk;
-	unsigned int col = 0;
-	unsigned int w = 0;
-	int align, error;
+	struct doc	   *braces, *indent;
+	struct lexer	   *lx = pr->pr_lx;
+	struct token	   *lbrace, *pv, *rbrace, *tk;
+	unsigned int	    col = 0;
+	unsigned int	    w = 0;
+	int		    align, error;
 
-	if (!lexer_peek_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace,
-	    &rbrace))
+	if (!lexer_peek_if_pair(
+		lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace))
 		return parser_fail(pr);
 
 	braces = doc_alloc(DOC_CONCAT, dc);
@@ -148,7 +143,8 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 			doc_literal(" ", braces);
 		parent_width = parser_width(pr, parent);
 		sub = pr->pr_braces.depth > 0 ?
-		    (pr->pr_braces.depth - 1) * indent_width : 0;
+		    (pr->pr_braces.depth - 1) * indent_width :
+		    0;
 		effective_indent = parent_width > sub ? parent_width - sub : 0;
 		indent = doc_indent(effective_indent, braces);
 	} else if (!is_first_token_on_line(lbrace)) {
@@ -172,8 +168,8 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 	}
 
 	for (;;) {
-		struct doc *expr = nullptr;
-		struct doc *concat;
+		struct doc   *expr = nullptr;
+		struct doc   *concat;
 		struct token *comma, *nx;
 
 		if (!lexer_peek(lx, &tk) || tk->tk_type == LEXER_EOF)
@@ -187,13 +183,13 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 		    lexer_peek_if(lx, TOKEN_PERIOD, nullptr) ||
 		    lexer_peek_if(lx, TOKEN_LSQUARE, nullptr)) {
 			struct braces_field_arg arg = {
-				.parent	= parent,
-				.dc	= concat,
-				.rl	= rl,
-				.rbrace	= rbrace,
-				.indent	= indent_width,
-				.col	= col,
-				.flags	= flags,
+			    .parent = parent,
+			    .dc = concat,
+			    .rl = rl,
+			    .rbrace = rbrace,
+			    .indent = indent_width,
+			    .col = col,
+			    .flags = flags,
 			};
 			error = parser_braces_field(pr, &arg);
 			if (error & HALT)
@@ -217,15 +213,16 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 			struct token *stop;
 
 			stop = peek_expr_stop(pr, &lbrace_cache, rbrace);
-			/* Delegate column alignment to the expression parser. */
+			/* Delegate column alignment to the expression parser.
+			 */
 			error = parser_expr(pr, &expr,
 			    &(struct parser_expr_arg){
-				.dc	= concat,
-				.rl	= !align ? rl : nullptr,
-				.stop	= stop,
-				.flags	= EXPR_EXEC_NOSOFT |
+				.dc = concat,
+				.rl = !align ? rl : nullptr,
+				.stop = stop,
+				.flags = EXPR_EXEC_NOSOFT |
 				    (!align ? EXPR_EXEC_ALIGN : 0),
-			});
+			    });
 			if (error & HALT)
 				return parser_fail(pr);
 		}
@@ -256,13 +253,13 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 		    token_has_spaces(pv) && !token_has_line(pv, 1)) {
 			/*
 			 * Previous token already emitted, honor spaces. The
-			 * spacing after an assignment operator is emitted by the
-			 * expression formatter, so re-emitting its spaces here
-			 * would duplicate them and break idempotence when the
-			 * initializer is recovered as an expression.
+			 * spacing after an assignment operator is emitted by
+			 * the expression formatter, so re-emitting its spaces
+			 * here would duplicate them and break idempotence when
+			 * the initializer is recovered as an expression.
 			 */
-			parser_doc_token(pr, token_find_suffix_spaces(pv),
-			    concat);
+			parser_doc_token(
+			    pr, token_find_suffix_spaces(pv), concat);
 		} else if (pv->tk_type == TOKEN_COMMA &&
 		    token_cmp(pv, nx) == 0) {
 			/* Missing spaces after comma. */
@@ -274,8 +271,8 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 			 */
 			if (token_cmp(pv, rbrace) < 0) {
 				if (flags & PARSER_BRACES_DEDENT) {
-					braces = doc_dedent(indent_width,
-					    braces);
+					braces =
+					    doc_dedent(indent_width, braces);
 				}
 				doc_alloc(DOC_HARDLINE, braces);
 			}
@@ -289,9 +286,9 @@ parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
 			doc_alloc(DOC_HARDLINE, indent);
 		}
 
-next:
-		if ((flags & PARSER_BRACES_ENUM) == 0 &&
-		    lexer_back(lx, &nx) && token_has_line(nx, 2))
+	next:
+		if ((flags & PARSER_BRACES_ENUM) == 0 && lexer_back(lx, &nx) &&
+		    token_has_line(nx, 2))
 			ruler_exec(rl);
 	}
 
@@ -316,11 +313,11 @@ static int
 parser_braces_field(struct parser *pr, struct braces_field_arg *arg)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *dc = arg->dc;
+	struct doc   *dc = arg->dc;
 	struct ruler *rl = arg->rl;
 	struct token *equal, *lbrace, *stop;
-	int nfields = 0;
-	int error;
+	int	      nfields = 0;
+	int	      error;
 
 	for (;;) {
 		error = parser_braces_field1(pr, arg);
@@ -338,8 +335,8 @@ parser_braces_field(struct parser *pr, struct braces_field_arg *arg)
 	if (!lexer_if(lx, TOKEN_EQUAL, &equal))
 		return parser_good(pr);
 
-	ruler_insert(rl, token_prev(equal), dc, ++arg->col,
-	    parser_width(pr, dc), 0);
+	ruler_insert(
+	    rl, token_prev(equal), dc, ++arg->col, parser_width(pr, dc), 0);
 	parser_doc_token(pr, equal, dc);
 	doc_literal(" ", dc);
 
@@ -348,18 +345,18 @@ parser_braces_field(struct parser *pr, struct braces_field_arg *arg)
 	    token_cmp(equal, lbrace) == 0) {
 		unsigned int nested_flags = arg->flags & ~PARSER_BRACES_DEDENT;
 
-		return parser_braces(pr, arg->parent, dc, arg->indent,
-		    nested_flags);
+		return parser_braces(
+		    pr, arg->parent, dc, arg->indent, nested_flags);
 	}
 
 	lexer_peek_until_comma(lx, arg->rbrace, &stop);
-	error = parser_expr(pr, nullptr, &(struct parser_expr_arg){
-	    .dc		= dc,
-	    .stop	= stop,
-	    .indent	= arg->indent,
-	    .flags	= token_has_line(equal, 1) ?
-		EXPR_EXEC_HARDLINE : 0,
-	});
+	error = parser_expr(pr, nullptr,
+	    &(struct parser_expr_arg){
+		.dc = dc,
+		.stop = stop,
+		.indent = arg->indent,
+		.flags = token_has_line(equal, 1) ? EXPR_EXEC_HARDLINE : 0,
+	    });
 	if (error & HALT)
 		return parser_fail(pr);
 	return parser_good(pr);
@@ -369,9 +366,9 @@ static int
 parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc *dc = arg->dc;
+	struct doc   *dc = arg->dc;
 	struct token *tk;
-	int error;
+	int	      error;
 
 	/*
 	 * A malformed field sequence may be recovered as several adjacent
@@ -397,9 +394,10 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 		struct doc *expr = nullptr;
 
 		parser_doc_token(pr, tk, dc);
-		error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-		    .dc	= dc,
-		});
+		error = parser_expr(pr, &expr,
+		    &(struct parser_expr_arg){
+			.dc = dc,
+		    });
 		if (error & HALT)
 			return parser_fail(pr);
 		if (lexer_expect(lx, TOKEN_RSQUARE, &tk))
@@ -429,8 +427,8 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 			parser_doc_token(pr, tk, dc);
 			error = parser_expr(pr, &expr,
 			    &(struct parser_expr_arg){
-				.dc	= dc,
-			});
+				.dc = dc,
+			    });
 			if (error & FAIL)
 				return parser_fail(pr);
 			if (error & HALT)
@@ -446,8 +444,8 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 }
 
 static struct token *
-peek_expr_stop(struct parser *pr, struct lbrace_cache *cache,
-    struct token *rbrace)
+peek_expr_stop(
+    struct parser *pr, struct lbrace_cache *cache, struct token *rbrace)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct token *comma, *rparen, *stop;
@@ -469,14 +467,15 @@ static struct token *
 find_next_lbrace(struct parser *pr)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *next_lbrace = nullptr;
-	struct token *lbrace, *rbrace;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *next_lbrace = nullptr;
+	struct token	  *lbrace, *rbrace;
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_peek_until(lx, TOKEN_LBRACE, &lbrace)) {
 		lexer_seek(lx, lbrace);
-		if (lexer_peek_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace) &&
+		if (lexer_peek_if_pair(
+			lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace) &&
 		    token_cmp(lbrace, rbrace) != 0)
 			next_lbrace = lbrace;
 	}
@@ -485,8 +484,8 @@ find_next_lbrace(struct parser *pr)
 }
 
 static struct token *
-lbrace_cache_lookup(struct parser *pr, struct lbrace_cache *cache,
-    struct token *fallback)
+lbrace_cache_lookup(
+    struct parser *pr, struct lbrace_cache *cache, struct token *fallback)
 {
 	/*
 	 * Remember that the search was performed even when no nested left brace
@@ -512,12 +511,11 @@ insert_trailing_comma(struct parser *pr, struct token *rbrace)
 		return;
 
 	pv = token_prev(rbrace);
-	if (pv->tk_type == TOKEN_COMMA ||
-	    pv->tk_type == TOKEN_RPAREN ||
+	if (pv->tk_type == TOKEN_COMMA || pv->tk_type == TOKEN_RPAREN ||
 	    !token_has_line(pv, 1))
 		return;
 
-	comma = lexer_insert_after(pr->pr_lx, pv,
-	    clang_keyword_token(TOKEN_COMMA));
+	comma =
+	    lexer_insert_after(pr->pr_lx, pv, clang_keyword_token(TOKEN_COMMA));
 	token_move_suffixes_if(pv, comma, TOKEN_SPACE);
 }

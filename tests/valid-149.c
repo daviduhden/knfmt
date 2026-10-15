@@ -2,5 +2,5 @@
  * Honor no alignment.
  */
 
-int x;
+int	    x;
 const char *p;

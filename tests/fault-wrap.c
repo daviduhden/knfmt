@@ -15,12 +15,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-void	*__real_malloc(size_t);
-void	*__real_calloc(size_t, size_t);
-void	*__real_realloc(void *, size_t);
+void *__real_malloc(size_t);
+void *__real_calloc(size_t, size_t);
+void *__real_realloc(void *, size_t);
 
-static long	fault_at = -1;
-static long	ncalls;
+static long fault_at = -1;
+static long ncalls;
 
 static int
 should_fail(void)
@@ -60,8 +60,7 @@ __wrap_realloc(void *ptr, size_t size)
 	return __real_realloc(ptr, size);
 }
 
-__attribute__((constructor))
-static void
+__attribute__((constructor)) static void
 fault_init(void)
 {
 	const char *s = getenv("FAULT_AT");

@@ -20,13 +20,14 @@
 
 #ifndef NDEBUG
 
-#define ASSERT_CONSISTENCY(a, b) do {					\
-	if (assert_consistency(!!(a) == !!(b), #a, #b,			\
-	    __func__, __LINE__))					\
-		__builtin_trap();					\
-} while (0)
+#define ASSERT_CONSISTENCY(a, b)                                               \
+	do {                                                                   \
+		if (assert_consistency(                                        \
+			!!(a) == !!(b), #a, #b, __func__, __LINE__))           \
+			__builtin_trap();                                      \
+	} while (0)
 
-int	assert_consistency(int, const char *, const char *, const char *, int);
+int assert_consistency(int, const char *, const char *, const char *, int);
 
 #else
 

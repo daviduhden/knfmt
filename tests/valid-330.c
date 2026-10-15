@@ -5,7 +5,6 @@
 int
 main(void)
 {
-	foo(
-	    bar    // comment
+	foo(bar // comment
 	);
 }

@@ -5,7 +5,9 @@
 int
 main(void)
 {
-	ucd->cmd.hdr.taskid = ufshci_get_taskid(sc);;;
+	ucd->cmd.hdr.taskid = ufshci_get_taskid(sc);
+	;
+	;
 	;
 
 	;

@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <string.h>
+
 #include "libks/compiler.h"
 
 enum vendor {
@@ -37,30 +38,28 @@ struct fms {
 };
 
 struct enumerations {
-	struct cpuid cpuid_01,
-		     cpuid_07,
-		     cpuid_80000001;
+	struct cpuid cpuid_01, cpuid_07, cpuid_80000001;
 
 	uint64_t xcr0;
 };
 
 extern int KS_x86_capabilites_impl(struct KS_x86_capabilites *);
 
-static void cpuid(uint32_t, uint32_t, struct cpuid *);
+static void	cpuid(uint32_t, uint32_t, struct cpuid *);
 static uint64_t xgetbv(uint32_t);
 
 extern void (*KS_cpuid)(uint32_t, uint32_t, struct cpuid *);
-void (*KS_cpuid)(uint32_t, uint32_t, struct cpuid *) = cpuid;
+void	    (*KS_cpuid)(uint32_t, uint32_t, struct cpuid *) = cpuid;
 
 extern uint64_t (*KS_xgetbv)(uint32_t);
-uint64_t (*KS_xgetbv)(uint32_t) = xgetbv;
+uint64_t	(*KS_xgetbv)(uint32_t) = xgetbv;
 
 static void
 cpuid(uint32_t leaf, uint32_t subleaf, struct cpuid *out)
 {
 	__asm__("cpuid"
-	    : "=a" (out->a), "=b" (out->b), "=c" (out->c), "=d" (out->d)
-	    : "a" (leaf), "c" (subleaf));
+	    : "=a"(out->a), "=b"(out->b), "=c"(out->c), "=d"(out->d)
+	    : "a"(leaf), "c"(subleaf));
 }
 
 static uint64_t
@@ -71,9 +70,7 @@ xgetbv(uint32_t regno)
 		uint64_t u64;
 	} xcr;
 
-	__asm__("xgetbv"
-	    : "=a" (xcr.u32[0]), "=d" (xcr.u32[1])
-	    : "c" (regno));
+	__asm__("xgetbv" : "=a"(xcr.u32[0]), "=d"(xcr.u32[1]) : "c"(regno));
 	return xcr.u64;
 }
 
@@ -81,7 +78,7 @@ static int
 is_x86(uint32_t *max_leaf, uint32_t *extended_max_leaf, enum vendor *vendor)
 {
 	union {
-		uint8_t u8[12];
+		uint8_t	 u8[12];
 		uint32_t u32[3];
 	} ident;
 	struct cpuid leaf;
@@ -113,7 +110,8 @@ fms(const struct enumerations *e, struct fms *fms)
 
 	uint32_t base_model = (e->cpuid_01.a >> 4) & 0xf;
 	uint32_t ext_model = (e->cpuid_01.a >> 16) & 0xf;
-	fms->m = base_model + (base_family == 0x6 || base_family == 0xf ? (ext_model << 4) : 0);
+	fms->m = base_model +
+	    (base_family == 0x6 || base_family == 0xf ? (ext_model << 4) : 0);
 
 	fms->s = e->cpuid_01.a & 0xf;
 }
@@ -124,9 +122,9 @@ intel_uarch(const struct enumerations *e, struct KS_x86_capabilites *caps)
 	/* Based on intel-family.h from the Linux kernel. */
 	static const struct {
 		enum KS_x86_uarch uarch;
-		struct fms fms;
+		struct fms	  fms;
 	} lut[] = {
-		/* clang-format off */
+	    /* clang-format off */
 
 		{ KS_X86_INTEL_CORE_YONAH,       { 6, 0x0e, 0 } },
 		{ KS_X86_INTEL_CORE2_MEROM,      { 6, 0x0f, 0 } },
@@ -226,13 +224,14 @@ intel_uarch(const struct enumerations *e, struct KS_x86_capabilites *caps)
 
 		{ KS_X86_INTEL_DIAMONDRAPIDS,    { 19, 0x01, 0 } },
 
-		/* clang-format on */
+	    /* clang-format on */
 	};
 
 	struct fms f = {0};
 	fms(e, &f);
 	for (uint32_t i = 0; i < countof(lut); i++) {
-		if (f.f == lut[i].fms.f && f.m == lut[i].fms.m && f.s == lut[i].fms.s) {
+		if (f.f == lut[i].fms.f && f.m == lut[i].fms.m &&
+		    f.s == lut[i].fms.s) {
 			caps->uarch = lut[i].uarch;
 			break;
 		}
@@ -244,19 +243,20 @@ amd_uarch(const struct enumerations *e, struct KS_x86_capabilites *caps)
 {
 	static const struct {
 		enum KS_x86_uarch uarch;
-		struct fms fms;
+		struct fms	  fms;
 	} lut[] = {
-		/* clang-format off */
+	    /* clang-format off */
 
 		{ KS_X86_AMD_JAGUAR,       { 22, 0x30, 1 } },
 
-		/* clang-format on */
+	    /* clang-format on */
 	};
 
 	struct fms f = {0};
 	fms(e, &f);
 	for (uint32_t i = 0; i < countof(lut); i++) {
-		if (f.f == lut[i].fms.f && f.m == lut[i].fms.m && f.s == lut[i].fms.s) {
+		if (f.f == lut[i].fms.f && f.m == lut[i].fms.m &&
+		    f.s == lut[i].fms.s) {
 			caps->uarch = lut[i].uarch;
 			break;
 		}
@@ -272,7 +272,7 @@ mode(struct KS_x86_capabilites *caps)
 	 * 32-bit mode if the same register is equal to 0 after executing this
 	 * sequence. */
 	int is_64 = 1;
-	__asm__ volatile (".byte 0x48, 0x90" : "=a" (is_64) : "a" (is_64));
+	__asm__ volatile(".byte 0x48, 0x90" : "=a"(is_64) : "a"(is_64));
 	caps->mode = is_64 ? 64 : 32;
 }
 
@@ -342,7 +342,7 @@ lzcnt(const struct enumerations *e, struct KS_x86_capabilites *caps)
 int
 KS_x86_capabilites_impl(struct KS_x86_capabilites *caps)
 {
-	uint32_t extended_max_leaf, max_leaf;
+	uint32_t    extended_max_leaf, max_leaf;
 	enum vendor vendor;
 	if (!is_x86(&max_leaf, &extended_max_leaf, &vendor))
 		return 0;
@@ -373,9 +373,9 @@ KS_x86_capabilites_impl(struct KS_x86_capabilites *caps)
 const struct KS_x86_capabilites *
 KS_x86_capabilites(void)
 {
-	static struct KS_x86_capabilites storage = {0};
+	static struct KS_x86_capabilites  storage = {0};
 	static struct KS_x86_capabilites *caps = nullptr;
-	static int first = 1;
+	static int			  first = 1;
 	if (!first)
 		return caps;
 	first = 0;
@@ -388,7 +388,8 @@ KS_x86_capabilites(void)
 
 #else
 
-#include <stddef.h>	/* nullptr */
+#include <stddef.h> /* nullptr */
+
 #include "libks/compiler.h"
 
 const struct KS_x86_capabilites *

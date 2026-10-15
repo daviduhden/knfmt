@@ -2,18 +2,17 @@ struct arena_scope;
 struct buffer;
 
 struct files {
-	struct file	*fs_vc;			/* VECTOR(struct file) */
+	struct file *fs_vc; /* VECTOR(struct file) */
 };
 
 struct file {
-	struct diffchunk	*fe_diff;	/* VECTOR(struct diffchunk) */
-	char			*fe_path;
-	int			 fe_fd;
+	struct diffchunk *fe_diff; /* VECTOR(struct diffchunk) */
+	char		 *fe_path;
+	int		  fe_fd;
 };
 
-struct file	*files_alloc(struct files *, const char *,
-    struct arena_scope *);
-void		 files_free(struct files *);
+struct file *files_alloc(struct files *, const char *, struct arena_scope *);
+void	     files_free(struct files *);
 
-int	file_read(struct file *, struct buffer *);
-void	file_close(struct file *);
+int  file_read(struct file *, struct buffer *);
+void file_close(struct file *);

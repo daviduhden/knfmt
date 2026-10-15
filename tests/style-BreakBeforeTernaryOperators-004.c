@@ -6,7 +6,5 @@
 int
 main(void)
 {
-	return foo(bar)
-	    ? foo(bar)
-	    : 2;
+	return foo(bar) ? foo(bar) : 2;
 }

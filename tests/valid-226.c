@@ -5,6 +5,5 @@
 int
 main(void)
 {
-	(*fn)(one,
-	    two);
+	(*fn)(one, two);
 }

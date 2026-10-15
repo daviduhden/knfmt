@@ -8,5 +8,5 @@ struct s {
 int
 f(void)
 {
-	return ((struct s){ .a = 1 }).a;
+	return ((struct s){.a = 1}).a;
 }

@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	char match[200] = { 0 }, *str = match;
+	char match[200] = {0}, *str = match;
 }

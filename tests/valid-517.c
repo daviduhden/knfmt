@@ -3,4 +3,4 @@
  */
 
 typedef int T;
-T (g)(T);
+T(g)(T);

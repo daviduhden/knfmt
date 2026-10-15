@@ -15,13 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/string.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "libks/arena-buffer.h"
 #include "libks/arena-vector.h"
 #include "libks/arena.h"
@@ -29,11 +29,12 @@
 #include "libks/bit.h"
 #include "libks/buffer.h"
 #include "libks/section.h"
+#include "libks/string.h"
 #include "libks/vector.h"
 
-extern int	KS_str_match_init_default(const char *, struct KS_str_match *);
+extern int KS_str_match_init_default(const char *, struct KS_str_match *);
 
-static void	KS_str_init(void) __attribute__((constructor));
+static void KS_str_init(void) __attribute__((constructor));
 
 static struct KS_str_match match_spaces;
 KS_str_match_init_once("  \f\f\n\n\r\r\t\t\v\v", &match_spaces);
@@ -72,15 +73,15 @@ KS_str_match_init_default(const char *ranges, struct KS_str_match *match)
 }
 
 size_t
-KS_str_match_default(const char *str, size_t len,
-    const struct KS_str_match *match)
+KS_str_match_default(
+    const char *str, size_t len, const struct KS_str_match *match)
 {
 	const char *ranges = match->u8;
-	size_t i;
+	size_t	    i;
 
 	for (i = 0; i < len; i++) {
 		size_t j;
-		int found = 0;
+		int    found = 0;
 
 		for (j = 0; ranges[j] != '\0'; j += 2) {
 			if (str[i] >= ranges[j] && str[i] <= ranges[j + 1]) {
@@ -102,11 +103,11 @@ KS_str_match_spaces(const char *str, size_t len)
 }
 
 size_t
-KS_str_match_until_default(const char *str, size_t len,
-    const struct KS_str_match *match)
+KS_str_match_until_default(
+    const char *str, size_t len, const struct KS_str_match *match)
 {
 	const char *ranges = match->u8;
-	size_t i;
+	size_t	    i;
 
 	for (i = 0; i < len; i++) {
 		size_t j;
@@ -127,8 +128,8 @@ KS_str_match_until_spaces(const char *str, size_t len)
 }
 
 char **
-KS_str_split(const char *str, const struct KS_str_match *match,
-    struct arena_scope *s)
+KS_str_split(
+    const char *str, const struct KS_str_match *match, struct arena_scope *s)
 {
 	VECTOR(char *) parts;
 	size_t len;
@@ -168,7 +169,7 @@ char *
 KS_str_vis(const char *str, size_t len, struct arena_scope *s)
 {
 	struct buffer *bf;
-	size_t i, size;
+	size_t	       i, size;
 
 	/*
 	 * Worst case every byte expands to four characters ("\xNN"), plus the
@@ -254,7 +255,7 @@ KS_str_to_u64(const char *str, uint64_t *out)
 		return 1;
 	}
 
-	char *end;
+	char		  *end;
 	unsigned long long val = strtoull(str, &end, 0);
 	if (end[0] != '\0') {
 		errno = EINVAL;

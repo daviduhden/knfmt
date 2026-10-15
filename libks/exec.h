@@ -18,8 +18,8 @@
 #ifndef LIBKS_EXEC_H
 #define LIBKS_EXEC_H
 
-#include <stddef.h>	/* size_t */
+#include <stddef.h> /* size_t */
 
-int	KS_exec_diff(const char *, const char *, size_t, const char *, size_t);
+int KS_exec_diff(const char *, const char *, size_t, const char *, size_t);
 
 #endif /* !LIBKS_EXEC_H */

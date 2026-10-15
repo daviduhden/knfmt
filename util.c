@@ -1,20 +1,24 @@
-#include "util.h"
-
-#include "config.h"
-
 #include <stdint.h>
 
+#include "config.h"
 #include "libks/arena-buffer.h"
 #include "libks/buffer.h"
 #include "libks/string.h"
 #include "libks/vector.h"
+#include "util.h"
 
 unsigned int
 colwidth(const char *str, size_t len, unsigned int cno)
 {
 	static const uint8_t tab_offsets[8] = {
-		[0] = 0 + 1, [1] = 7 + 1, [2] = 6 + 1, [3] = 5 + 1,
-		[4] = 4 + 1, [5] = 3 + 1, [6] = 2 + 1, [7] = 1 + 1,
+	    [0] = 0 + 1,
+	    [1] = 7 + 1,
+	    [2] = 6 + 1,
+	    [3] = 5 + 1,
+	    [4] = 4 + 1,
+	    [5] = 3 + 1,
+	    [6] = 2 + 1,
+	    [7] = 1 + 1,
 	};
 	static struct KS_str_match match;
 
@@ -50,8 +54,14 @@ size_t
 strwidth(const char *str, size_t len, size_t pos)
 {
 	static const uint8_t tab_offsets[8] = {
-		[0] = 8, [1] = 7, [2] = 6, [3] = 5,
-		[4] = 4, [5] = 3, [6] = 2, [7] = 1,
+	    [0] = 8,
+	    [1] = 7,
+	    [2] = 6,
+	    [3] = 5,
+	    [4] = 4,
+	    [5] = 3,
+	    [6] = 2,
+	    [7] = 1,
 	};
 	static struct KS_str_match match;
 
@@ -88,7 +98,7 @@ path_slice(const char *path, unsigned int ncomponents, struct arena_scope *s)
 
 	VECTOR(char *) components;
 	struct buffer *bf;
-	unsigned int i, n;
+	unsigned int   i, n;
 
 	components = KS_str_split(path, &match, s);
 	n = VECTOR_LENGTH(components);

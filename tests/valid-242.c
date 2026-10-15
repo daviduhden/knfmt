@@ -3,6 +3,6 @@
  */
 
 int chrtoblktbl[] = {
-	/*VCHR*/	/*VBLK*/
-	/*  0 */	NODEV,
+    /*VCHR*/ /*VBLK*/
+    /*  0 */ NODEV,
 };

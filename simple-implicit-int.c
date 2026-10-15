@@ -1,14 +1,12 @@
-#include "simple-implicit-int.h"
-
-#include "config.h"
-
 #include "clang.h"
+#include "config.h"
 #include "lexer.h"
+#include "simple-implicit-int.h"
 #include "token.h"
 
 static int
-is_implicit_int(const struct token *beg, const struct token *end,
-    int token_type)
+is_implicit_int(
+    const struct token *beg, const struct token *end, int token_type)
 {
 	/* Allow implicit integer(s) to be preceded by static. */
 	if (token_next(beg) == end && beg->tk_type == TOKEN_STATIC)

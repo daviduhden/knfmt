@@ -5,6 +5,5 @@
 int
 main(void)
 {
-	(int)(sa) +
-	    len;
+	(int)(sa) + len;
 }

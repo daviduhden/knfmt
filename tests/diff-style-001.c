@@ -3,8 +3,6 @@
  */
 
 int
-main(int a,
-     int b, int d,
-     int c)
+main(int a, int b, int d, int c)
 {
 }

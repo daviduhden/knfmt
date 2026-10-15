@@ -5,5 +5,5 @@
 static void
 foo(void)
 {
-	asm("" : "+r" (*bar()));
+	asm("" : "+r"(*bar()));
 }

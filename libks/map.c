@@ -15,91 +15,86 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/map.h"
 #include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "libks/arithmetic.h"
 #include "libks/compiler.h"
+#include "libks/map.h"
 
 struct map_element {
-	struct map_element *prev;	/* prev element in app order      */
-	struct map_element *next;	/* next element in app order      */
-	struct map_element *hh_prev;	/* previous hh in bucket order    */
-	struct map_element *hh_next;	/* next hh in bucket order        */
-	const void *key;		/* ptr to enclosing struct's key  */
-	size_t keylen;			/* enclosing struct's key len     */
-	unsigned int hashv;		/* result of hash-fcn(key)        */
+	struct map_element *prev;    /* prev element in app order      */
+	struct map_element *next;    /* next element in app order      */
+	struct map_element *hh_prev; /* previous hh in bucket order    */
+	struct map_element *hh_next; /* next hh in bucket order        */
+	const void	   *key;     /* ptr to enclosing struct's key  */
+	size_t		    keylen;  /* enclosing struct's key len     */
+	unsigned int	    hashv;   /* result of hash-fcn(key)        */
 };
 
 struct map {
-	struct UT_hash_table	*table;
-	struct map_element	*head;
+	struct UT_hash_table *table;
+	struct map_element   *head;
 
 	struct {
-		size_t	size;
+		size_t size;
 	} key;
 
 	struct {
-		size_t	size;
+		size_t size;
 	} element;
 
 	struct {
-		size_t	size;
-		size_t	size_aligned;
+		size_t size;
+		size_t size_aligned;
 	} val;
 
-	unsigned int		 flags;
+	unsigned int flags;
 };
 
 struct hash_key {
 	union {
-		const uint8_t	*u8;
-		const uint32_t	*u32;
-		const uintptr_t	 ptr;
+		const uint8_t  *u8;
+		const uint32_t *u32;
+		const uintptr_t ptr;
 	} u;
-	size_t	len;
+	size_t len;
 };
 
-static struct map_element	*map_alloc_element(struct map *, size_t);
+static struct map_element *map_alloc_element(struct map *, size_t);
 
-static void	*element_get_key(const struct map *, struct map_element *);
-static void	*element_get_val(struct map_element *);
+static void *element_get_key(const struct map *, struct map_element *);
+static void *element_get_val(struct map_element *);
 
-static const void	*key_get_ptr(const struct map *, const void *const *);
-static size_t		 key_get_size(const struct map *, const void *);
+static const void *key_get_ptr(const struct map *, const void *const *);
+static size_t	   key_get_size(const struct map *, const void *);
 
-static int	pointer_align(size_t, size_t *);
+static int pointer_align(size_t, size_t *);
 
-static int			 HASH_ADD(struct map *, const void *,
-    size_t, struct map_element *);
-static int			 HASH_ADD_TO_TABLE(struct map *,
-    unsigned int, struct map_element *);
-static void			 HASH_APPEND_LIST(struct map *,
-    struct map_element *);
-static void			 HASH_DELETE(struct map *,
-    struct map_element *);
-static void			 HASH_DEL_IN_BKT(struct map *,
-    const struct map_element *);
-static int			 HASH_EXPAND_BUCKETS(struct map *);
-static struct map_element	*HASH_FIND(struct map *, const void *,
-    size_t);
-static struct UT_hash_table	*HASH_MAKE_TABLE(struct map_element *);
-static unsigned int		 HASH_TO_BKT(unsigned int, unsigned int);
-static unsigned int		 HASH_JEN(const void *, size_t)
-	__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW));
+static int  HASH_ADD(struct map *, const void *, size_t, struct map_element *);
+static int  HASH_ADD_TO_TABLE(struct map *, unsigned int, struct map_element *);
+static void HASH_APPEND_LIST(struct map *, struct map_element *);
+static void HASH_DELETE(struct map *, struct map_element *);
+static void HASH_DEL_IN_BKT(struct map *, const struct map_element *);
+static int  HASH_EXPAND_BUCKETS(struct map *);
+static struct map_element   *HASH_FIND(struct map *, const void *, size_t);
+static struct UT_hash_table *HASH_MAKE_TABLE(struct map_element *);
+static unsigned int	     HASH_TO_BKT(unsigned int, unsigned int);
+static unsigned int	     HASH_JEN(const void *, size_t)
+    __attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW));
 
 int
 map_init(void **mp, size_t keysize, size_t valsize, unsigned int flags)
 {
 	struct map *m;
-	size_t elementsize, valsize_aligned;
+	size_t	    elementsize, valsize_aligned;
 
 	if (pointer_align(valsize, &valsize_aligned))
 		goto overflow;
-	if (KS_size_add_overflow(valsize_aligned, sizeof(struct map_element),
-	    &elementsize))
+	if (KS_size_add_overflow(
+		valsize_aligned, sizeof(struct map_element), &elementsize))
 		goto overflow;
 	if ((flags & MAP_KEY_STR) == 0 &&
 	    KS_size_add_overflow(keysize, elementsize, &elementsize))
@@ -124,7 +119,7 @@ overflow:
 void
 map_free(void *mp)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el, *nx;
 
 	if (m == nullptr)
@@ -148,9 +143,9 @@ map_insert(void *mp, const void *const *key)
 void *
 map_insert_n(void *mp, const void *const *key, size_t keysize)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el;
-	const void *keyptr;
+	const void	   *keyptr;
 
 	keyptr = key_get_ptr(m, key);
 	el = map_alloc_element(m, keysize);
@@ -167,7 +162,7 @@ map_insert_n(void *mp, const void *const *key, size_t keysize)
 void *
 map_key(void *mp, void *val)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el = (struct map_element *)val;
 
 	return element_get_key(m, &el[-1]);
@@ -176,10 +171,10 @@ map_key(void *mp, void *val)
 void *
 map_find(void *mp, const void *const *key)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el;
-	const void *keyptr;
-	size_t keysize;
+	const void	   *keyptr;
+	size_t		    keysize;
 
 	keyptr = key_get_ptr(m, key);
 	keysize = key_get_size(m, keyptr);
@@ -190,9 +185,9 @@ map_find(void *mp, const void *const *key)
 void *
 map_find_n(void *mp, const void *const *key, size_t keysize)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el;
-	const void *keyptr;
+	const void	   *keyptr;
 
 	keyptr = key_get_ptr(m, key);
 	el = HASH_FIND(m, keyptr, keysize);
@@ -202,10 +197,10 @@ map_find_n(void *mp, const void *const *key, size_t keysize)
 void
 map_remove(void *mp, const void *const *key)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el;
-	const void *keyptr;
-	size_t keysize;
+	const void	   *keyptr;
+	size_t		    keysize;
 
 	keyptr = key_get_ptr(m, key);
 	keysize = key_get_size(m, keyptr);
@@ -218,7 +213,7 @@ map_remove(void *mp, const void *const *key)
 void *
 map_iterate(void *mp, struct map_iterator *it)
 {
-	struct map *m = mp;
+	struct map	   *m = mp;
 	struct map_element *el;
 
 	if (it->el == nullptr && it->nx == nullptr) {
@@ -241,7 +236,7 @@ static struct map_element *
 map_alloc_element(struct map *m, size_t keysize)
 {
 	struct map_element *el;
-	size_t totsize = m->element.size;
+	size_t		    totsize = m->element.size;
 
 	if (m->flags & MAP_KEY_STR) {
 		size_t keysize_aligned;
@@ -282,8 +277,8 @@ key_get_ptr(const struct map *m, const void *const *key)
 static size_t
 key_get_size(const struct map *m, const void *key)
 {
-	return (m->flags & MAP_KEY_STR) ?
-	    strlen((const char *)key) : m->key.size;
+	return (m->flags & MAP_KEY_STR) ? strlen((const char *)key) :
+					  m->key.size;
 }
 
 static int
@@ -299,7 +294,7 @@ pointer_align(size_t size, size_t *out)
 }
 
 /*
- * Copyright (c) 2003-2022, Troy D. Hanson  https://troydhanson.github.io/uthash/
+ * Copyright (c) 2003-2022, Troy D. Hanson https://troydhanson.github.io/uthash/
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,59 +317,63 @@ pointer_align(size_t size, size_t *out)
  */
 
 /* initial number of buckets */
-#define HASH_INITIAL_NUM_BUCKETS 32U     /* initial number of buckets        */
-#define HASH_INITIAL_NUM_BUCKETS_LOG2 5U /* lg2 of initial number of buckets */
-#define HASH_BKT_CAPACITY_THRESH 10U     /* expand when bucket count reaches */
+#define HASH_INITIAL_NUM_BUCKETS 32U	 /* initial number of buckets        */
+#define HASH_INITIAL_NUM_BUCKETS_LOG2 5U /* lg2 of initial number of buckets   \
+					  */
+#define HASH_BKT_CAPACITY_THRESH 10U	 /* expand when bucket count reaches */
 
 static_assert(HASH_INITIAL_NUM_BUCKETS == (1U << HASH_INITIAL_NUM_BUCKETS_LOG2),
     "HASH_INITIAL_NUM_BUCKETS_LOG2 must be log2 of HASH_INITIAL_NUM_BUCKETS");
 
 struct UT_hash_bucket {
 	struct map_element *hh_head;
-	unsigned int count;
+	unsigned int	    count;
 
-	/* expand_mult is normally set to 0. In this situation, the max chain length
-	* threshold is enforced at its default value, HASH_BKT_CAPACITY_THRESH. (If
-	* the bucket's chain exceeds this length, bucket expansion is triggered).
-	* However, setting expand_mult to a non-zero value delays bucket expansion
-	* (that would be triggered by additions to this particular bucket)
-	* until its chain length reaches a *multiple* of HASH_BKT_CAPACITY_THRESH.
-	* (The multiplier is simply expand_mult+1). The whole idea of this
-	* multiplier is to reduce bucket expansions, since they are expensive, in
-	* situations where we know that a particular bucket tends to be overused.
-	* It is better to let its chain length grow to a longer yet-still-bounded
-	* value, than to do an O(n) bucket expansion too often.
-	*/
+	/* expand_mult is normally set to 0. In this situation, the max chain
+	 * length threshold is enforced at its default value,
+	 * HASH_BKT_CAPACITY_THRESH. (If the bucket's chain exceeds this length,
+	 * bucket expansion is triggered). However, setting expand_mult to a
+	 * non-zero value delays bucket expansion (that would be triggered by
+	 * additions to this particular bucket) until its chain length reaches a
+	 * *multiple* of HASH_BKT_CAPACITY_THRESH. (The multiplier is simply
+	 * expand_mult+1). The whole idea of this multiplier is to reduce bucket
+	 * expansions, since they are expensive, in situations where we know
+	 * that a particular bucket tends to be overused. It is better to let
+	 * its chain length grow to a longer yet-still-bounded value, than to do
+	 * an O(n) bucket expansion too often.
+	 */
 	unsigned expand_mult;
 };
 
 struct UT_hash_table {
 	struct UT_hash_bucket *buckets;
-	unsigned int num_buckets, log2_num_buckets;
-	unsigned int num_items;
+	unsigned int	       num_buckets, log2_num_buckets;
+	unsigned int	       num_items;
 	struct map_element *tail; /* tail hh in app order, for fast append    */
 
-	/* in an ideal situation (all buckets used equally), no bucket would have
-	 * more than ceil(#items/#buckets) items. that's the ideal chain length. */
+	/* in an ideal situation (all buckets used equally), no bucket would
+	 * have more than ceil(#items/#buckets) items. that's the ideal chain
+	 * length. */
 	unsigned ideal_chain_maxlen;
 
-	/* nonideal_items is the number of items in the hash whose chain position
-	 * exceeds the ideal chain maxlen. these items pay the penalty for an uneven
-	 * hash distribution; reaching them in a chain traversal takes >ideal steps */
+	/* nonideal_items is the number of items in the hash whose chain
+	 * position exceeds the ideal chain maxlen. these items pay the penalty
+	 * for an uneven hash distribution; reaching them in a chain traversal
+	 * takes >ideal steps */
 	unsigned nonideal_items;
 
 	/* ineffective expands occur when a bucket doubling was performed, but
 	 * afterward, more than half the items in the hash had nonideal chain
-	 * positions. If this happens on two consecutive expansions we inhibit any
-	 * further expansion, as it's not helping; this happens when the hash
-	 * function isn't a good fit for the key domain. When expansion is inhibited
-	 * the hash will still work, albeit no longer in constant time. */
+	 * positions. If this happens on two consecutive expansions we inhibit
+	 * any further expansion, as it's not helping; this happens when the
+	 * hash function isn't a good fit for the key domain. When expansion is
+	 * inhibited the hash will still work, albeit no longer in constant
+	 * time. */
 	unsigned ineff_expands, noexpand;
 };
 
 static int
-HASH_ADD(struct map *m, const void *key, size_t keylen,
-    struct map_element *add)
+HASH_ADD(struct map *m, const void *key, size_t keylen, struct map_element *add)
 {
 	unsigned int _ha_hashv;
 
@@ -397,7 +396,7 @@ static int
 HASH_ADD_TO_TABLE(struct map *m, unsigned int hashval, struct map_element *add)
 {
 	struct UT_hash_bucket *bkt;
-	unsigned int bkt_idx;
+	unsigned int	       bkt_idx;
 
 	m->table->num_items++;
 	bkt_idx = HASH_TO_BKT(hashval, m->table->num_buckets);
@@ -409,7 +408,7 @@ HASH_ADD_TO_TABLE(struct map *m, unsigned int hashval, struct map_element *add)
 		bkt->hh_head->hh_prev = add;
 	bkt->hh_head = add;
 	if ((bkt->count >=
-	    (bkt->expand_mult + 1U) * HASH_BKT_CAPACITY_THRESH) &&
+		(bkt->expand_mult + 1U) * HASH_BKT_CAPACITY_THRESH) &&
 	    !m->table->noexpand) {
 		if (HASH_EXPAND_BUCKETS(m))
 			return 1;
@@ -442,7 +441,7 @@ static void
 HASH_DELETE(struct map *m, struct map_element *del)
 {
 	const struct map_element *_hd_hh_del = del;
-	struct UT_hash_table *tbl = m->table;
+	struct UT_hash_table	 *tbl = m->table;
 
 	if (_hd_hh_del->prev == nullptr && _hd_hh_del->next == nullptr) {
 		free(tbl->buckets);
@@ -468,7 +467,7 @@ static void
 HASH_DEL_IN_BKT(struct map *m, const struct map_element *del)
 {
 	struct UT_hash_bucket *bkt;
-	unsigned int bkt_idx;
+	unsigned int	       bkt_idx;
 
 	bkt_idx = HASH_TO_BKT(del->hashv, m->table->num_buckets);
 	bkt = &m->table->buckets[bkt_idx];
@@ -513,10 +512,10 @@ HASH_DEL_IN_BKT(struct map *m, const struct map_element *del)
 static int
 HASH_EXPAND_BUCKETS(struct map *m)
 {
-	struct UT_hash_table *tbl = m->table;
+	struct UT_hash_table  *tbl = m->table;
 	struct UT_hash_bucket *_he_newbkt, *newbuckets;
-	struct map_element *_he_hh_nxt, *_he_thh;
-	unsigned int i, nbuckets;
+	struct map_element    *_he_hh_nxt, *_he_thh;
+	unsigned int	       i, nbuckets;
 
 	if (KS_u32_mul_overflow(tbl->num_buckets, 2, &nbuckets))
 		return 1;
@@ -526,20 +525,21 @@ HASH_EXPAND_BUCKETS(struct map *m)
 
 	tbl->ideal_chain_maxlen =
 	    (tbl->num_items >> (tbl->log2_num_buckets + 1U)) +
-	    (((tbl->num_items & ((tbl->num_buckets*2U) - 1U)) !=
-	      0U) ? 1U : 0U);
+	    (((tbl->num_items & ((tbl->num_buckets * 2U) - 1U)) != 0U) ? 1U :
+									 0U);
 	tbl->nonideal_items = 0;
 	for (i = 0; i < tbl->num_buckets; i++) {
 		_he_thh = tbl->buckets[i].hh_head;
 		while (_he_thh != nullptr) {
 			_he_hh_nxt = _he_thh->hh_next;
-			unsigned int bkt_idx = HASH_TO_BKT(_he_thh->hashv, nbuckets);
+			unsigned int bkt_idx =
+			    HASH_TO_BKT(_he_thh->hashv, nbuckets);
 			_he_newbkt = &newbuckets[bkt_idx];
 			if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {
 				tbl->nonideal_items++;
 				if (_he_newbkt->count >
 				    _he_newbkt->expand_mult *
-				    tbl->ideal_chain_maxlen)
+					tbl->ideal_chain_maxlen)
 					_he_newbkt->expand_mult++;
 			}
 			_he_thh->hh_prev = nullptr;
@@ -554,8 +554,9 @@ HASH_EXPAND_BUCKETS(struct map *m)
 	tbl->num_buckets *= 2U;
 	tbl->log2_num_buckets++;
 	tbl->buckets = newbuckets;
-	tbl->ineff_expands = (tbl->nonideal_items >
-	    (tbl->num_items >> 1)) ? (tbl->ineff_expands + 1U) : 0U;
+	tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1)) ?
+	    (tbl->ineff_expands + 1U) :
+	    0U;
 	if (tbl->ineff_expands > 1U)
 		tbl->noexpand = 1;
 	return 0;
@@ -565,7 +566,7 @@ static struct map_element *
 HASH_FIND(struct map *m, const void *key, size_t keylen)
 {
 	struct map_element *el;
-	unsigned int bkt_idx, hashv;
+	unsigned int	    bkt_idx, hashv;
 
 	if (m->head == nullptr)
 		return nullptr;
@@ -593,8 +594,8 @@ HASH_MAKE_TABLE(struct map_element *tail)
 	tbl->tail = tail;
 	tbl->num_buckets = HASH_INITIAL_NUM_BUCKETS;
 	tbl->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
-	tbl->buckets = calloc(HASH_INITIAL_NUM_BUCKETS,
-	    sizeof(struct UT_hash_bucket));
+	tbl->buckets =
+	    calloc(HASH_INITIAL_NUM_BUCKETS, sizeof(struct UT_hash_bucket));
 	if (tbl->buckets == nullptr) {
 		free(tbl);
 		return nullptr;
@@ -608,18 +609,36 @@ HASH_TO_BKT(unsigned int hashv, unsigned int num_bkts)
 	return hashv & (num_bkts - 1U);
 }
 
-#define HASH_JEN_MIX(a, b, c)						\
-do {									\
-  (a) -= (b); (a) -= (c); (a) ^= (c) >> 13;				\
-  (b) -= (c); (b) -= (a); (b) ^= (a) << 8;				\
-  (c) -= (a); (c) -= (b); (c) ^= (b) >> 13;				\
-  (a) -= (b); (a) -= (c); (a) ^= (c) >> 12;				\
-  (b) -= (c); (b) -= (a); (b) ^= (a) << 16;				\
-  (c) -= (a); (c) -= (b); (c) ^= (b) >> 5;				\
-  (a) -= (b); (a) -= (c); (a) ^= (c) >> 3;				\
-  (b) -= (c); (b) -= (a); (b) ^= (a) << 10;				\
-  (c) -= (a); (c) -= (b); (c) ^= (b) >> 15;				\
-} while (0)
+#define HASH_JEN_MIX(a, b, c)                                                  \
+	do {                                                                   \
+		(a) -= (b);                                                    \
+		(a) -= (c);                                                    \
+		(a) ^= (c) >> 13;                                              \
+		(b) -= (c);                                                    \
+		(b) -= (a);                                                    \
+		(b) ^= (a) << 8;                                               \
+		(c) -= (a);                                                    \
+		(c) -= (b);                                                    \
+		(c) ^= (b) >> 13;                                              \
+		(a) -= (b);                                                    \
+		(a) -= (c);                                                    \
+		(a) ^= (c) >> 12;                                              \
+		(b) -= (c);                                                    \
+		(b) -= (a);                                                    \
+		(b) ^= (a) << 16;                                              \
+		(c) -= (a);                                                    \
+		(c) -= (b);                                                    \
+		(c) ^= (b) >> 5;                                               \
+		(a) -= (b);                                                    \
+		(a) -= (c);                                                    \
+		(a) ^= (c) >> 3;                                               \
+		(b) -= (c);                                                    \
+		(b) -= (a);                                                    \
+		(b) ^= (a) << 10;                                              \
+		(c) -= (a);                                                    \
+		(c) -= (b);                                                    \
+		(c) ^= (b) >> 15;                                              \
+	} while (0)
 
 static void
 hash_key_init(struct hash_key *key, const void *buf, size_t buflen)
@@ -631,7 +650,7 @@ hash_key_init(struct hash_key *key, const void *buf, size_t buflen)
 static uint32_t
 hash_key_read_u32(struct hash_key *key)
 {
-	uint32_t val;
+	uint32_t     val;
 	unsigned int size = sizeof(val);
 
 	if ((key->u.ptr & (size - 1)) != 0)
@@ -648,9 +667,9 @@ static unsigned int
 HASH_JEN(const void *key, size_t keylen)
 {
 	struct hash_key _hj_key = {0};
-	size_t k;
-	unsigned int hashv = 0xfeedbeefU;
-	unsigned int _hj_i, _hj_j;
+	size_t		k;
+	unsigned int	hashv = 0xfeedbeefU;
+	unsigned int	_hj_i, _hj_j;
 
 	hash_key_init(&_hj_key, key, keylen);
 

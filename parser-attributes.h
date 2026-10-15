@@ -3,17 +3,17 @@ struct parser;
 struct token;
 
 /* Emit appropriate line before the first attribute. */
-#define PARSER_ATTRIBUTES_LINE		0x00000001U
+#define PARSER_ATTRIBUTES_LINE 0x00000001U
 /*
  * Detect attribute(s) hidden behind cpp macros after the return type as part of
  * either a function declaration or implementation.
  */
-#define PARSER_ATTRIBUTES_FUNC		0x00000002U
+#define PARSER_ATTRIBUTES_FUNC 0x00000002U
 
-int	parser_attributes_peek(struct parser *, struct token **, unsigned int);
-int	parser_attributes(struct parser *, struct doc *, struct doc **,
-    unsigned int);
+int parser_attributes_peek(struct parser *, struct token **, unsigned int);
+int parser_attributes(
+    struct parser *, struct doc *, struct doc **, unsigned int);
 
 /* C23 standard attributes: [ [ ... ] ] */
-int	parser_attributes_std_peek(struct parser *, struct token **);
-int	parser_attributes_std(struct parser *, struct doc *);
+int parser_attributes_std_peek(struct parser *, struct token **);
+int parser_attributes_std(struct parser *, struct doc *);

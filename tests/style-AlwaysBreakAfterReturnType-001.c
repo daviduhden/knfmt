@@ -2,8 +2,7 @@
  * AlwaysBreakAfterReturnType: None
  */
 
-extern int
-foo(void);
+extern int foo(void);
 
 int
 main(void)

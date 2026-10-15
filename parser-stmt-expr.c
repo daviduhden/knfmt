@@ -1,10 +1,8 @@
-#include "parser-stmt-expr.h"
-
 #include "config.h"
-
 #include "lexer.h"
 #include "parser-expr.h"
 #include "parser-priv.h"
+#include "parser-stmt-expr.h"
 #include "parser-stmt.h"
 #include "parser-type.h"
 #include "style.h"
@@ -14,9 +12,9 @@ static int
 is_loop_stmt(struct parser *pr, const struct token *semi)
 {
 	struct lexer_state s;
-	struct lexer *lx = pr->pr_lx;
-	struct token *ident, *lparen, *nx, *rparen;
-	int peek = 0;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *ident, *lparen, *nx, *rparen;
+	int		   peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, &ident) &&
@@ -32,9 +30,9 @@ is_loop_stmt(struct parser *pr, const struct token *semi)
 int
 parser_stmt_expr(struct parser *pr, struct doc *dc)
 {
-	struct doc *expr = nullptr;
+	struct doc   *expr = nullptr;
 	struct token *nx, *semi;
-	int error;
+	int	      error;
 
 	if (parser_type_peek(pr, nullptr, 0) || !parser_expr_peek(pr, &nx))
 		return parser_none(pr);
@@ -53,10 +51,11 @@ parser_stmt_expr(struct parser *pr, struct doc *dc)
 	if (is_loop_stmt(pr, semi))
 		return parser_none(pr);
 
-	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-	    .dc		= dc,
-	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
-	});
+	error = parser_expr(pr, &expr,
+	    &(struct parser_expr_arg){
+		.dc = dc,
+		.indent = style(pr->pr_st, ContinuationIndentWidth),
+	    });
 	if (error & HALT)
 		return parser_fail(pr);
 	return parser_semi(pr, expr);
@@ -65,9 +64,10 @@ parser_stmt_expr(struct parser *pr, struct doc *dc)
 int
 parser_stmt_expr_gnu(struct parser *pr, struct doc *dc)
 {
-	return parser_stmt_block(pr, &(struct parser_stmt_block_arg){
-	    .head	= dc,
-	    .tail	= dc,
-	    .flags	= PARSER_STMT_BLOCK_EXPR_GNU,
-	});
+	return parser_stmt_block(pr,
+	    &(struct parser_stmt_block_arg){
+		.head = dc,
+		.tail = dc,
+		.flags = PARSER_STMT_BLOCK_EXPR_GNU,
+	    });
 }

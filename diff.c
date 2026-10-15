@@ -1,65 +1,62 @@
-#include "diff.h"
-
-#include "config.h"
-
 #include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
-#include <limits.h>	/* PATH_MAX */
+#include <limits.h> /* PATH_MAX */
 #include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
+#include "diff.h"
+#include "file.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/compiler.h"
 #include "libks/vector.h"
-
-#include "file.h"
 #include "options.h"
 #include "path.h"
 #include "trace-types.h"
 #include "trace.h"
 
-static void	diff_end(struct diffchunk *, unsigned int);
+static void diff_end(struct diffchunk *, unsigned int);
 
-static int	matchpath(const char *, const char **, struct arena_scope *);
-static int	matchchunk(const char *, unsigned int *, unsigned int *);
-static int	matchline(const char *, unsigned int, struct file *);
+static int matchpath(const char *, const char **, struct arena_scope *);
+static int matchchunk(const char *, unsigned int *, unsigned int *);
+static int matchline(const char *, unsigned int, struct file *);
 
-static const char	*trimprefix(const char *, size_t *);
+static const char *trimprefix(const char *, size_t *);
 
-static regex_t	rechunk, repath;
+static regex_t rechunk, repath;
 
 /*
  * Number of directories above the current working directory where a Git
  * repository resides. Used to adjust diff paths when invoking knfmt from a
  * directory nested below the repository root.
  */
-static int	git_ndirs;
+static int git_ndirs;
 
 void
 diff_init(void)
 {
 	struct {
-		regex_t		*r;
-		const char	*p;
+		regex_t	   *r;
+		const char *p;
 	} patterns[] = {
-		{ &rechunk,	"^@@.+\\+([[:digit:]]+)(,([[:digit:]]+))?.+@@" },
-		{ &repath,	"^\\+\\+\\+[[:space:]]+([^[:space:]]+)" },
+	    {&rechunk, "^@@.+\\+([[:digit:]]+)(,([[:digit:]]+))?.+@@"},
+	    {&repath, "^\\+\\+\\+[[:space:]]+([^[:space:]]+)"},
 	};
 	size_t i;
-	int fd;
+	int    fd;
 
 	for (i = 0; i < countof(patterns); i++) {
 		char errbuf[128];
-		int error;
+		int  error;
 
-		error = regcomp(patterns[i].r, patterns[i].p,
-		    REG_EXTENDED | REG_NEWLINE);
+		error = regcomp(
+		    patterns[i].r, patterns[i].p, REG_EXTENDED | REG_NEWLINE);
 		if (error == 0)
 			continue;
 
@@ -83,11 +80,11 @@ int
 diff_parse(struct files *files, struct arena_scope *eternal_scope,
     struct arena *scratch, const struct options *op)
 {
-	struct buffer *bf;
+	struct buffer	     *bf;
 	struct buffer_getline it = {0};
-	struct file *fe = nullptr;
-	const char *line;
-	int error = 0;
+	struct file	     *fe = nullptr;
+	const char	     *line;
+	int		      error = 0;
 
 	arena_scope(scratch, s);
 
@@ -96,7 +93,7 @@ diff_parse(struct files *files, struct arena_scope *eternal_scope,
 		return 1;
 
 	while ((line = arena_buffer_getline(&s, bf, &it)) != nullptr) {
-		const char *path;
+		const char  *path;
 		unsigned int el, sl;
 
 		if (matchpath(line, &path, &s)) {
@@ -133,8 +130,8 @@ diff_parse(struct files *files, struct arena_scope *eternal_scope,
 			for (j = 0; j < VECTOR_LENGTH(fe->fe_diff); j++) {
 				const struct diffchunk *du = &fe->fe_diff[j];
 
-				trace(TRACE_DIFF, op, "%s: %u-%u",
-				    fe->fe_path, du->du_beg, du->du_end);
+				trace(TRACE_DIFF, op, "%s: %u-%u", fe->fe_path,
+				    du->du_beg, du->du_end);
 			}
 		}
 	}
@@ -170,10 +167,10 @@ diff_end(struct diffchunk *chunks, unsigned int lno)
 static int
 matchpath(const char *str, const char **out, struct arena_scope *s)
 {
-	regmatch_t rm[2];
+	regmatch_t  rm[2];
 	struct stat sb;
 	const char *buf, *path;
-	size_t len;
+	size_t	    len;
 
 	if (regexec(&repath, str, 2, rm, 0))
 		return 0;
@@ -187,8 +184,8 @@ matchpath(const char *str, const char **out, struct arena_scope *s)
 	path = arena_strndup(s, buf, len);
 
 	/* Try to adjust Git repository relative path(s). */
-	if (git_ndirs > 0 && path[0] != '/' &&
-	    stat(path, &sb) == -1 && errno == ENOENT) {
+	if (git_ndirs > 0 && path[0] != '/' && stat(path, &sb) == -1 &&
+	    errno == ENOENT) {
 		int ntrim;
 
 		for (ntrim = git_ndirs; ntrim > 0; ntrim--)
@@ -215,7 +212,7 @@ strtou(const char *str)
 static int
 matchchunk(const char *str, unsigned int *sl, unsigned int *el)
 {
-	regmatch_t rm[4];
+	regmatch_t   rm[4];
 	unsigned int lno;
 
 	if (regexec(&rechunk, str, 4, rm, 0))

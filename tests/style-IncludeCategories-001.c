@@ -17,6 +17,17 @@
  * SortIncludes: CaseSensitive
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#include <assert.h>
+#include <err.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "alloc.h"
 #include "config.h"
 #include "diff.h"
@@ -28,15 +39,6 @@
 #include "test.h"
 #include "token.h"
 #include "util.h"
-#include <assert.h>
-#include <err.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 int
 main(void)

@@ -30,45 +30,45 @@
  * wrappers below, which are a thin layer over ckd_add/ckd_sub/ckd_mul from
  * the vendored <stdckdint.h>.
  */
-int	KS_i32_add_overflow0(int32_t, int32_t, int32_t *);
-int	KS_i32_sub_overflow0(int32_t, int32_t, int32_t *);
-int	KS_i32_mul_overflow0(int32_t, int32_t, int32_t *);
+int KS_i32_add_overflow0(int32_t, int32_t, int32_t *);
+int KS_i32_sub_overflow0(int32_t, int32_t, int32_t *);
+int KS_i32_mul_overflow0(int32_t, int32_t, int32_t *);
 
-int	KS_i64_add_overflow0(int64_t, int64_t, int64_t *);
-int	KS_i64_sub_overflow0(int64_t, int64_t, int64_t *);
-int	KS_i64_mul_overflow0(int64_t, int64_t, int64_t *);
+int KS_i64_add_overflow0(int64_t, int64_t, int64_t *);
+int KS_i64_sub_overflow0(int64_t, int64_t, int64_t *);
+int KS_i64_mul_overflow0(int64_t, int64_t, int64_t *);
 
-int	KS_u32_add_overflow0(uint32_t, uint32_t, uint32_t *);
-int	KS_u32_sub_overflow0(uint32_t, uint32_t, uint32_t *);
-int	KS_u32_mul_overflow0(uint32_t, uint32_t, uint32_t *);
+int KS_u32_add_overflow0(uint32_t, uint32_t, uint32_t *);
+int KS_u32_sub_overflow0(uint32_t, uint32_t, uint32_t *);
+int KS_u32_mul_overflow0(uint32_t, uint32_t, uint32_t *);
 
-int	KS_u64_add_overflow0(uint64_t, uint64_t, uint64_t *);
-int	KS_u64_sub_overflow0(uint64_t, uint64_t, uint64_t *);
-int	KS_u64_mul_overflow0(uint64_t, uint64_t, uint64_t *);
+int KS_u64_add_overflow0(uint64_t, uint64_t, uint64_t *);
+int KS_u64_sub_overflow0(uint64_t, uint64_t, uint64_t *);
+int KS_u64_mul_overflow0(uint64_t, uint64_t, uint64_t *);
 
-int	KS_size_add_overflow0(size_t, size_t, size_t *);
-int	KS_size_sub_overflow0(size_t, size_t, size_t *);
-int	KS_size_mul_overflow0(size_t, size_t, size_t *);
+int KS_size_add_overflow0(size_t, size_t, size_t *);
+int KS_size_sub_overflow0(size_t, size_t, size_t *);
+int KS_size_mul_overflow0(size_t, size_t, size_t *);
 
 /*
  * The C23 macros return bool; the wrappers preserve the historical int
  * interface used throughout knfmt.
  */
-#define	KS_OVERFLOW_FUNCS(tag, type)					\
-	[[nodiscard]] static inline int					\
-	KS_##tag##_add_overflow(type a, type b, type *c)		\
-	{								\
-		return ckd_add(c, a, b);				\
-	}								\
-	[[nodiscard]] static inline int					\
-	KS_##tag##_sub_overflow(type a, type b, type *c)		\
-	{								\
-		return ckd_sub(c, a, b);				\
-	}								\
-	[[nodiscard]] static inline int					\
-	KS_##tag##_mul_overflow(type a, type b, type *c)		\
-	{								\
-		return ckd_mul(c, a, b);				\
+#define KS_OVERFLOW_FUNCS(tag, type)                                           \
+	[[nodiscard]] static inline int KS_##tag##_add_overflow(               \
+	    type a, type b, type *c)                                           \
+	{                                                                      \
+		return ckd_add(c, a, b);                                       \
+	}                                                                      \
+	[[nodiscard]] static inline int KS_##tag##_sub_overflow(               \
+	    type a, type b, type *c)                                           \
+	{                                                                      \
+		return ckd_sub(c, a, b);                                       \
+	}                                                                      \
+	[[nodiscard]] static inline int KS_##tag##_mul_overflow(               \
+	    type a, type b, type *c)                                           \
+	{                                                                      \
+		return ckd_mul(c, a, b);                                       \
 	}
 
 KS_OVERFLOW_FUNCS(i32, int32_t)

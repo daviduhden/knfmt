@@ -6,14 +6,14 @@ int
 main(void)
 {
 	if (0) {
-		uint64 aaaaaaaaaa = aaaaaaaaaaaaaaaaaaaaaaaaaaa(aaa,
-		    aaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-		    &aaaaa);
+		uint64 aaaaaaaaaa =
+		    aaaaaaaaaaaaaaaaaaaaaaaaaaa(aaa, aaaaaaaaaaaaaaaaaa,
+			aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, &aaaaa);
 	}
 
 	if (1) {
-		return aaaaaaaaaaa(aaa,
-		    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+		return aaaaaaaaaaa(
+		    aaa, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 	}
 
 	if (2) {

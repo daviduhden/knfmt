@@ -1,20 +1,17 @@
-#include "file.h"
-
-#include "config.h"
-
 #include <err.h>
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "config.h"
+#include "diff.h"
+#include "file.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/vector.h"
 
-#include "diff.h"
-
 struct file *
-files_alloc(struct files *files, const char *path,
-    struct arena_scope *eternal_scope)
+files_alloc(
+    struct files *files, const char *path, struct arena_scope *eternal_scope)
 {
 	struct file *fe;
 

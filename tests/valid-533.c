@@ -10,14 +10,12 @@ f()
 {
 }
 
-f(a)
-	int a;
+f(a) int a;
 {
 }
 
-f(a, b)
-	int a;
-	char *b;
+f(a, b) int a;
+char *b;
 {
 }
 
@@ -25,13 +23,12 @@ static g()
 {
 }
 
-static g(a)
-	int a;
+static g(a) int a;
 {
 }
 
 extern h();
 const q();
 
-static *p;
+static	 *p;
 register *r;

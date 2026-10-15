@@ -8,6 +8,6 @@
 int
 main(void)
 {
-        aaaaaaaaaaaaaaaa bb = cccccccccccccccccccccccccccc(
-                ddd, eeeeeeeeeeeeeeeeeee);
+	aaaaaaaaaaaaaaaa bb =
+	    cccccccccccccccccccccccccccc(ddd, eeeeeeeeeeeeeeeeeee);
 }

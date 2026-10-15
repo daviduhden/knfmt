@@ -16,38 +16,38 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>	/* DEV_BSIZE */
-#include <sys/ioctl.h>
+#include <sys/param.h> /* DEV_BSIZE */
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
+#include <sys/ioctl.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "part.h"
 #include "disk.h"
-#include "misc.h"
-#include "mbr.h"
 #include "gpt.h"
+#include "mbr.h"
+#include "misc.h"
+#include "part.h"
 
-struct mbr		initial_mbr;
+struct mbr initial_mbr;
 
-static int		gpt_chk_mbr(struct dos_partition *, uint64_t);
+static int gpt_chk_mbr(struct dos_partition *, uint64_t);
 
 int
 MBR_protective_mbr(struct mbr *mbr)
 {
-	struct dos_partition	dp[NDOSPART], dos_partition;
-	int			i;
+	struct dos_partition dp[NDOSPART], dos_partition;
+	int		     i;
 
 	if (mbr->mbr_lba_self != 0)
 		return -1;
 
 	for (i = 0; i < NDOSPART; i++) {
-		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self, mbr->mbr_lba_firstembr,
-		    &dos_partition);
+		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self,
+		    mbr->mbr_lba_firstembr, &dos_partition);
 		memcpy(&dp[i], &dos_partition, sizeof(dp[i]));
 	}
 
@@ -77,8 +77,8 @@ MBR_init_GPT(struct mbr *mbr)
 void
 MBR_init(struct mbr *mbr)
 {
-	uint64_t		adj;
-	daddr_t			daddr;
+	uint64_t adj;
+	daddr_t	 daddr;
 
 	memset(&gh, 0, sizeof(gh));
 	memset(&gp, 0, sizeof(gp));
@@ -117,13 +117,15 @@ MBR_init(struct mbr *mbr)
 
 #if defined(__powerpc__) || defined(__mips__)
 	/* Now fix up for the MS-DOS boot partition on PowerPC. */
-	mbr->mbr_prt[0].prt_flag = DOSACTIVE;	/* Boot from dos part */
+	mbr->mbr_prt[0].prt_flag = DOSACTIVE; /* Boot from dos part */
 	mbr->mbr_prt[3].prt_flag = 0;
 	mbr->mbr_prt[3].prt_ns += mbr->mbr_prt[3].prt_bs;
-	mbr->mbr_prt[3].prt_bs = mbr->mbr_prt[0].prt_bs + mbr->mbr_prt[0].prt_ns;
+	mbr->mbr_prt[3].prt_bs =
+	    mbr->mbr_prt[0].prt_bs + mbr->mbr_prt[0].prt_ns;
 	mbr->mbr_prt[3].prt_ns -= mbr->mbr_prt[3].prt_bs;
 	PRT_fix_CHS(&mbr->mbr_prt[3]);
-	if ((mbr->mbr_prt[3].prt_shead != 1) || (mbr->mbr_prt[3].prt_ssect != 1)) {
+	if ((mbr->mbr_prt[3].prt_shead != 1) ||
+	    (mbr->mbr_prt[3].prt_ssect != 1)) {
 		/* align the partition on a cylinder boundary */
 		mbr->mbr_prt[3].prt_shead = 0;
 		mbr->mbr_prt[3].prt_ssect = 1;
@@ -135,7 +137,8 @@ MBR_init(struct mbr *mbr)
 	mbr->mbr_prt[0] = disk.dk_bootprt;
 	PRT_fix_CHS(&mbr->mbr_prt[0]);
 	mbr->mbr_prt[3].prt_ns += mbr->mbr_prt[3].prt_bs;
-	mbr->mbr_prt[3].prt_bs = mbr->mbr_prt[0].prt_bs + mbr->mbr_prt[0].prt_ns;
+	mbr->mbr_prt[3].prt_bs =
+	    mbr->mbr_prt[0].prt_bs + mbr->mbr_prt[0].prt_ns;
 	mbr->mbr_prt[3].prt_ns -= mbr->mbr_prt[3].prt_bs;
 	PRT_fix_CHS(&mbr->mbr_prt[3]);
 #endif
@@ -154,8 +157,8 @@ void
 MBR_parse(const struct dos_mbr *dos_mbr, const uint64_t lba_self,
     const uint64_t lba_firstembr, struct mbr *mbr)
 {
-	struct dos_partition	dos_parts[NDOSPART];
-	int			i;
+	struct dos_partition dos_parts[NDOSPART];
+	int		     i;
 
 	memcpy(mbr->mbr_code, dos_mbr->dmbr_boot, sizeof(mbr->mbr_code));
 	mbr->mbr_lba_self = lba_self;
@@ -165,22 +168,22 @@ MBR_parse(const struct dos_mbr *dos_mbr, const uint64_t lba_self,
 	memcpy(dos_parts, dos_mbr->dmbr_parts, sizeof(dos_parts));
 
 	for (i = 0; i < NDOSPART; i++)
-		PRT_parse(&dos_parts[i], lba_self, lba_firstembr,
-		    &mbr->mbr_prt[i]);
+		PRT_parse(
+		    &dos_parts[i], lba_self, lba_firstembr, &mbr->mbr_prt[i]);
 }
 
 void
 MBR_make(struct mbr *mbr, struct dos_mbr *dos_mbr)
 {
-	struct dos_partition	dos_partition;
-	int			i;
+	struct dos_partition dos_partition;
+	int		     i;
 
 	memcpy(dos_mbr->dmbr_boot, mbr->mbr_code, sizeof(dos_mbr->dmbr_boot));
 	dos_mbr->dmbr_sign = htole16(DOSMBR_SIGNATURE);
 
 	for (i = 0; i < NDOSPART; i++) {
-		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self, mbr->mbr_lba_firstembr,
-		    &dos_partition);
+		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self,
+		    mbr->mbr_lba_firstembr, &dos_partition);
 		memcpy(&dos_mbr->dmbr_parts[i], &dos_partition,
 		    sizeof(dos_mbr->dmbr_parts[i]));
 	}
@@ -189,7 +192,7 @@ MBR_make(struct mbr *mbr, struct dos_mbr *dos_mbr)
 void
 MBR_print(const struct mbr *mbr, const char *units)
 {
-	int			i;
+	int i;
 
 	DISK_printgeometry(NULL);
 
@@ -206,7 +209,7 @@ MBR_print(const struct mbr *mbr, const char *units)
 int
 MBR_read(const uint64_t sector, struct dos_mbr *dos_mbr)
 {
-	char			*secbuf;
+	char *secbuf;
 
 	secbuf = DISK_readsector(sector);
 	if (secbuf == NULL)
@@ -221,7 +224,7 @@ MBR_read(const uint64_t sector, struct dos_mbr *dos_mbr)
 int
 MBR_write(const uint64_t sector, const struct dos_mbr *dos_mbr)
 {
-	char			*secbuf;
+	char *secbuf;
 
 	secbuf = DISK_readsector(sector);
 	if (secbuf == NULL)
@@ -252,9 +255,9 @@ MBR_write(const uint64_t sector, const struct dos_mbr *dos_mbr)
 int
 gpt_chk_mbr(struct dos_partition *dp, u_int64_t dsize)
 {
-	struct dos_partition	*dp2;
-	int			 efi, eficnt, found, i;
-	uint32_t		 psize;
+	struct dos_partition *dp2;
+	int		      efi, eficnt, found, i;
+	uint32_t	      psize;
 
 	found = efi = eficnt = 0;
 	for (dp2 = dp, i = 0; i < NDOSPART; i++, dp2++) {

@@ -1,9 +1,7 @@
-#include "simple-stmt-switch.h"
-
-#include "config.h"
-
 #include "clang.h"
+#include "config.h"
 #include "lexer.h"
+#include "simple-stmt-switch.h"
 #include "token.h"
 
 static void
@@ -16,8 +14,8 @@ void
 simple_stmt_switch(struct lexer *lx, struct token *tkcase)
 {
 	struct lexer_state ls;
-	struct token *colon, *tkbreak;
-	int peek = 0;
+	struct token	  *colon, *tkbreak;
+	int		   peek = 0;
 
 	if (tkcase->tk_type != TOKEN_DEFAULT)
 		return;
@@ -31,8 +29,8 @@ simple_stmt_switch(struct lexer *lx, struct token *tkcase)
 	if (!peek)
 		return;
 
-	tkbreak = lexer_insert_after(lx, colon,
-	    clang_keyword_token(TOKEN_BREAK));
+	tkbreak =
+	    lexer_insert_after(lx, colon, clang_keyword_token(TOKEN_BREAK));
 	/* Ensure the break statement ends up on a new line. */
 	token_move_to_next_line(tkbreak);
 }

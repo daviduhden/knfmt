@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <string.h>
+
 #include "libks/bit.h"
 #include "libks/capabilities.h"
 #include "libks/string.h"
@@ -26,22 +27,22 @@
 
 static void KS_init(void) __attribute__((constructor));
 
-int KS_str_match_init_default(const char *, struct KS_str_match *);
-size_t KS_str_match_native_128(const char *, size_t,
-    const struct KS_str_match *);
-size_t KS_str_match_native_256(const char *, size_t,
-    const struct KS_str_match *);
-size_t KS_str_match_native_512(const char *, size_t,
-    const struct KS_str_match *);
-size_t KS_str_match_until_native_128(const char *, size_t,
-    const struct KS_str_match *);
-size_t KS_str_match_until_native_256(const char *, size_t,
-    const struct KS_str_match *);
+int    KS_str_match_init_default(const char *, struct KS_str_match *);
+size_t KS_str_match_native_128(
+    const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_native_256(
+    const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_native_512(
+    const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_until_native_128(
+    const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_until_native_256(
+    const char *, size_t, const struct KS_str_match *);
 
-size_t (*KS_str_match)(const char *, size_t, const struct KS_str_match *) =
-    KS_str_match_default;
-size_t (*KS_str_match_until)(const char *, size_t, const struct KS_str_match *) =
-    KS_str_match_until_default;
+size_t (*KS_str_match)(
+    const char *, size_t, const struct KS_str_match *) = KS_str_match_default;
+size_t (*KS_str_match_until)(const char *, size_t,
+    const struct KS_str_match *) = KS_str_match_until_default;
 
 static void
 KS_init(void)
@@ -76,7 +77,7 @@ KS_str_match_init_512(const char *ranges, struct KS_str_match *match)
 	ranges_len = strlen(ranges);
 
 	for (i = 0; i < ranges_len; i += 2) {
-		uint8_t hi, lo;
+		uint8_t	     hi, lo;
 		unsigned int j;
 
 		lo = (uint8_t)ranges[i];
@@ -89,12 +90,14 @@ KS_str_match_init_512(const char *ranges, struct KS_str_match *match)
 		for (j = lo; j <= hi; j++) {
 			uint8_t mask = (uint8_t)(1 << (j >> 4));
 
-	/* Avoid loss of precision due to conversion warnings. Caused by the
-	 * bitwise OR operator promoting its operands to integers. */
-#define OR(off) do {							\
-	uint8_t *u8 = (uint8_t *)&match->u512[(j & 0xf) + (off)];	\
-	*u8 = *u8 | mask;						\
-} while (0)
+			/* Avoid loss of precision due to conversion warnings.
+			 * Caused by the bitwise OR operator promoting its
+			 * operands to integers. */
+#define OR(off)                                                                \
+	do {                                                                   \
+		uint8_t *u8 = (uint8_t *)&match->u512[(j & 0xf) + (off)];      \
+		*u8 = *u8 | mask;                                              \
+	} while (0)
 			OR(0x00);
 			OR(0x10);
 			OR(0x20);

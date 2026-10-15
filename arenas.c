@@ -1,7 +1,5 @@
 #include "arenas.h"
-
 #include "config.h"
-
 #include "libks/arena.h"
 
 void

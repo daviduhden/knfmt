@@ -1,13 +1,10 @@
-#include "parser-expr.h"
-
 #include "config.h"
-
-#include "libks/compiler.h"
-
 #include "doc.h"
 #include "expr.h"
 #include "lexer.h"
+#include "libks/compiler.h"
 #include "parser-braces.h"
+#include "parser-expr.h"
 #include "parser-priv.h"
 #include "parser-stmt-expr.h"
 #include "parser-type.h"
@@ -15,13 +12,11 @@
 #include "style.h"
 #include "token.h"
 
-static struct doc	*expr_recover(const struct expr_exec_arg *, void *);
-static struct doc	*expr_recover_cast(const struct expr_exec_arg *,
-    void *);
-static struct doc	*expr_recover_generic(const struct expr_exec_arg *,
-    void *);
-static struct doc	*expr_doc_token(struct token *, struct doc *,
-    const char *, int, void *);
+static struct doc *expr_recover(const struct expr_exec_arg *, void *);
+static struct doc *expr_recover_cast(const struct expr_exec_arg *, void *);
+static struct doc *expr_recover_generic(const struct expr_exec_arg *, void *);
+static struct doc *expr_doc_token(
+    struct token *, struct doc *, const char *, int, void *);
 
 /*
  * A preprocessor branch can interrupt a recovery construct before it is
@@ -40,18 +35,20 @@ int
 parser_expr_peek(struct parser *pr, struct token **tk)
 {
 	const struct expr_exec_arg ea = {
-		.st		= pr->pr_st,
-		.lx		= pr->pr_lx,
-		.arena		= {
-			.scratch	= pr->pr_arena.scratch,
-			.buffer		= pr->pr_arena.buffer,
+	    .st = pr->pr_st,
+	    .lx = pr->pr_lx,
+	    .arena =
+		{
+		    .scratch = pr->pr_arena.scratch,
+		    .buffer = pr->pr_arena.buffer,
 		},
-		.callbacks	= {
-			.recover	= expr_recover,
-			.recover_cast	= expr_recover_cast,
-			.recover_generic	= expr_recover_generic,
-			.doc_token	= expr_doc_token,
-			.arg		= pr,
+	    .callbacks =
+		{
+		    .recover = expr_recover,
+		    .recover_cast = expr_recover_cast,
+		    .recover_generic = expr_recover_generic,
+		    .doc_token = expr_doc_token,
+		    .arg = pr,
 		},
 	};
 	int peek, simple;
@@ -66,25 +63,27 @@ int
 parser_expr(struct parser *pr, struct doc **expr, struct parser_expr_arg *arg)
 {
 	const struct expr_exec_arg ea = {
-		.st		= pr->pr_st,
-		.si		= pr->pr_si,
-		.lx		= pr->pr_lx,
-		.dc		= arg->dc,
-		.rl		= arg->rl,
-		.stop		= arg->stop,
-		.indent		= arg->indent,
-		.align		= arg->align,
-		.flags		= arg->flags,
-		.arena		= {
-			.scratch	= pr->pr_arena.scratch,
-			.buffer		= pr->pr_arena.buffer,
+	    .st = pr->pr_st,
+	    .si = pr->pr_si,
+	    .lx = pr->pr_lx,
+	    .dc = arg->dc,
+	    .rl = arg->rl,
+	    .stop = arg->stop,
+	    .indent = arg->indent,
+	    .align = arg->align,
+	    .flags = arg->flags,
+	    .arena =
+		{
+		    .scratch = pr->pr_arena.scratch,
+		    .buffer = pr->pr_arena.buffer,
 		},
-		.callbacks	= {
-			.recover	= expr_recover,
-			.recover_cast	= expr_recover_cast,
-			.recover_generic	= expr_recover_generic,
-			.doc_token	= expr_doc_token,
-			.arg		= pr,
+	    .callbacks =
+		{
+		    .recover = expr_recover,
+		    .recover_cast = expr_recover_cast,
+		    .recover_generic = expr_recover_generic,
+		    .doc_token = expr_doc_token,
+		    .arg = pr,
 		},
 	};
 	struct doc *ex;
@@ -105,10 +104,10 @@ static struct doc *
 expr_recover(const struct expr_exec_arg *ea, void *arg)
 {
 	struct parser_type type;
-	struct doc *dc = nullptr;
-	struct parser *pr = arg;
-	struct lexer *lx = pr->pr_lx;
-	struct token *lbrace, *tk;
+	struct doc	  *dc = nullptr;
+	struct parser	  *pr = arg;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *lbrace, *tk;
 
 	if (parser_type_peek(pr, &type, PARSER_TYPE_EXPR)) {
 		struct token *nx;
@@ -116,11 +115,11 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		if (lexer_back_if(lx, TOKEN_SIZEOF, nullptr) ||
 		    lexer_back_if(lx, TOKEN_ALIGNOF, nullptr) ||
 		    ((lexer_back_if(lx, TOKEN_LPAREN, nullptr) ||
-		      lexer_back_if(lx, TOKEN_COMMA, nullptr)) &&
-		     ((nx = token_next(type.end)) != nullptr &&
-		      (nx->tk_type == TOKEN_RPAREN ||
-		       nx->tk_type == TOKEN_COMMA ||
-		       nx->tk_type == LEXER_EOF)))) {
+			 lexer_back_if(lx, TOKEN_COMMA, nullptr)) &&
+			((nx = token_next(type.end)) != nullptr &&
+			    (nx->tk_type == TOKEN_RPAREN ||
+				nx->tk_type == TOKEN_COMMA ||
+				nx->tk_type == LEXER_EOF)))) {
 			dc = doc_root(pr->pr_arena_scope.doc);
 			if (parser_type(pr, dc, &type, nullptr) & GOOD)
 				return dc;
@@ -131,7 +130,7 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		pv = token_prev(tk);
 		if (pv != nullptr &&
 		    (pv->tk_type == TOKEN_LPAREN ||
-		     pv->tk_type == TOKEN_COMMA)) {
+			pv->tk_type == TOKEN_COMMA)) {
 			(void)lexer_pop(lx, &tk);
 			dc = doc_root(pr->pr_arena_scope.doc);
 			parser_doc_token(pr, tk, dc);
@@ -191,12 +190,12 @@ static struct doc *
 expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 {
 	struct parser_type type;
-	struct doc *dc = nullptr;
+	struct doc	  *dc = nullptr;
 	struct lexer_state s;
-	struct parser *pr = arg;
-	struct lexer *lx = pr->pr_lx;
-	struct token *rparen;
-	int peek = 0;
+	struct parser	  *pr = arg;
+	struct lexer	  *lx = pr->pr_lx;
+	struct token	  *rparen;
+	int		   peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (parser_type_peek(pr, &type, PARSER_TYPE_CAST) &&
@@ -206,7 +205,7 @@ expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 	    !lexer_if(lx, TOKEN_COMMA, nullptr) &&
 	    !peek_binary_operator(lx, rparen) &&
 	    !(lexer_if(lx, TOKEN_AMP, nullptr) &&
-	    lexer_if(lx, TOKEN_TILDE, nullptr)) &&
+		lexer_if(lx, TOKEN_TILDE, nullptr)) &&
 	    !lexer_if(lx, LEXER_EOF, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
@@ -227,10 +226,10 @@ static struct doc *
 expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 {
 	struct parser *pr = arg;
-	struct lexer *lx = pr->pr_lx;
-	struct doc *dc, *expr;
-	struct token *tk, *lparen, *rparen, *comma, *stop;
-	int error, nassoc = 0;
+	struct lexer  *lx = pr->pr_lx;
+	struct doc    *dc, *expr;
+	struct token  *tk, *lparen, *rparen, *comma, *stop;
+	int	       error, nassoc = 0;
 
 	if (!lexer_back(lx, &tk) || tk->tk_type != TOKEN_GENERIC)
 		return nullptr;
@@ -239,8 +238,8 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 	parser_doc_token(pr, tk, dc);
 
 	/* Find the matching right parenthesis to bound the construct. */
-	if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen,
-	    &rparen))
+	if (!lexer_peek_if_pair(
+		lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
 		return nullptr;
 	if (!lexer_if(lx, TOKEN_LPAREN, &lparen))
 		return nullptr;
@@ -249,11 +248,12 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 	/* Controlling expression, a single assignment-expression. */
 	if (!lexer_peek_until_comma(lx, rparen, &stop) || stop == rparen)
 		return recover_fail(pr, dc);
-	error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-	    .dc		= dc,
-	    .stop	= stop,
-	    .indent	= style(pr->pr_st, ContinuationIndentWidth),
-	});
+	error = parser_expr(pr, &expr,
+	    &(struct parser_expr_arg){
+		.dc = dc,
+		.stop = stop,
+		.indent = style(pr->pr_st, ContinuationIndentWidth),
+	    });
 	/*
 	 * A branch retry re-parses the whole construct. Return what has been
 	 * emitted so far so the committed prefix is not lost, and let the
@@ -289,11 +289,12 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 		doc_literal(" ", dc);
 
 		(void)lexer_peek_until_comma(lx, rparen, &stop);
-		error = parser_expr(pr, &expr, &(struct parser_expr_arg){
-		    .dc		= dc,
-		    .stop	= stop,
-		    .indent	= style(pr->pr_st, ContinuationIndentWidth),
-		});
+		error = parser_expr(pr, &expr,
+		    &(struct parser_expr_arg){
+			.dc = dc,
+			.stop = stop,
+			.indent = style(pr->pr_st, ContinuationIndentWidth),
+		    });
 		if (error & BRCH)
 			return dc;
 		if (error & (FAIL | NONE))
@@ -318,8 +319,8 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 }
 
 static struct doc *
-expr_doc_token(struct token *tk, struct doc *dc, const char *fun, int lno,
-    void *arg)
+expr_doc_token(
+    struct token *tk, struct doc *dc, const char *fun, int lno, void *arg)
 {
 	struct parser *pr = arg;
 

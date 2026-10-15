@@ -7,5 +7,5 @@ main(void)
 {
 	if (0)
 		return 1; // one
-	// two
+			  // two
 }

@@ -1,29 +1,25 @@
-#include "simple.h"
-
 #include "config.h"
-
 #include "libks/arena.h"
 #include "libks/compiler.h"
-
 #include "options.h"
+#include "simple.h"
 
 enum simple_state {
-	SIMPLE_STATE_NOP	= -1,
-	SIMPLE_STATE_DISABLE	= 0,
-	SIMPLE_STATE_ENABLE	= 1,
-	SIMPLE_STATE_IGNORE	= 2,
+	SIMPLE_STATE_NOP = -1,
+	SIMPLE_STATE_DISABLE = 0,
+	SIMPLE_STATE_ENABLE = 1,
+	SIMPLE_STATE_IGNORE = 2,
 };
 
 struct simple {
 	struct {
-		enum simple_state	state;
-		unsigned int		flags;
+		enum simple_state state;
+		unsigned int	  flags;
 	} passes[SIMPLE_LAST];
-	int			 enable;
+	int enable;
 };
 
-static int	is_pass_mutually_exclusive(const struct simple *,
-    enum simple_pass);
+static int is_pass_mutually_exclusive(const struct simple *, enum simple_pass);
 
 struct simple *
 simple_alloc(struct arena_scope *eternal_scope, const struct options *op)
@@ -40,9 +36,9 @@ simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
     struct simple_cookie *cookie)
 {
 	*cookie = (struct simple_cookie){
-	    .si		= si,
-	    .pass	= pass,
-	    .state	= si->passes[pass].state,
+	    .si = si,
+	    .pass = pass,
+	    .state = si->passes[pass].state,
 	};
 
 	if (!si->enable && (flags & SIMPLE_FORCE) == 0) {
@@ -76,8 +72,8 @@ simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
 void
 simple_leave(struct simple_cookie *cookie)
 {
-	struct simple *si = cookie->si;
-	enum simple_pass pass = cookie->pass;
+	struct simple	 *si = cookie->si;
+	enum simple_pass  pass = cookie->pass;
 	enum simple_state state = cookie->state;
 
 	if (si == nullptr)
@@ -119,29 +115,29 @@ static int
 is_pass_mutually_exclusive(const struct simple *si, enum simple_pass pass)
 {
 	static const struct {
-		enum simple_pass	parent;
-		enum simple_pass	nested;
+		enum simple_pass parent;
+		enum simple_pass nested;
 	} exceptions[] = {
-		{ SIMPLE_DECL, SIMPLE_ATTRIBUTES },
-		{ SIMPLE_DECL, SIMPLE_BRACES },
-		{ SIMPLE_DECL, SIMPLE_DECL_PROTO },
-		{ SIMPLE_DECL, SIMPLE_IMPLICIT_INT },
-		{ SIMPLE_DECL, SIMPLE_STORAGE },
-		/*
-		 * SIMPLE_DECL_FORWARD only operates on root level declarations
-		 * as opposed to SIMPLE_DECL which only operates on nested
-		 * levels. They should therefore not interfere.
-		 */
-		{ SIMPLE_DECL, SIMPLE_DECL_FORWARD },
+	    {SIMPLE_DECL, SIMPLE_ATTRIBUTES},
+	    {SIMPLE_DECL, SIMPLE_BRACES},
+	    {SIMPLE_DECL, SIMPLE_DECL_PROTO},
+	    {SIMPLE_DECL, SIMPLE_IMPLICIT_INT},
+	    {SIMPLE_DECL, SIMPLE_STORAGE},
+	    /*
+	     * SIMPLE_DECL_FORWARD only operates on root level declarations
+	     * as opposed to SIMPLE_DECL which only operates on nested
+	     * levels. They should therefore not interfere.
+	     */
+	    {SIMPLE_DECL, SIMPLE_DECL_FORWARD},
 
-		{ SIMPLE_EXPR_PARENS, SIMPLE_EXPR_SIZEOF },
+	    {SIMPLE_EXPR_PARENS, SIMPLE_EXPR_SIZEOF},
 
-		{ SIMPLE_STMT, SIMPLE_STMT_EMPTY_LOOP },
+	    {SIMPLE_STMT, SIMPLE_STMT_EMPTY_LOOP},
 
-		{ SIMPLE_STMT_EMPTY_LOOP, SIMPLE_STMT },
-		{ SIMPLE_STMT_EMPTY_LOOP, SIMPLE_DECL },
+	    {SIMPLE_STMT_EMPTY_LOOP, SIMPLE_STMT},
+	    {SIMPLE_STMT_EMPTY_LOOP, SIMPLE_DECL},
 
-		{ SIMPLE_STMT_SWITCH, SIMPLE_STMT },
+	    {SIMPLE_STMT_SWITCH, SIMPLE_STMT},
 	};
 	unsigned int i;
 

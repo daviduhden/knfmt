@@ -2,5 +2,5 @@
  * SortIncludes: CaseSensitive
  */
 
-#include "b.h"
 #include "a.h"
+#include "b.h"

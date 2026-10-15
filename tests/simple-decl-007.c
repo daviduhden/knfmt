@@ -6,7 +6,7 @@ int
 main(void)
 {
 	int y, x;
-	int z;	/* comment */
+	int z; /* comment */
 
 	return 0;
 }

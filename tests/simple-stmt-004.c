@@ -6,7 +6,8 @@ int
 main(void)
 {
 	if (0)
-		return tls13_send_alert(ctx->rl, TLS13_ALERT_UNEXPECTED_MESSAGE);
+		return tls13_send_alert(
+		    ctx->rl, TLS13_ALERT_UNEXPECTED_MESSAGE);
 
 	if (1)
 		return 1;

@@ -18,24 +18,26 @@
 #ifndef LIBKS_ARENA_VECTOR_H
 #define LIBKS_ARENA_VECTOR_H
 
-#include <stddef.h>	/* size_t */
+#include <stddef.h> /* size_t */
 
 struct arena_scope;
 
-#define ARENA_VECTOR_INIT(s, vc, n) \
+#define ARENA_VECTOR_INIT(s, vc, n)                                            \
 	arena_vector_init(s, (void **)&(vc), sizeof(__typeof__(*(vc))), n)
-void	arena_vector_init(struct arena_scope *, void **, size_t, size_t);
+void arena_vector_init(struct arena_scope *, void **, size_t, size_t);
 
-#define ARENA_VECTOR_ALLOC(vc) __extension__ ({				\
-	size_t _i = arena_vector_alloc((void **)&(vc));			\
-	(vc) + _i;							\
-})
-size_t	arena_vector_alloc(void **);
+#define ARENA_VECTOR_ALLOC(vc)                                                 \
+	__extension__({                                                        \
+		size_t _i = arena_vector_alloc((void **)&(vc));                \
+		(vc) + _i;                                                     \
+	})
+size_t arena_vector_alloc(void **);
 
-#define ARENA_VECTOR_CALLOC(vc) __extension__ ({			\
-	size_t _i = arena_vector_calloc((void **)&(vc));		\
-	(vc) + _i;							\
-})
-size_t	arena_vector_calloc(void **);
+#define ARENA_VECTOR_CALLOC(vc)                                                \
+	__extension__({                                                        \
+		size_t _i = arena_vector_calloc((void **)&(vc));               \
+		(vc) + _i;                                                     \
+	})
+size_t arena_vector_calloc(void **);
 
 #endif /* !LIBKS_ARENA_VECTOR_H */

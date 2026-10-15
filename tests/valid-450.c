@@ -3,6 +3,6 @@
  */
 
 struct s {
-	int n;
+	int  n;
 	char data[];
 };

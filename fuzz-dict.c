@@ -1,21 +1,19 @@
-#include "config.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
-
 #include "style.h"
 
-[[noreturn]] static void	usage(void);
+[[noreturn]] static void usage(void);
 
 int
 main(int argc, const char *argv[])
 {
-	struct arena *scratch;
+	struct arena  *scratch;
 	struct buffer *bf;
 
 	if (argc != 2)

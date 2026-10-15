@@ -1,11 +1,9 @@
 /* Ensure storage keywords such as extern and static comes first as part of a
  * type declaration. */
 
-#include "simple-storage.h"
-
 #include "config.h"
-
 #include "lexer.h"
+#include "simple-storage.h"
 #include "token.h"
 
 static struct token *
@@ -24,8 +22,8 @@ find_token(int token_type, struct token *beg, struct token *end)
 }
 
 static int
-move_storage_token(struct lexer *lx, int token_type, struct token *beg, struct token *end,
-    struct token **out)
+move_storage_token(struct lexer *lx, int token_type, struct token *beg,
+    struct token *end, struct token **out)
 {
 	struct token *tk = find_token(token_type, beg, end);
 	if (tk == nullptr || tk == beg || !token_is_moveable(tk))

@@ -18,9 +18,9 @@
 #ifndef LIBKS_FS_H
 #define LIBKS_FS_H
 
-#include <stddef.h>	/* size_t */
+#include <stddef.h> /* size_t */
 
-int	KS_fs_replace(const char *, const char *, size_t);
-int	KS_fs_tmpfd(const char *, size_t, char *, size_t);
+int KS_fs_replace(const char *, const char *, size_t);
+int KS_fs_tmpfd(const char *, size_t, char *, size_t);
 
 #endif /* !LIBKS_FS_H */

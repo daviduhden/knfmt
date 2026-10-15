@@ -1,26 +1,23 @@
-#include "simple-decl-proto.h"
-
-#include "config.h"
-
 #include <assert.h>
 #include <err.h>
 
+#include "config.h"
+#include "lexer.h"
 #include "libks/arena.h"
 #include "libks/vector.h"
-
-#include "lexer.h"
+#include "simple-decl-proto.h"
 #include "token.h"
 
 struct simple_decl_proto {
-	VECTOR(struct argument)	 arguments;
-	struct lexer		*lx;
+	VECTOR(struct argument) arguments;
+	struct lexer *lx;
 	struct {
-		unsigned int	ignore:1;
+		unsigned int ignore:1;
 	} flags;
 };
 
 struct argument {
-	struct token	*tk;
+	struct token *tk;
 };
 
 struct simple_decl_proto *
@@ -96,13 +93,12 @@ void
 simple_decl_proto_arg_ident(struct simple_decl_proto *sp, struct token *tk)
 {
 	struct argument *arg;
-	struct token *pv;
+	struct token	*pv;
 
 	arg = VECTOR_LAST(sp->arguments);
 	assert(arg != nullptr);
 	pv = token_prev(tk);
-	if (pv->tk_type == TOKEN_STAR ||
-	    (pv->tk_flags & TOKEN_FLAG_TYPE) ||
+	if (pv->tk_type == TOKEN_STAR || (pv->tk_flags & TOKEN_FLAG_TYPE) ||
 	    is_qualifier(pv))
 		arg->tk = tk;
 	else

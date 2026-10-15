@@ -1,28 +1,26 @@
-#include "config.h"
-
 #include <string.h>
 
+#include "arenas.h"
+#include "clang.h"
+#include "config.h"
+#include "expr.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/compiler.h"
 #include "libks/fuzzer.h"
-
-#include "arenas.h"
-#include "clang.h"
-#include "expr.h"
-#include "lexer.h"
 #include "options.h"
 #include "parser.h"
 #include "simple.h"
 #include "style.h"
 
 struct test_context {
-	struct options		 op;
-	struct style		*st;
-	struct simple		*si;
-	struct arenas		 arena;
-	struct arena_scope	 eternal_scope;
+	struct options	   op;
+	struct style	  *st;
+	struct simple	  *si;
+	struct arenas	   arena;
+	struct arena_scope eternal_scope;
 };
 
 static void *
@@ -66,32 +64,35 @@ static int
 format_once(struct test_context *c, const struct buffer *bf,
     struct arena_scope *scope, struct buffer *dst)
 {
-	struct clang *clang;
-	struct lexer *lx;
+	struct clang  *clang;
+	struct lexer  *lx;
 	struct parser *pr;
 
 	clang = clang_alloc(c->st, c->si, &c->arena, nullptr, &c->op, scope);
 	lx = lexer_tokenize(&(const struct lexer_arg){
-	    .path		= "test.c",
-	    .bf			= bf,
-	    .op			= &c->op,
-	    .arena		= {
-		.eternal_scope	= scope,
-		.scratch	= c->arena.scratch,
-	    },
-	    .callbacks		= clang_lexer_callbacks(clang),
+	    .path = "test.c",
+	    .bf = bf,
+	    .op = &c->op,
+	    .arena =
+		{
+		    .eternal_scope = scope,
+		    .scratch = c->arena.scratch,
+		},
+	    .callbacks = clang_lexer_callbacks(clang),
 	});
 	if (lx == nullptr)
 		return 0;
 
-	pr = parser_alloc(&(struct parser_arg){
-	    .lexer	= lx,
-	    .options	= &c->op,
-	    .style	= c->st,
-	    .simple	= c->si,
-	    .clang	= clang,
-	    .arena	= &c->arena,
-	}, scope);
+	pr = parser_alloc(
+	    &(struct parser_arg){
+		.lexer = lx,
+		.options = &c->op,
+		.style = c->st,
+		.simple = c->si,
+		.clang = clang,
+		.arena = &c->arena,
+	    },
+	    scope);
 	return parser_exec(pr, nullptr, dst) == 0;
 }
 
@@ -99,7 +100,7 @@ static void
 target(const struct buffer *bf, void *userdata)
 {
 	struct test_context *c = userdata;
-	struct buffer *dst, *dst2, *dst3;
+	struct buffer	    *dst, *dst2, *dst3;
 
 	arena_scope(c->arena.eternal, eternal_scope);
 	arena_scope(c->arena.buffer, buffer_scope);
@@ -121,7 +122,7 @@ target(const struct buffer *bf, void *userdata)
 	if (!format_once(c, dst2, &eternal_scope, dst3))
 		return;
 
-	size_t len2, len3;
+	size_t	    len2, len3;
 	const char *str2, *str3;
 
 	len2 = buffer_get_len(dst2);

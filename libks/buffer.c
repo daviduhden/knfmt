@@ -15,8 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/buffer.h"
 #include <sys/stat.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -25,34 +25,37 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "libks/buffer.h"
 #include "libks/compiler.h"
 
 struct buffer {
-	struct buffer_callbacks	 bf_callbacks;
-	char			*bf_ptr;
-	size_t			 bf_siz;
-	size_t			 bf_len;
+	struct buffer_callbacks bf_callbacks;
+	char		       *bf_ptr;
+	size_t			bf_siz;
+	size_t			bf_len;
 };
 
-static int	buffer_reserve(struct buffer *, size_t, int);
+static int buffer_reserve(struct buffer *, size_t, int);
 
-static void	*callback_alloc(size_t, void *);
-static void	*callback_realloc(void *, size_t, size_t, void *);
-static void	 callback_free(void *, size_t, void *);
+static void *callback_alloc(size_t, void *);
+static void *callback_realloc(void *, size_t, size_t, void *);
+static void  callback_free(void *, size_t, void *);
 
 struct buffer *
 buffer_alloc(size_t init_size)
 {
-	return buffer_alloc_impl(init_size, 1, &(struct buffer_callbacks){
-	    .alloc	= callback_alloc,
-	    .realloc	= callback_realloc,
-	    .free	= callback_free,
-	});
+	return buffer_alloc_impl(init_size, 1,
+	    &(struct buffer_callbacks){
+		.alloc = callback_alloc,
+		.realloc = callback_realloc,
+		.free = callback_free,
+	    });
 }
 
 struct buffer *
-buffer_alloc_impl(size_t init_size, int overshoot,
-    const struct buffer_callbacks *callbacks)
+buffer_alloc_impl(
+    size_t init_size, int overshoot, const struct buffer_callbacks *callbacks)
 {
 	struct buffer *bf;
 
@@ -172,7 +175,7 @@ int
 buffer_printf(struct buffer *bf, const char *fmt, ...)
 {
 	va_list ap;
-	int error;
+	int	error;
 
 	va_start(ap, fmt);
 	error = buffer_vprintf(bf, fmt, ap);
@@ -190,8 +193,8 @@ int
 buffer_vprintf(struct buffer *bf, const char *fmt, va_list ap)
 {
 	va_list cp;
-	size_t len;
-	int n;
+	size_t	len;
+	int	n;
 
 	if (is_string_directive(fmt)) {
 		const char *str;
@@ -301,7 +304,7 @@ const char *
 buffer_getline_impl(const struct buffer *bf, struct buffer_getline *getline)
 {
 	const char *line, *newline;
-	size_t linelen;
+	size_t	    linelen;
 
 	if (getline->off >= bf->bf_len)
 		goto done;
@@ -333,7 +336,7 @@ static int
 buffer_reserve(struct buffer *bf, size_t len, int overshoot)
 {
 	size_t newlen, newsiz;
-	char *ptr;
+	char  *ptr;
 
 	if (len > ULONG_MAX - bf->bf_len)
 		goto overflow;
@@ -351,8 +354,8 @@ buffer_reserve(struct buffer *bf, size_t len, int overshoot)
 	} else {
 		newsiz = newlen;
 	}
-	ptr = bf->bf_callbacks.realloc(bf->bf_ptr, bf->bf_siz, newsiz,
-	    bf->bf_callbacks.arg);
+	ptr = bf->bf_callbacks.realloc(
+	    bf->bf_ptr, bf->bf_siz, newsiz, bf->bf_callbacks.arg);
 	if (ptr == nullptr)
 		return 1;
 	bf->bf_ptr = ptr;
@@ -371,8 +374,8 @@ callback_alloc(size_t size, void *UNUSED(arg))
 }
 
 static void *
-callback_realloc(void *ptr, size_t UNUSED(old_size), size_t new_size,
-    void *UNUSED(arg))
+callback_realloc(
+    void *ptr, size_t UNUSED(old_size), size_t new_size, void *UNUSED(arg))
 {
 	return realloc(ptr, new_size);
 }

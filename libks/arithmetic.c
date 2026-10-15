@@ -15,8 +15,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/arithmetic.h"
 #include <limits.h>
+
+#include "libks/arithmetic.h"
 
 /*
  * Independent, division/sign-based implementation of the C23 7.20.1 checked
@@ -31,49 +32,55 @@
  * signed type (two's complement, as required by C23).
  */
 
-#define SIGNED_ADD_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
-	utype _r = (utype)(a) + (utype)(b);				\
-	int _ovf = ((b) > 0 && (a) > ((max) - (b))) ||			\
-	    ((b) < 0 && (a) < ((min) - (b)));				\
-	*(c) = (stype)_r;						\
-	return _ovf;							\
-} while (0)
+#define SIGNED_ADD_OVERFLOW(stype, utype, max, min, a, b, c)                   \
+	do {                                                                   \
+		utype _r = (utype)(a) + (utype)(b);                            \
+		int   _ovf = ((b) > 0 && (a) > ((max) - (b))) ||               \
+		    ((b) < 0 && (a) < ((min) - (b)));                          \
+		*(c) = (stype)_r;                                              \
+		return _ovf;                                                   \
+	} while (0)
 
-#define SIGNED_SUB_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
-	utype _r = (utype)(a) - (utype)(b);				\
-	int _ovf = ((b) > 0 && (a) < ((min) + (b))) ||			\
-	    ((b) < 0 && (a) > ((max) + (b)));				\
-	*(c) = (stype)_r;						\
-	return _ovf;							\
-} while (0)
+#define SIGNED_SUB_OVERFLOW(stype, utype, max, min, a, b, c)                   \
+	do {                                                                   \
+		utype _r = (utype)(a) - (utype)(b);                            \
+		int   _ovf = ((b) > 0 && (a) < ((min) + (b))) ||               \
+		    ((b) < 0 && (a) > ((max) + (b)));                          \
+		*(c) = (stype)_r;                                              \
+		return _ovf;                                                   \
+	} while (0)
 
-#define SIGNED_MUL_OVERFLOW(stype, utype, max, min, a, b, c) do {	\
-	utype _r = (utype)(a) * (utype)(b);				\
-	int _ovf = ((a) > 0 && (b) > 0 && (a) > (max) / (b)) ||		\
-	    ((a) > 0 && (b) < 0 && (b) < (min) / (a)) ||		\
-	    ((a) < 0 && (b) > 0 && (a) < (min) / (b)) ||		\
-	    ((a) < 0 && (b) < 0 && (b) < (max) / (a));			\
-	*(c) = (stype)_r;						\
-	return _ovf;							\
-} while (0)
+#define SIGNED_MUL_OVERFLOW(stype, utype, max, min, a, b, c)                   \
+	do {                                                                   \
+		utype _r = (utype)(a) * (utype)(b);                            \
+		int   _ovf = ((a) > 0 && (b) > 0 && (a) > (max) / (b)) ||      \
+		    ((a) > 0 && (b) < 0 && (b) < (min) / (a)) ||               \
+		    ((a) < 0 && (b) > 0 && (a) < (min) / (b)) ||               \
+		    ((a) < 0 && (b) < 0 && (b) < (max) / (a));                 \
+		*(c) = (stype)_r;                                              \
+		return _ovf;                                                   \
+	} while (0)
 
-#define UNSIGNED_ADD_OVERFLOW(max, a, b, c) do {			\
-	int _ovf = (a) > (max) - (b);					\
-	*(c) = (a) + (b);						\
-	return _ovf;							\
-} while (0)
+#define UNSIGNED_ADD_OVERFLOW(max, a, b, c)                                    \
+	do {                                                                   \
+		int _ovf = (a) > (max) - (b);                                  \
+		*(c) = (a) + (b);                                              \
+		return _ovf;                                                   \
+	} while (0)
 
-#define UNSIGNED_SUB_OVERFLOW(max, a, b, c) do {			\
-	int _ovf = (b) > (a);						\
-	*(c) = (a) - (b);						\
-	return _ovf;							\
-} while (0)
+#define UNSIGNED_SUB_OVERFLOW(max, a, b, c)                                    \
+	do {                                                                   \
+		int _ovf = (b) > (a);                                          \
+		*(c) = (a) - (b);                                              \
+		return _ovf;                                                   \
+	} while (0)
 
-#define UNSIGNED_MUL_OVERFLOW(max, a, b, c) do {			\
-	int _ovf = (b) != 0 && (a) > (max) / (b);			\
-	*(c) = (a) * (b);						\
-	return _ovf;							\
-} while (0)
+#define UNSIGNED_MUL_OVERFLOW(max, a, b, c)                                    \
+	do {                                                                   \
+		int _ovf = (b) != 0 && (a) > (max) / (b);                      \
+		*(c) = (a) * (b);                                              \
+		return _ovf;                                                   \
+	} while (0)
 
 int
 KS_i32_add_overflow0(int32_t a, int32_t b, int32_t *c)

@@ -7,11 +7,12 @@
 int
 main(void)
 {
-        return aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr)
-                && aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr);
+	return aaaaaaaaaaaaaaaaa(
+		   ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr) &&
+	    aaaaaaaaaaaaaaaaa(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, rrrrrrrr);
 }

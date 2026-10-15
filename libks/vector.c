@@ -15,12 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/vector.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "libks/compiler.h"
+#include "libks/vector.h"
 
 enum vector_error {
 	VECTOR_REALLOCATED = 1,
@@ -29,15 +30,15 @@ enum vector_error {
 };
 
 struct vector {
-	struct vector_callbacks	vc_callbacks;
+	struct vector_callbacks vc_callbacks;
 	size_t			vc_siz;
 	/* Must come last. */
-	struct vector_public	p;
+	struct vector_public p;
 };
 
 static enum vector_error vector_reserve1(struct vector **, size_t);
 
-static struct vector		*ptov(void *);
+static struct vector *ptov(void *);
 
 static void *
 callback_calloc(size_t nmemb, size_t size, void *UNUSED(arg))
@@ -46,8 +47,8 @@ callback_calloc(size_t nmemb, size_t size, void *UNUSED(arg))
 }
 
 static void *
-callback_realloc(void *ptr, size_t UNUSED(oldsize), size_t newsize,
-    void *UNUSED(arg))
+callback_realloc(
+    void *ptr, size_t UNUSED(oldsize), size_t newsize, void *UNUSED(arg))
 {
 	return realloc(ptr, newsize);
 }
@@ -63,10 +64,10 @@ vector_init(void **vv, size_t stride)
 {
 	return vector_init_impl(VECTOR_DEFAULT, vv, stride,
 	    &(struct vector_callbacks){
-		.calloc		= callback_calloc,
-		.realloc	= callback_realloc,
-		.free		= callback_free,
-	});
+		.calloc = callback_calloc,
+		.realloc = callback_realloc,
+		.free = callback_free,
+	    });
 }
 
 int
@@ -93,7 +94,8 @@ vector_free(void **vv)
 	if (*vv == nullptr)
 		return;
 	vc = ptov(*vv);
-	vc->vc_callbacks.free(vc, sizeof(*vc) + (vc->p.len * vc->p.stride), vc->vc_callbacks.arg);
+	vc->vc_callbacks.free(
+	    vc, sizeof(*vc) + (vc->p.len * vc->p.stride), vc->vc_callbacks.arg);
 	*vv = nullptr;
 }
 
@@ -103,7 +105,8 @@ vector_copy(void *v)
 	const struct vector *src = ptov(v);
 
 	void *dst;
-	if (vector_init_impl(src->p.type, &dst, src->p.stride, &src->vc_callbacks))
+	if (vector_init_impl(
+		src->p.type, &dst, src->p.stride, &src->vc_callbacks))
 		return nullptr;
 	if (vector_reserve(&dst, src->p.len)) {
 		vector_free(&dst);
@@ -210,7 +213,7 @@ vector_reserve1(struct vector **vv, size_t len)
 {
 	struct vector *vc = *vv;
 	struct vector *newvc;
-	size_t newsiz, oldlen, totlen;
+	size_t	       newsiz, oldlen, totlen;
 
 	if (vc->p.len > ULONG_MAX - len)
 		goto overflow;
@@ -233,8 +236,8 @@ vector_reserve1(struct vector **vv, size_t len)
 		goto overflow;
 	totlen += sizeof(*vc);
 
-	newvc = vc->vc_callbacks.realloc(vc, oldlen, totlen,
-	    vc->vc_callbacks.arg);
+	newvc =
+	    vc->vc_callbacks.realloc(vc, oldlen, totlen, vc->vc_callbacks.arg);
 	if (newvc == nullptr)
 		return VECTOR_ERROR;
 	newvc->vc_siz = newsiz;

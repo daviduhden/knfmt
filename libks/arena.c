@@ -15,7 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/arena.h"
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -25,79 +24,90 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "libks/arena.h"
 #include "libks/arithmetic.h"
 #include "libks/compiler.h"
 #include "libks/valgrind.h"
 
 #if defined(__has_feature)
-#  if  __has_feature(address_sanitizer)
-#    define HAVE_ASAN 1	/* clang */
-#  endif
+#if __has_feature(address_sanitizer)
+#define HAVE_ASAN 1 /* clang */
+#endif
 #elif defined(__SANITIZE_ADDRESS__)
-#  define HAVE_ASAN 1	/ * gcc */
+#define HAVE_ASAN 1 / *gcc * /
 #endif
 #if defined(HAVE_ASAN)
-#  include <sanitizer/asan_interface.h>
+#include <sanitizer/asan_interface.h>
 #else
-#  define ASAN_POISON_MEMORY_REGION(...) (void)0
-#  define ASAN_UNPOISON_MEMORY_REGION(...) (void)0
+#define ASAN_POISON_MEMORY_REGION(...) (void)0
+#define ASAN_UNPOISON_MEMORY_REGION(...) (void)0
 #endif
 
 #define MAX_SOURCE_LOCATIONS 8
 
 #if defined(ARENA_TRACE)
 
-#define arena_trace_name(a, b) do {					\
-	if (is_arena_trace_enabled(a))					\
-		arena_trace_name_impl((a), (b));			\
-} while (0)
+#define arena_trace_name(a, b)                                                 \
+	do {                                                                   \
+		if (is_arena_trace_enabled(a))                                 \
+			arena_trace_name_impl((a), (b));                       \
+	} while (0)
 
-#define arena_trace_push(a, b, c, d) do {				\
-	if (is_arena_trace_enabled(a)) {				\
-		arena_trace((a), &(struct arena_trace_event){		\
-		    .type = ARENA_TRACE_PUSH,				\
-		    .data.push.size = (b),				\
-		    .data.push.alignment_spill = (c),			\
-		    .data.push.internal = (d),				\
-		});							\
-	}								\
-} while (0)
+#define arena_trace_push(a, b, c, d)                                           \
+	do {                                                                   \
+		if (is_arena_trace_enabled(a)) {                               \
+			arena_trace((a),                                       \
+			    &(struct arena_trace_event){                       \
+				.type = ARENA_TRACE_PUSH,                      \
+				.data.push.size = (b),                         \
+				.data.push.alignment_spill = (c),              \
+				.data.push.internal = (d),                     \
+			    });                                                \
+		}                                                              \
+	} while (0)
 
-#define arena_trace_frame_spill(a, b) do {				\
-	if (is_arena_trace_enabled(a)) {				\
-		arena_trace((a), &(struct arena_trace_event){		\
-		    .type = ARENA_TRACE_FRAME_SPILL,			\
-		    .data.frame_spill.size = (b),			\
-		});							\
-	}								\
-} while (0)
+#define arena_trace_frame_spill(a, b)                                          \
+	do {                                                                   \
+		if (is_arena_trace_enabled(a)) {                               \
+			arena_trace((a),                                       \
+			    &(struct arena_trace_event){                       \
+				.type = ARENA_TRACE_FRAME_SPILL,               \
+				.data.frame_spill.size = (b),                  \
+			    });                                                \
+		}                                                              \
+	} while (0)
 
-#define arena_trace_realloc_spill(a, b) do {				\
-	if (is_arena_trace_enabled(a)) {				\
-		arena_trace((a), &(struct arena_trace_event){		\
-		    .type = ARENA_TRACE_REALLOC_SPILL,			\
-		    .data.realloc_spill.size = (b),			\
-		});							\
-	}								\
-} while (0)
+#define arena_trace_realloc_spill(a, b)                                        \
+	do {                                                                   \
+		if (is_arena_trace_enabled(a)) {                               \
+			arena_trace((a),                                       \
+			    &(struct arena_trace_event){                       \
+				.type = ARENA_TRACE_REALLOC_SPILL,             \
+				.data.realloc_spill.size = (b),                \
+			    });                                                \
+		}                                                              \
+	} while (0)
 
-#define arena_trace_stats(a, b, c, d) do {				\
-	if (is_arena_trace_enabled(a)) {				\
-		arena_trace((a), &(struct arena_trace_event){		\
-		    .type = (b),					\
-		    .data.stats.max = (c),				\
-		    .data.stats.total = (d),				\
-		});							\
-	}								\
-} while (0)
+#define arena_trace_stats(a, b, c, d)                                          \
+	do {                                                                   \
+		if (is_arena_trace_enabled(a)) {                               \
+			arena_trace((a),                                       \
+			    &(struct arena_trace_event){                       \
+				.type = (b),                                   \
+				.data.stats.max = (c),                         \
+				.data.stats.total = (d),                       \
+			    });                                                \
+		}                                                              \
+	} while (0)
 
 #else
 
-#define arena_trace_name(a, b)		(void)0
-#define arena_trace_push(a, b, c, d)	(void)0
-#define arena_trace_frame_spill(a, b)	(void)0
-#define arena_trace_realloc_spill(a, b)	(void)0
-#define arena_trace_stats(a, b, c, d)	(void)0
+#define arena_trace_name(a, b) (void)0
+#define arena_trace_push(a, b, c, d) (void)0
+#define arena_trace_frame_spill(a, b) (void)0
+#define arena_trace_realloc_spill(a, b) (void)0
+#define arena_trace_stats(a, b, c, d) (void)0
 
 #endif
 
@@ -107,49 +117,49 @@ enum poison_type {
 };
 
 struct source_location {
-	const char	*fun;
-	int		 lno;
+	const char *fun;
+	int	    lno;
 };
 
 struct arena_cleanup {
-	void			*ptr;
-	void			 (*fun)(void *);
-	struct arena_cleanup	*next;
+	void		     *ptr;
+	void		      (*fun)(void *);
+	struct arena_cleanup *next;
 };
 
 struct arena_frame {
-	char			*ptr;
-	size_t			 size;
-	size_t			 len;
-	struct arena_frame	*next;
+	char		   *ptr;
+	size_t		    size;
+	size_t		    len;
+	struct arena_frame *next;
 };
 
 struct arena {
-	struct arena_frame	*frame;
+	struct arena_frame *frame;
 	/* Initial heap frame size, multiple of page size. */
-	size_t			 frame_size;
+	size_t frame_size;
 	/* Number of ASAN poison bytes between allocations. */
-	size_t			 poison_size;
-	int			 refs;
-	struct source_location	 scope_locations[MAX_SOURCE_LOCATIONS];
+	size_t		       poison_size;
+	int		       refs;
+	struct source_location scope_locations[MAX_SOURCE_LOCATIONS];
 
 	struct {
 		struct {
-			size_t	now;
-			size_t	max;
-			size_t	total;
+			size_t now;
+			size_t max;
+			size_t total;
 		} bytes, frames, scopes;
 	} stats;
 
 	struct {
-		int	fd;
+		int fd;
 	} trace;
 };
 
 union address {
-	char		*s8;
-	uint64_t	 u64;
-	size_t		 size;
+	char	*s8;
+	uint64_t u64;
+	size_t	 size;
 };
 
 static const size_t maxalign = sizeof(void *);
@@ -167,14 +177,14 @@ read_stack_trace(uintptr_t *stack_trace, uint32_t stack_trace_length)
 {
 #if defined(__x86_64__) || defined(__i386__)
 
-#  if defined(__x86_64__)
-#    define REG_BP "rbp"
-#  elifdef __i386__
-#    define REG_BP "ebp"
-#  endif
+#if defined(__x86_64__)
+#define REG_BP "rbp"
+#elifdef __i386__
+#define REG_BP "ebp"
+#endif
 
 	void **rbp;
-	__asm__ volatile ("mov %%" REG_BP ", %0" : "=r" (rbp));
+	__asm__ volatile("mov %%" REG_BP ", %0" : "=r"(rbp));
 
 	for (uint32_t i = 0; i < stack_trace_length && rbp != 0; i++) {
 		stack_trace[i] = (uintptr_t)rbp[1];
@@ -198,7 +208,7 @@ static void
 arena_trace_name_impl(const struct arena *a, const char *name)
 {
 	struct arena_trace_event ev = {
-		.arena = (uintptr_t)a,
+	    .arena = (uintptr_t)a,
 	};
 	size_t length = strlen(name);
 	if (length > sizeof(ev.name) - 1)
@@ -224,7 +234,7 @@ static void
 frame_poison_with_len(const struct arena_frame *frame, size_t len)
 {
 	const void *ptr = &frame->ptr[len];
-	size_t size = frame->size - len;
+	size_t	    size = frame->size - len;
 
 	ASAN_POISON_MEMORY_REGION(ptr, size);
 	KS_valgrind_make_mem_noaccess(ptr, size);
@@ -237,8 +247,8 @@ frame_poison(const struct arena_frame *frame)
 }
 
 static void
-frame_unpoison(const struct arena_frame *frame, size_t size,
-    enum poison_type poison)
+frame_unpoison(
+    const struct arena_frame *frame, size_t size, enum poison_type poison)
 {
 	const void *ptr = &frame->ptr[frame->len];
 
@@ -312,7 +322,7 @@ static void *
 arena_push_impl(struct arena *a, struct arena_frame *frame, size_t size,
     enum poison_type poison, int internal)
 {
-	void *ptr;
+	void  *ptr;
 	size_t newlen, oldlen;
 
 	if (KS_size_add_overflow(frame->len, size, &newlen)) {
@@ -366,8 +376,8 @@ arena_frame_alloc(struct arena *a, size_t frame_size)
 	frame->size = frame_size;
 	frame->len = 0;
 	frame->next = nullptr;
-	const void *ptr = arena_push_internal(a, frame, sizeof(*frame),
-	    POISON_DEFINED);
+	const void *ptr =
+	    arena_push_internal(a, frame, sizeof(*frame), POISON_DEFINED);
 	if (ptr == nullptr) {
 		free(frame);
 		return 0;
@@ -387,7 +397,7 @@ struct arena *
 arena_alloc(const char *name)
 {
 	struct arena *a;
-	long page_size;
+	long	      page_size;
 
 	page_size = sysconf(_SC_PAGESIZE);
 	if (page_size == -1)
@@ -419,12 +429,12 @@ arena_free(struct arena *a)
 	if (a == nullptr)
 		return;
 
-	arena_trace_stats(a, ARENA_TRACE_STATS_BYTES,
-	    a->stats.bytes.max, a->stats.bytes.total);
-	arena_trace_stats(a, ARENA_TRACE_STATS_FRAMES,
-	    a->stats.frames.max, a->stats.frames.total);
-	arena_trace_stats(a, ARENA_TRACE_STATS_SCOPES,
-	    a->stats.scopes.max, a->stats.scopes.total);
+	arena_trace_stats(a, ARENA_TRACE_STATS_BYTES, a->stats.bytes.max,
+	    a->stats.bytes.total);
+	arena_trace_stats(a, ARENA_TRACE_STATS_FRAMES, a->stats.frames.max,
+	    a->stats.frames.total);
+	arena_trace_stats(a, ARENA_TRACE_STATS_SCOPES, a->stats.scopes.max,
+	    a->stats.scopes.total);
 
 	if (a->refs > 1) {
 		/* Scope(s) still alive. */
@@ -437,10 +447,10 @@ arena_free(struct arena *a)
 void
 arena_scope_leave(struct arena_scope *s)
 {
-	struct arena *a = s->arena;
-	struct arena_frame *last_frame = s->frame;
+	struct arena	     *a = s->arena;
+	struct arena_frame   *last_frame = s->frame;
 	struct arena_cleanup *ac;
-	int idx = a->refs;
+	int		      idx = a->refs;
 
 	if (idx < MAX_SOURCE_LOCATIONS)
 		a->scope_locations[idx] = (struct source_location){0};
@@ -460,8 +470,8 @@ arena_scope_leave(struct arena_scope *s)
 		free(frame);
 	}
 	if (a->frame != nullptr) {
-		a->frame->len = s->frame_len <= a->frame->len ?
-		    s->frame_len : 0;
+		a->frame->len =
+		    s->frame_len <= a->frame->len ? s->frame_len : 0;
 		frame_poison(a->frame);
 	}
 
@@ -476,7 +486,7 @@ struct arena_scope
 arena_scope_enter_impl(struct arena *a, const char *fun, int lno)
 {
 	struct arena_scope s;
-	int idx = a->refs;
+	int		   idx = a->refs;
 
 	if (idx < MAX_SOURCE_LOCATIONS) {
 		a->scope_locations[idx] = (struct source_location){
@@ -487,13 +497,13 @@ arena_scope_enter_impl(struct arena *a, const char *fun, int lno)
 
 	arena_ref(a);
 	s = (struct arena_scope){
-	    .arena	= a,
-	    .frame	= a->frame,
-	    .frame_len	= a->frame->len,
-	    .bytes	= a->stats.bytes.now,
-	    .frames	= a->stats.frames.now,
-	    .scopes	= a->stats.scopes.now,
-	    .id		= a->refs,
+	    .arena = a,
+	    .frame = a->frame,
+	    .frame_len = a->frame->len,
+	    .bytes = a->stats.bytes.now,
+	    .frames = a->stats.frames.now,
+	    .scopes = a->stats.scopes.now,
+	    .id = a->refs,
 	};
 	arena_stats_scopes(a);
 	return s;
@@ -503,11 +513,11 @@ static void
 arena_scope_validate(struct arena *a, const struct arena_scope *s, size_t size)
 {
 	const struct source_location fallback = {
-		.fun = "?",
-		.lno = 0,
+	    .fun = "?",
+	    .lno = 0,
 	};
 	const struct source_location *scope_location;
-	int i;
+	int			      i;
 
 	if (s->id == a->refs)
 		return;
@@ -516,15 +526,16 @@ arena_scope_validate(struct arena *a, const struct arena_scope *s, size_t size)
 	    &a->scope_locations[s->id - 1] :
 	    &fallback;
 
-	fprintf(stderr, "arena: allocating %zu bytes from scope #%d at %s:%d "
+	fprintf(stderr,
+	    "arena: allocating %zu bytes from scope #%d at %s:%d "
 	    "which will be freed by nested scope(s):\n",
 	    size, s->id, scope_location->fun, scope_location->lno);
 	for (i = a->refs; i >= 0 && i > s->id; i--) {
 		scope_location = i - 1 < MAX_SOURCE_LOCATIONS ?
 		    &a->scope_locations[i - 1] :
 		    &fallback;
-		fprintf(stderr, "#%d %s:%d\n",
-		    i, scope_location->fun, scope_location->lno);
+		fprintf(stderr, "#%d %s:%d\n", i, scope_location->fun,
+		    scope_location->lno);
 	}
 
 	__builtin_trap();
@@ -533,10 +544,10 @@ arena_scope_validate(struct arena *a, const struct arena_scope *s, size_t size)
 void *
 arena_malloc(struct arena_scope *s, size_t size)
 {
-	struct arena *a = s->arena;
+	struct arena	   *a = s->arena;
 	struct arena_frame *frame;
-	void *ptr;
-	size_t frame_size, total_size;
+	void		   *ptr;
+	size_t		    frame_size, total_size;
 
 	arena_scope_validate(a, s, size);
 
@@ -572,7 +583,7 @@ arena_malloc(struct arena_scope *s, size_t size)
 void *
 arena_calloc(struct arena_scope *s, size_t nmemb, size_t size)
 {
-	void *ptr;
+	void  *ptr;
 	size_t total_size;
 
 	if (KS_size_mul_overflow(nmemb, size, &total_size))
@@ -585,12 +596,12 @@ arena_calloc(struct arena_scope *s, size_t nmemb, size_t size)
 }
 
 static int
-arena_realloc_fast(struct arena_scope *s, char *ptr, size_t old_size,
-    size_t new_size)
+arena_realloc_fast(
+    struct arena_scope *s, char *ptr, size_t old_size, size_t new_size)
 {
 	struct arena_frame frame;
-	struct arena *a = s->arena;
-	union address old_addr;
+	struct arena	  *a = s->arena;
+	union address	   old_addr;
 
 	/* Always allow existing allocations to shrink. */
 	if (new_size <= old_size) {
@@ -615,10 +626,10 @@ arena_realloc_fast(struct arena_scope *s, char *ptr, size_t old_size,
 }
 
 void *
-arena_realloc(struct arena_scope *s, void *ptr, size_t old_size,
-    size_t new_size)
+arena_realloc(
+    struct arena_scope *s, void *ptr, size_t old_size, size_t new_size)
 {
-	void *new_ptr;
+	void	     *new_ptr;
 	union address old_addr;
 
 	old_addr.s8 = ptr;
@@ -641,9 +652,9 @@ char *
 arena_sprintf(struct arena_scope *s, const char *fmt, ...)
 {
 	va_list ap, cp;
-	char *str;
-	size_t len;
-	int n;
+	char   *str;
+	size_t	len;
+	int	n;
 
 	va_start(ap, fmt);
 
@@ -676,7 +687,7 @@ arena_strdup(struct arena_scope *s, const char *src)
 char *
 arena_strndup(struct arena_scope *s, const char *src, size_t len)
 {
-	char *dst;
+	char  *dst;
 	size_t total_size;
 
 	if (KS_size_add_overflow(len, 1, &total_size))

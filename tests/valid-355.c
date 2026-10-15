@@ -3,5 +3,3 @@
  */
 
 #define FOO 1
-
-

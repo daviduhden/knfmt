@@ -1,13 +1,10 @@
-#include "simple-expr-printf.h"
-
-#include "config.h"
-
 #include <string.h>
 
-#include "libks/arena.h"
-
 #include "clang.h"
+#include "config.h"
 #include "lexer.h"
+#include "libks/arena.h"
+#include "simple-expr-printf.h"
 #include "token.h"
 
 enum format_argno {
@@ -21,27 +18,21 @@ identify_function(const struct token *tk, enum format_argno *argno)
 {
 	enum clang_token_type type = clang_token_type(tk);
 
-	if (type == CLANG_TOKEN_PERROR ||
-	    type == CLANG_TOKEN_VWARN ||
-	    type == CLANG_TOKEN_VWARNX ||
-	    type == CLANG_TOKEN_WARN ||
+	if (type == CLANG_TOKEN_PERROR || type == CLANG_TOKEN_VWARN ||
+	    type == CLANG_TOKEN_VWARNX || type == CLANG_TOKEN_WARN ||
 	    type == CLANG_TOKEN_WARNX) {
 		*argno = FORMAT_ARGNO_0;
 		return 1;
 	}
 
-	if (type == CLANG_TOKEN_ERR ||
-	    type == CLANG_TOKEN_ERRX ||
-	    type == CLANG_TOKEN_VERR ||
-	    type == CLANG_TOKEN_VERRX ||
-	    type == CLANG_TOKEN_VWARNC ||
-	    type == CLANG_TOKEN_WARNC) {
+	if (type == CLANG_TOKEN_ERR || type == CLANG_TOKEN_ERRX ||
+	    type == CLANG_TOKEN_VERR || type == CLANG_TOKEN_VERRX ||
+	    type == CLANG_TOKEN_VWARNC || type == CLANG_TOKEN_WARNC) {
 		*argno = FORMAT_ARGNO_1;
 		return 1;
 	}
 
-	if (type == CLANG_TOKEN_ERRC ||
-	    type == CLANG_TOKEN_VERRC) {
+	if (type == CLANG_TOKEN_ERRC || type == CLANG_TOKEN_VERRC) {
 		*argno = FORMAT_ARGNO_2;
 		return 1;
 	}
@@ -53,7 +44,7 @@ static struct token *
 find_format_argument_inner(struct lexer *lx, enum format_argno argno)
 {
 	struct token *format = nullptr;
-	int i;
+	int	      i;
 
 	if (!lexer_if(lx, TOKEN_IDENT, nullptr) ||
 	    !lexer_if(lx, TOKEN_LPAREN, nullptr))
@@ -62,7 +53,8 @@ find_format_argument_inner(struct lexer *lx, enum format_argno argno)
 	for (i = 0; i < (int)argno; i++) {
 		struct token *ignore;
 
-		if (!lexer_pop(lx, &ignore) || !lexer_if(lx, TOKEN_COMMA, nullptr))
+		if (!lexer_pop(lx, &ignore) ||
+		    !lexer_if(lx, TOKEN_COMMA, nullptr))
 			return nullptr;
 	}
 	while (lexer_if(lx, TOKEN_STRING, &format))
@@ -71,11 +63,11 @@ find_format_argument_inner(struct lexer *lx, enum format_argno argno)
 }
 
 static struct token *
-find_format_argument(struct lexer *lx, struct token *seek,
-    enum format_argno argno)
+find_format_argument(
+    struct lexer *lx, struct token *seek, enum format_argno argno)
 {
 	struct lexer_state ls;
-	struct token *format;
+	struct token	  *format;
 
 	lexer_peek_enter(lx, &ls);
 	lexer_seek(lx, seek);
@@ -88,7 +80,7 @@ static int
 string_has_line(const char *str, size_t len)
 {
 	const char suffix[] = "\\n\"";
-	size_t suffixlen = sizeof(suffix) - 1;
+	size_t	   suffixlen = sizeof(suffix) - 1;
 
 	return len >= suffixlen &&
 	    strncmp(&str[len - suffixlen], suffix, suffixlen) == 0;
@@ -97,10 +89,10 @@ string_has_line(const char *str, size_t len)
 void
 simple_expr_printf(struct lexer *lx, struct token *tk)
 {
-	enum format_argno argno;
-	const char *sanitized_format;
+	enum format_argno   argno;
+	const char	   *sanitized_format;
 	struct arena_scope *s;
-	struct token *format;
+	struct token	   *format;
 
 	if (!identify_function(tk, &argno))
 		return;

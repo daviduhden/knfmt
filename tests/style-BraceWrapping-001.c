@@ -20,7 +20,6 @@ struct s {
 	int s;
 };
 
-union
-{
+union {
 	int u;
 };

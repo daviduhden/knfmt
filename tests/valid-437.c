@@ -3,4 +3,4 @@
  */
 
 typedef unsigned long ulong;
-ulong x;
+ulong		      x;

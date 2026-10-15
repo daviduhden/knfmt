@@ -2,36 +2,26 @@
  * Sort includes.
  */
 
-#include "a.h"
-#include <b.h>
-
 #include <a.h>
-#include <b/b.h>
-
-#include <b/b.h>
 #include <a/a.h>
-
 #include <b.h>
-#include <a.h>
+#include <b/b.h>
 
-#include "b.h"
 #include "a.h"
-
 #include "b.h"
-#include "a.h"
 #define FOO
 
-#include "b.h"
 #include "a.h"
+#include "b.h"
 extern int foo;
 
-#include "b.h"
 #include "a.h"
+#include "b.h"
 
 extern int foo;
 
-#include "b.h"
 #include "a.h"
+#include "b.h"
 
 int
 main(void)

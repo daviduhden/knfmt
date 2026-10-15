@@ -6,5 +6,6 @@
 int
 main(void)
 {
-	return x + foooooooooooooooooooooooooooooooooooooooooooooooooooooooooo();
+	return x +
+	    foooooooooooooooooooooooooooooooooooooooooooooooooooooooooo();
 }

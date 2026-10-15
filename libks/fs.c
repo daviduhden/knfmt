@@ -15,23 +15,25 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libks/fs.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>	/* mkstemp(3) on Linux */
+#include <stdlib.h> /* mkstemp(3) on Linux */
 #include <string.h>
 #include <unistd.h>
+
+#include "libks/fs.h"
 
 static int
 construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 {
-	char prefix[PATH_MAX];
+	char	    prefix[PATH_MAX];
 	const char *p, *suffix;
-	int n;
+	int	    n;
 
 	p = strrchr(path, '/');
 	if (p != nullptr) {
@@ -80,11 +82,11 @@ inherit_ownership_and_permissions(int srcfd, int dstfd)
 int
 KS_fs_replace(const char *path, const char *buf, size_t buflen)
 {
-	char tmppath[PATH_MAX] = {0};
+	char   tmppath[PATH_MAX] = {0};
 	mode_t old_umask;
-	int tmpfd = -1;
-	int error = -1;
-	int srcfd;
+	int    tmpfd = -1;
+	int    error = -1;
+	int    srcfd;
 
 	srcfd = open(path, O_RDONLY | O_CLOEXEC);
 	if (srcfd == -1)
@@ -129,11 +131,11 @@ out:
 int
 KS_fs_tmpfd(const char *buf, size_t buflen, char *path, size_t pathsiz)
 {
-	char tmppath[PATH_MAX];
+	char   tmppath[PATH_MAX];
 	size_t siz = sizeof(tmppath);
 	mode_t old_umask;
-	int fd = -1;
-	int n;
+	int    fd = -1;
+	int    n;
 
 	n = snprintf(tmppath, siz, "/tmp/libks.XXXXXXXX");
 	if (n < 0 || (size_t)n >= siz) {

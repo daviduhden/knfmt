@@ -6,6 +6,6 @@
 int
 main(void)
 {
-	aaa = true ? aaa | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-		   : aaa & ~bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
+	aaa = true ? aaa | bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb :
+		     aaa & ~bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
 }

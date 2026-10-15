@@ -6,10 +6,9 @@
 void
 f(void)
 {
-	for (
- * c99_for_decl.
- */
+	for (*c99_for_decl.* /
 
-voiint i = 0; i < 3; i++)
+		voiint i = 0;
+	    i < 3; i++)
 		continue;
 }

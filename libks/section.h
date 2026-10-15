@@ -22,27 +22,29 @@
 
 #if defined(__MACH__)
 /* Prevent Clang on macOS from adding poisoned bytes between section entries. */
-#  define SECTION(s)		__attribute__((section("__DATA," #s))) \
-				__attribute__((no_sanitize("address")))
-#  define SECTION_START(s)	__asm("section$start$__DATA$" #s);
-#  define SECTION_STOP(s)	__asm("section$end$__DATA$" #s);
+#define SECTION(s)                                                             \
+	__attribute__((section("__DATA," #s)))                                 \
+	__attribute__((no_sanitize("address")))
+#define SECTION_START(s) __asm("section$start$__DATA$" #s);
+#define SECTION_STOP(s) __asm("section$end$__DATA$" #s);
 #else
-#  define SECTION(s)		__attribute__((section(#s)))
-#  define SECTION_START(s)
-#  define SECTION_STOP(s)
+#define SECTION(s) __attribute__((section(#s)))
+#define SECTION_START(s)
+#define SECTION_STOP(s)
 #endif
 
-#define SECTION_ITERATE(it, s) __extension__ ({				\
-	STATIC_ASSERT((sizeof(*(it)) & 0xf) == 0, "Unaligned");		\
-	extern __typeof__(*(it)) __start_##s [] SECTION_START(s);	\
-	__typeof__(it) _start = &__start_##s [0];			\
-	extern __typeof__(*(it)) __stop_##s [] SECTION_STOP(s);		\
-	__typeof__(it) _stop = &__stop_##s [0];				\
-	if ((it) == nullptr)						\
-		(it) = _start;						\
-	else								\
-		(it)++;							\
-	(it) != _stop;							\
-})
+#define SECTION_ITERATE(it, s)                                                 \
+	__extension__({                                                        \
+		STATIC_ASSERT((sizeof(*(it)) & 0xf) == 0, "Unaligned");        \
+		extern __typeof__(*(it)) __start_##s[] SECTION_START(s);       \
+		__typeof__(it)		 _start = &__start_##s[0];             \
+		extern __typeof__(*(it)) __stop_##s[] SECTION_STOP(s);         \
+		__typeof__(it)		 _stop = &__stop_##s[0];               \
+		if ((it) == nullptr)                                           \
+			(it) = _start;                                         \
+		else                                                           \
+			(it)++;                                                \
+		(it) != _stop;                                                 \
+	})
 
 #endif /* !LIBKS_SECTION_H */

@@ -2,4 +2,5 @@
  * AFL
  */
 
-void (*cb)(void),;aux;
+void (*cb)(void), ;
+aux;

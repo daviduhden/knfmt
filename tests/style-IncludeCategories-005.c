@@ -8,5 +8,5 @@
  * SortIncludes: CaseSensitive
  */
 
-#include "a.h"
 #include "B.h"
+#include "a.h"

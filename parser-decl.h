@@ -2,17 +2,17 @@ struct doc;
 struct parser;
 
 /* Honor grouped declarations. */
-#define PARSER_DECL_BREAK			0x00000001u
+#define PARSER_DECL_BREAK 0x00000001u
 /* Emit hard line after declaration(s). */
-#define PARSER_DECL_LINE			0x00000002u
+#define PARSER_DECL_LINE 0x00000002u
 /* Parsing of declarations on root level. */
-#define PARSER_DECL_ROOT			0x00000004u
+#define PARSER_DECL_ROOT 0x00000004u
 /* Simplify declarations. */
-#define PARSER_DECL_SIMPLE			0x00000008u
+#define PARSER_DECL_SIMPLE 0x00000008u
 /* Trim redundant semicolon(s) after declaration. */
-#define PARSER_DECL_TRIM_SEMI			0x00000010u
+#define PARSER_DECL_TRIM_SEMI 0x00000010u
 /* Simplify forward declarations. */
-#define PARSER_DECL_SIMPLE_FORWARD		0x00000020u
+#define PARSER_DECL_SIMPLE_FORWARD 0x00000020u
 
-int	parser_decl_peek(struct parser *);
-int	parser_decl(struct parser *, struct doc *, unsigned int);
+int parser_decl_peek(struct parser *);
+int parser_decl(struct parser *, struct doc *, unsigned int);

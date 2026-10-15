@@ -24,20 +24,20 @@
  * Driver for Atheros AR9001U chipset.
  */
 
-#include "bpfilter.h"
-
 #include <sys/param.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
-#include <sys/systm.h>
-#include <sys/timeout.h>
 #include <sys/conf.h>
 #include <sys/device.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/systm.h>
+#include <sys/timeout.h>
 
 #include <machine/intr.h>
+
+#include "bpfilter.h"
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
@@ -45,25 +45,30 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <netinet/in.h>
 #include <netinet/if_ether.h>
-
-#include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_amrr.h>
-#include <net80211/ieee80211_radiotap.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdevs.h>
+#include <netinet/in.h>
 
 #include <dev/usb/if_otusreg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdevs.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include <net80211/ieee80211_amrr.h>
+#include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_var.h>
 
 #ifdef OTUS_DEBUG
-#define DPRINTF(x)	do { if (otus_debug) printf x; } while (0)
-#define DPRINTFN(n, x)	do { if (otus_debug >= (n)) printf x; } while (0)
-int	otus_debug = 1;
+#define DPRINTF(x)                                                             \
+	do {                                                                   \
+		if (otus_debug)                                                \
+			printf x;                                              \
+	} while (0)
+#define DPRINTFN(n, x)                                                         \
+	do {                                                                   \
+		if (otus_debug >= (n))                                         \
+			printf x;                                              \
+	} while (0)
+int otus_debug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n, x)
@@ -72,12 +77,12 @@ int	otus_debug = 1;
 void
 otus_attachhook(struct device *self)
 {
-	struct otus_softc *sc = (struct otus_softc *)self;
+	struct otus_softc   *sc = (struct otus_softc *)self;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &ic->ic_if;
+	struct ifnet	    *ifp = &ic->ic_if;
 	usb_device_request_t req;
-	uint32_t in, out;
-	int error;
+	uint32_t	     in, out;
+	int		     error;
 
 	error = otus_load_firmware(sc, "otus-init", AR_FW_INIT_ADDR);
 	if (error != 0) {
@@ -129,17 +134,18 @@ otus_attachhook(struct device *self)
 	sc->rxmask = sc->eeprom.baseEepHeader.rxMask;
 	sc->capflags = sc->eeprom.baseEepHeader.opCapFlags;
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->eeprom.baseEepHeader.macAddr);
-	sc->sc_led_newstate = otus_led_newstate_type3;	/* XXX */
+	sc->sc_led_newstate = otus_led_newstate_type3; /* XXX */
 
 	printf("%s: MAC/BBP AR9170, RF AR%X, MIMO %dT%dR, address %s\n",
 	    sc->sc_dev.dv_xname,
-	    (sc->capflags & AR5416_OPFLAGS_11A) ? 0x9104 : ((sc->txmask ==
-	    0x5) ? 0x9102 : 0x9101),
-	    (sc->txmask == 0x5) ? 2 : 1,
-	    (sc->rxmask == 0x5) ? 2 : 1, ether_sprintf(ic->ic_myaddr));
+	    (sc->capflags & AR5416_OPFLAGS_11A) ?
+		0x9104 :
+		((sc->txmask == 0x5) ? 0x9102 : 0x9101),
+	    (sc->txmask == 0x5) ? 2 : 1, (sc->rxmask == 0x5) ? 2 : 1,
+	    ether_sprintf(ic->ic_myaddr));
 
-	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
-	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
+	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
+	ic->ic_opmode = IEEE80211_M_STA;   /* default to BSS mode */
 	ic->ic_state = IEEE80211_S_INIT;
 
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
@@ -223,9 +229,9 @@ void
 otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct otus_tx_cmd *cmd;
-	struct ar_cmd_hdr *hdr;
-	int s;
+	struct otus_tx_cmd  *cmd;
+	struct ar_cmd_hdr   *hdr;
+	int		     s;
 
 	if (__predict_false(len < sizeof(*hdr))) {
 		DPRINTF(("cmd too small %d\n", len));
@@ -233,15 +239,15 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 	}
 	hdr = (struct ar_cmd_hdr *)buf;
 	if (__predict_false(sizeof(*hdr) + hdr->len > len ||
-	    sizeof(*hdr) + hdr->len > 64)) {
-		DPRINTF(	("cmd too large %d\n", hdr->len));
+		sizeof(*hdr) + hdr->len > 64)) {
+		DPRINTF(("cmd too large %d\n", hdr->len));
 		return;
 	}
 
 	if ((hdr->code & 0xc0) != 0xc0) {
 		DPRINTFN(2,
 		    ("received reply code=0x%02x len=%d token=%d\n", hdr->code,
-		     hdr->len, hdr->token));
+			hdr->len, hdr->token));
 		cmd = &sc->tx_cmd;
 		if (__predict_false(hdr->token != cmd->token))
 			return;
@@ -254,15 +260,15 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 	}
 
 	/* Received unsolicited notification. */
-	DPRINTF(("received notification code=0x%02x len=%d\n", hdr->code,
-	    hdr->len));
+	DPRINTF((
+	    "received notification code=0x%02x len=%d\n", hdr->code, hdr->len));
 	switch (hdr->code & 0x3f) {
 	case AR_EVT_BEACON:
 		break;
 	case AR_EVT_TX_COMP: {
 		struct ar_evt_tx_comp *tx = (struct ar_evt_tx_comp *)&hdr[1];
 		struct ieee80211_node *ni;
-		struct otus_node *on;
+		struct otus_node      *on;
 
 		DPRINTF(("tx completed %s status=%d phy=0x%x\n",
 		    ether_sprintf(tx->macaddr), letoh16(tx->status),
@@ -296,10 +302,10 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 void
 otus_start(struct ifnet *ifp)
 {
-	struct otus_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct otus_softc     *sc = ifp->if_softc;
+	struct ieee80211com   *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
-	struct mbuf *m;
+	struct mbuf	      *m;
 
 	if (!(ifp->if_flags & IFF_RUNNING) || ifq_is_oactive(&ifp->if_snd))
 		return;
@@ -328,7 +334,7 @@ otus_start(struct ifnet *ifp)
 #endif
 		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
 			continue;
-sendit:
+	sendit:
 #if NBPFILTER > 0
 		if (ic->ic_rawbpf != NULL)
 			bpf_mtap(ic->ic_rawbpf, m, BPF_DIRECTION_OUT);
@@ -346,10 +352,10 @@ sendit:
 
 #ifdef notyet
 int
-otus_set_key(struct ieee80211com *ic, struct ieee80211_node *ni,
-    struct ieee80211_key *k)
+otus_set_key(
+    struct ieee80211com *ic, struct ieee80211_node *ni, struct ieee80211_key *k)
 {
-	struct otus_softc *sc = ic->ic_softc;
+	struct otus_softc  *sc = ic->ic_softc;
 	struct otus_cmd_key cmd;
 
 	/* Defer setting of WEP keys until interface is brought up. */
@@ -361,8 +367,7 @@ otus_set_key(struct ieee80211com *ic, struct ieee80211_node *ni,
 	cmd.key = *k;
 	cmd.ni = *ni;
 	otus_do_async(sc, otus_set_key_cb, &cmd, sizeof cmd);
-	sc->sc_key_tasks++
-	return EBUSY;
+	sc->sc_key_tasks++ return EBUSY;
 }
 
 #endif
@@ -370,10 +375,10 @@ otus_set_key(struct ieee80211com *ic, struct ieee80211_node *ni,
 void
 otus_calibrate_to(void *arg)
 {
-	struct otus_softc *sc = arg;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct otus_softc     *sc = arg;
+	struct ieee80211com   *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
-	int s;
+	int		       s;
 
 	if (usbd_is_dying(sc->sc_udev))
 		return;

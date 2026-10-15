@@ -1,9 +1,7 @@
-#include "simple-stmt-empty-loop.h"
-
-#include "config.h"
-
 #include "clang.h"
+#include "config.h"
 #include "lexer.h"
+#include "simple-stmt-empty-loop.h"
 #include "token.h"
 
 static int
@@ -26,8 +24,8 @@ sense_empty_loop_braces(const struct token *lbrace, const struct token *rbrace)
 static struct token *
 insert_continue(struct lexer *lx, struct token *after)
 {
-	return lexer_insert_after(lx, after,
-	    clang_keyword_token(TOKEN_CONTINUE));
+	return lexer_insert_after(
+	    lx, after, clang_keyword_token(TOKEN_CONTINUE));
 }
 
 static struct token *
@@ -41,8 +39,8 @@ simple_stmt_empty_loop_braces(struct lexer *lx)
 {
 	struct token *after, *lbrace, *nx, *rbrace;
 
-	if (!lexer_peek_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace,
-	    &rbrace))
+	if (!lexer_peek_if_pair(
+		lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace))
 		return;
 	if (!sense_empty_loop_braces(lbrace, rbrace))
 		return;
@@ -58,8 +56,7 @@ simple_stmt_empty_loop_no_braces(struct lexer *lx)
 {
 	struct token *after;
 
-	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr) ||
-	    !lexer_back(lx, &after))
+	if (!lexer_peek_if(lx, TOKEN_SEMI, nullptr) || !lexer_back(lx, &after))
 		return;
 
 	insert_continue(lx, after);

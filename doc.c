@@ -1,7 +1,3 @@
-#include "doc.h"
-
-#include "config.h"
-
 #include <assert.h>
 #include <err.h>
 #include <float.h>
@@ -11,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
+#include "diff.h"
+#include "doc.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena-vector.h"
 #include "libks/arena.h"
@@ -21,20 +21,17 @@
 #include "libks/list.h"
 #include "libks/string.h"
 #include "libks/vector.h"
-
-#include "diff.h"
-#include "lexer.h"
 #include "style.h"
 #include "token.h"
 #include "util.h"
 
-#define IS_DOC_INDENT_PARENS(indent) \
+#define IS_DOC_INDENT_PARENS(indent)                                           \
 	((indent) > 0 && ((indent) & DOC_INDENT_PARENS))
-#define IS_DOC_INDENT_FORCE(indent) \
+#define IS_DOC_INDENT_FORCE(indent)                                            \
 	((indent) > 0 && ((indent) & DOC_INDENT_FORCE))
-#define IS_DOC_INDENT_NEWLINE(indent) \
+#define IS_DOC_INDENT_NEWLINE(indent)                                          \
 	((indent) > 0 && ((indent) & DOC_INDENT_NEWLINE))
-#define IS_DOC_INDENT_WIDTH(indent) \
+#define IS_DOC_INDENT_WIDTH(indent)                                            \
 	((indent) > 0 && ((indent) & DOC_INDENT_WIDTH))
 
 LIST(doc_list, doc);
@@ -46,62 +43,62 @@ enum doc_diff_group {
 };
 
 struct doc_state_indent {
-	unsigned int	cur;	/* current indent */
-	unsigned int	pre;	/* last emitted indent */
+	unsigned int cur; /* current indent */
+	unsigned int pre; /* last emitted indent */
 };
 
 struct doc_walk_state {
-	struct doc_state_indent	indent;
+	struct doc_state_indent indent;
 };
 
 struct doc {
-	enum doc_type		 dc_type;
+	enum doc_type dc_type;
 
 	/* allocation trace */
-	int			 dc_lno;
-	const char		*dc_fun;
-	const char		*dc_suffix;
+	int	    dc_lno;
+	const char *dc_fun;
+	const char *dc_suffix;
 
 	/* children */
 	union {
-		struct doc_list	 dc_list;
-		struct doc	*dc_doc;
-		struct token	*dc_tk;
+		struct doc_list dc_list;
+		struct doc     *dc_doc;
+		struct token   *dc_tk;
 	};
 
 	/* value */
 	union {
-		VECTOR(struct doc_minimize)	dc_minimizers;
+		VECTOR(struct doc_minimize) dc_minimizers;
 		struct {
-			const char	*dc_str;
-			size_t		 dc_len;
+			const char *dc_str;
+			size_t	    dc_len;
 		};
-		struct doc_align		dc_align;
-		int				dc_int;
+		struct doc_align dc_align;
+		int		 dc_int;
 	};
 
-	struct arena_scope	*dc_scope;
+	struct arena_scope *dc_scope;
 
-	struct doc_walk_state	 dc_walk;
+	struct doc_walk_state dc_walk;
 
 	/*
 	 * Cached flat-width summary. Computed iteratively by
 	 * doc_summarize() before layout; see DOC_SUM_*.
 	 */
-	unsigned int		 dc_sum_flat;
-	unsigned int		 dc_sum_flags;
+	unsigned int dc_sum_flat;
+	unsigned int dc_sum_flags;
 	/* Height of the subtree rooted at this node. */
-	unsigned int		 dc_sum_depth;
+	unsigned int dc_sum_depth;
 
 	LIST_ENTRY(doc_list, doc);
 };
 
 struct doc_state {
-	const struct style		*st_st;
-	struct buffer			*st_bf;
-	struct lexer			*st_lx;
-	struct arena			*st_scratch;
-	const struct diffchunk		*st_diff_chunks;
+	const struct style     *st_st;
+	struct buffer	       *st_bf;
+	struct lexer	       *st_lx;
+	struct arena	       *st_scratch;
+	const struct diffchunk *st_diff_chunks;
 
 	enum doc_mode {
 		BREAK,
@@ -109,53 +106,53 @@ struct doc_state {
 	} st_mode;
 
 	struct {
-		const struct token	*verbatim;
-		const struct doc	*group;
-		int			 group_has_many_chunks;
-		int			 mute;
-		unsigned int		 beg;
-		unsigned int		 end;
-		unsigned int		 muteline;
+		const struct token *verbatim;
+		const struct doc   *group;
+		int		    group_has_many_chunks;
+		int		    mute;
+		unsigned int	    beg;
+		unsigned int	    end;
+		unsigned int	    muteline;
 	} st_diff;
 
-	struct doc_state_indent		 st_indent;
+	struct doc_state_indent st_indent;
 
 	struct {
-		int	idx;	/* index of best minimizer */
-		int	force;	/* index of minimizer with force flag */
+		int idx;   /* index of best minimizer */
+		int force; /* index of minimizer with force flag */
 	} st_minimize;
 
 	struct {
-		unsigned int	nfits;		/* # doc_fits() invocations */
-		unsigned int	nlines;		/* # emitted lines */
-		unsigned int	nexceeds;	/* # characters exceeding column limit */
+		unsigned int nfits;    /* # doc_fits() invocations */
+		unsigned int nlines;   /* # emitted lines */
+		unsigned int nexceeds; /* # characters exceeding column limit */
 	} st_stats;
 
-	unsigned int			 st_col;
-	unsigned int			 st_depth;
-	unsigned int			 st_refit;
-	unsigned int			 st_parens;
+	unsigned int st_col;
+	unsigned int st_depth;
+	unsigned int st_refit;
+	unsigned int st_parens;
 	/* # allowed consecutive new line(s). */
-	unsigned int			 st_maxlines;
+	unsigned int st_maxlines;
 	/* # consecutive emitted new line(s). */
-	unsigned int			 st_nlines;
+	unsigned int st_nlines;
 	/* Pending new line emitted on next doc_print() invocation. */
-	unsigned int			 st_newline;
+	unsigned int st_newline;
 	/* Missed new line while muted. */
-	unsigned int			 st_muteline;
+	unsigned int st_muteline;
 	/* Optional new line(s) honored. */
-	int				 st_optline;
+	int st_optline;
 	/* Muted, doc_print() does not emit anything. */
-	int				 st_mute;
+	int st_mute;
 	/* Flags given to doc_exec(). */
-	unsigned int			 st_flags;
+	unsigned int st_flags;
 };
 
 struct doc_state_snapshot {
 	struct doc_state sn_st;
 	struct {
-		char	*ptr;
-		size_t	 len;
+		char  *ptr;
+		size_t len;
 	} sn_bf;
 };
 
@@ -165,34 +162,34 @@ struct doc_state_snapshot {
  */
 struct doc_diff {
 	/* Last verbatim token not covered by chunk. */
-	const struct token	*dd_verbatim;
+	const struct token *dd_verbatim;
 	/* First token covered by chunk. */
-	const struct token	*dd_tk;
+	const struct token *dd_tk;
 	/* Last seen token. */
-	unsigned int		 dd_threshold;
+	unsigned int dd_threshold;
 	/* First token in group. */
-	unsigned int		 dd_first;
+	unsigned int dd_first;
 	/* Return value for doc_diff_covers(). */
-	enum doc_diff_group	 dd_covers;
+	enum doc_diff_group dd_covers;
 	/* Below threshold doc_walk() return value. */
-	unsigned int		 dd_below_threshold;
+	unsigned int dd_below_threshold;
 };
 
 struct doc_fits {
-	int		fits;
-	unsigned int	optline;
+	int	     fits;
+	unsigned int optline;
 };
 
 struct doc_walk_queue {
-	const struct doc	*dc;
-	int			 restore;
+	const struct doc *dc;
+	int		  restore;
 };
 
 enum {
-	DOC_WALK_BREAK		= 0x00000001U,
-	DOC_WALK_CONTINUE	= 0x00000002U,
-	DOC_WALK_SKIP		= 0x00000004U,
-	DOC_WALK_RESTORE	= 0x40000000U,
+	DOC_WALK_BREAK = 0x00000001U,
+	DOC_WALK_CONTINUE = 0x00000002U,
+	DOC_WALK_SKIP = 0x00000004U,
+	DOC_WALK_RESTORE = 0x40000000U,
 };
 
 /*
@@ -203,216 +200,219 @@ enum {
  * optional line, indentation or tab alignment). Only pure subtrees may be
  * skipped by doc_fits(); impure subtrees are traversed as before.
  */
-#define DOC_SUM_VALID		0x00000001U
-#define DOC_SUM_PURE		0x00000002U
-#define DOC_SUM_TOOWIDE		0x00000004U
+#define DOC_SUM_VALID 0x00000001U
+#define DOC_SUM_PURE 0x00000002U
+#define DOC_SUM_TOOWIDE 0x00000004U
 /* Saturating width sentinel; larger than any useful column limit. */
-#define DOC_WIDTH_INF		0x10000000U
+#define DOC_WIDTH_INF 0x10000000U
 
 /*
  * Description of per document type specific semantics.
  */
 static const struct doc_description {
-	const char	*name;
+	const char *name;
 
 	/* Indicates which field in child union being used. */
 	struct {
-		uint8_t	many:1;		/* dc_list */
-		uint8_t	one:1;		/* dc_doc */
-		uint8_t	token:1;	/* dc_tk */
+		uint8_t many:1;	 /* dc_list */
+		uint8_t one:1;	 /* dc_doc */
+		uint8_t token:1; /* dc_tk */
 	} children;
 
 	/* Indicates which field in value union being used. */
 	struct {
-		uint8_t	minimizers:1;	/* dc_minimizers */
-		uint8_t	integer:1;	/* dc_int */
-		uint8_t	string:1;	/* dc_str/dc_len */
+		uint8_t minimizers:1; /* dc_minimizers */
+		uint8_t integer:1;    /* dc_int */
+		uint8_t string:1;     /* dc_str/dc_len */
 	} value;
 } doc_descriptions[] = {
-	[DOC_CONCAT] = {
-		.name		= "CONCAT",
-		.children	= { .many = 1 },
+    [DOC_CONCAT] =
+	{
+	    .name = "CONCAT",
+	    .children = {.many = 1},
 	},
-	[DOC_GROUP] = {
-		.name		= "GROUP",
-		.children	= { .one = 1 },
+    [DOC_GROUP] =
+	{
+	    .name = "GROUP",
+	    .children = {.one = 1},
 	},
-	[DOC_INDENT] = {
-		.name		= "INDENT",
-		.children	= { .one = 1 },
+    [DOC_INDENT] =
+	{
+	    .name = "INDENT",
+	    .children = {.one = 1},
 	},
-	[DOC_NOINDENT] = {
-		.name		= "NOINDENT",
-		.children	= { .one = 1 },
+    [DOC_NOINDENT] =
+	{
+	    .name = "NOINDENT",
+	    .children = {.one = 1},
 	},
-	[DOC_ALIGN] = {
-		.name		= "ALIGN",
-		.value		= { .integer = 1 },
+    [DOC_ALIGN] =
+	{
+	    .name = "ALIGN",
+	    .value = {.integer = 1},
 	},
-	[DOC_LITERAL] = {
-		.name		= "LITERAL",
-		.children	= { .token = 1 },
-		.value		= { .string = 1 },
+    [DOC_LITERAL] =
+	{
+	    .name = "LITERAL",
+	    .children = {.token = 1},
+	    .value = {.string = 1},
 	},
-	[DOC_VERBATIM] = {
-		.name		= "VERBATIM",
-		.children	= { .token = 1 },
-		.value		= { .string = 1 },
+    [DOC_VERBATIM] =
+	{
+	    .name = "VERBATIM",
+	    .children = {.token = 1},
+	    .value = {.string = 1},
 	},
-	[DOC_LINE] = {
-		.name		= "LINE",
+    [DOC_LINE] =
+	{
+	    .name = "LINE",
 	},
-	[DOC_SOFTLINE] = {
-		.name		= "SOFTLINE",
+    [DOC_SOFTLINE] =
+	{
+	    .name = "SOFTLINE",
 	},
-	[DOC_HARDLINE] = {
-		.name		= "HARDLINE",
+    [DOC_HARDLINE] =
+	{
+	    .name = "HARDLINE",
 	},
-	[DOC_OPTLINE] = {
-		.name		= "OPTLINE",
+    [DOC_OPTLINE] =
+	{
+	    .name = "OPTLINE",
 	},
-	[DOC_MUTE] = {
-		.name		= "MUTE",
-		.value		= { .integer = 1 },
+    [DOC_MUTE] =
+	{
+	    .name = "MUTE",
+	    .value = {.integer = 1},
 	},
-	[DOC_UNMUTE] = {
-		.name		= "UNMUTE",
-		.value		= { .integer = 1 },
+    [DOC_UNMUTE] =
+	{
+	    .name = "UNMUTE",
+	    .value = {.integer = 1},
 	},
-	[DOC_OPTIONAL] = {
-		.name		= "OPTIONAL",
-		.children	= { .one = 1 },
+    [DOC_OPTIONAL] =
+	{
+	    .name = "OPTIONAL",
+	    .children = {.one = 1},
 	},
-	[DOC_MINIMIZE] = {
-		.name		= "MINIMIZE",
-		.children	= { .one = 1 },
-		.value		= { .minimizers = 1 },
+    [DOC_MINIMIZE] =
+	{
+	    .name = "MINIMIZE",
+	    .children = {.one = 1},
+	    .value = {.minimizers = 1},
 	},
-	[DOC_SCOPE] = {
-		.name		= "SCOPE",
-		.children	= { .one = 1 },
+    [DOC_SCOPE] =
+	{
+	    .name = "SCOPE",
+	    .children = {.one = 1},
 	},
-	[DOC_MAXLINES] = {
-		.name		= "MAXLINES",
-		.children	= { .one = 1 },
-		.value		= { .integer = 1 },
+    [DOC_MAXLINES] =
+	{
+	    .name = "MAXLINES",
+	    .children = {.one = 1},
+	    .value = {.integer = 1},
 	},
 };
 
-static void		doc_exec1(const struct doc *, struct doc_state *);
-static void		doc_exec_indent(const struct doc *, struct doc_state *,
-    int);
-static void		doc_exec_align(const struct doc *, struct doc_state *);
-static void		doc_exec_verbatim(const struct doc *,
-    struct doc_state *);
-static void		doc_exec_minimize(const struct doc *,
-    struct doc_state *);
-static void		doc_exec_minimize_indent(const struct doc *,
-    struct doc_state *);
-static void		doc_exec_minimize_indent1(struct doc *,
-    struct doc_state *, int);
-static void		doc_exec_mute(const struct doc *, struct doc_state *);
-static void		doc_exec_scope(const struct doc *, struct doc_state *);
-static void		doc_exec_maxlines(const struct doc *,
-    struct doc_state *);
-static void		doc_walk(const struct doc *, struct doc_state *,
+static void doc_exec1(const struct doc *, struct doc_state *);
+static void doc_exec_indent(const struct doc *, struct doc_state *, int);
+static void doc_exec_align(const struct doc *, struct doc_state *);
+static void doc_exec_verbatim(const struct doc *, struct doc_state *);
+static void doc_exec_minimize(const struct doc *, struct doc_state *);
+static void doc_exec_minimize_indent(const struct doc *, struct doc_state *);
+static void doc_exec_minimize_indent1(struct doc *, struct doc_state *, int);
+static void doc_exec_mute(const struct doc *, struct doc_state *);
+static void doc_exec_scope(const struct doc *, struct doc_state *);
+static void doc_exec_maxlines(const struct doc *, struct doc_state *);
+static void doc_walk(const struct doc *, struct doc_state *,
     unsigned int (*)(const struct doc *, struct doc_state *, void *), void *);
-static int		doc_leads_with_break(const struct doc *);
-static int		doc_fits(const struct doc *, struct doc_state *);
-static unsigned int	doc_fits1(const struct doc *, struct doc_state *,
-    void *);
-static unsigned int	doc_print_indent(const struct doc *,
-    struct doc_state *, unsigned int);
-static unsigned int	doc_print_indent1(const struct doc *,
-    struct doc_state *, unsigned int, int);
-static void		doc_trim_spaces(const struct doc *, struct doc_state *);
-static void		doc_trim_lines(const struct doc *, struct doc_state *);
-static int		doc_is_mute(const struct doc_state *);
-static int		doc_parens_align(const struct doc_state *);
-static int		doc_has_list(const struct doc *);
-static unsigned int	doc_column(struct doc_state *, const char *, size_t);
-static unsigned int	doc_max1(const struct doc *, struct doc_state *,
-    void *);
+static int  doc_leads_with_break(const struct doc *);
+static int  doc_fits(const struct doc *, struct doc_state *);
+static unsigned int doc_fits1(const struct doc *, struct doc_state *, void *);
+static unsigned int doc_print_indent(
+    const struct doc *, struct doc_state *, unsigned int);
+static unsigned int doc_print_indent1(
+    const struct doc *, struct doc_state *, unsigned int, int);
+static void	    doc_trim_spaces(const struct doc *, struct doc_state *);
+static void	    doc_trim_lines(const struct doc *, struct doc_state *);
+static int	    doc_is_mute(const struct doc_state *);
+static int	    doc_parens_align(const struct doc_state *);
+static int	    doc_has_list(const struct doc *);
+static unsigned int doc_column(struct doc_state *, const char *, size_t);
+static unsigned int doc_max1(const struct doc *, struct doc_state *, void *);
 
-static void	doc_state_init(struct doc_state *, struct doc_exec_arg *,
-    enum doc_mode);
-static void	doc_state_reset_lines(struct doc_state *);
-static void	doc_state_snapshot(struct doc_state_snapshot *,
+static void doc_state_init(
+    struct doc_state *, struct doc_exec_arg *, enum doc_mode);
+static void doc_state_reset_lines(struct doc_state *);
+static void doc_state_snapshot(struct doc_state_snapshot *,
     const struct doc_state *, struct arena_scope *);
-static void	doc_state_snapshot_restore(const struct doc_state_snapshot *,
-    struct doc_state *);
+static void doc_state_snapshot_restore(
+    const struct doc_state_snapshot *, struct doc_state *);
 
 #define DOC_DIFF(st) (((st)->st_flags & DOC_EXEC_DIFF))
 
-static int		doc_diff_group_enter(const struct doc *,
-    struct doc_state *, int);
-static void		doc_diff_group_leave(const struct doc *,
-    struct doc_state *, int);
-static int		doc_diff_group_has_many_chunks(const struct doc *,
-    struct doc_state *, unsigned int);
-static void		doc_diff_mute_enter(const struct doc *,
-    struct doc_state *);
-static void		doc_diff_mute_leave(const struct doc *,
-    struct doc_state *);
-static void		doc_diff_literal(const struct doc *,
-    struct doc_state *);
-static unsigned int	doc_diff_verbatim(const struct doc *,
-    struct doc_state *);
-static void		doc_diff_exit(const struct doc *, struct doc_state *);
-static void		doc_diff_emit(const struct doc *, struct doc_state *,
-    unsigned int, unsigned int);
-static unsigned int	doc_diff_covers(const struct doc *, struct doc_state *,
-    void *);
-static int		doc_diff_is_mute(const struct doc_state *);
+static int  doc_diff_group_enter(const struct doc *, struct doc_state *, int);
+static void doc_diff_group_leave(const struct doc *, struct doc_state *, int);
+static int  doc_diff_group_has_many_chunks(
+    const struct doc *, struct doc_state *, unsigned int);
+static void	    doc_diff_mute_enter(const struct doc *, struct doc_state *);
+static void	    doc_diff_mute_leave(const struct doc *, struct doc_state *);
+static void	    doc_diff_literal(const struct doc *, struct doc_state *);
+static unsigned int doc_diff_verbatim(const struct doc *, struct doc_state *);
+static void	    doc_diff_exit(const struct doc *, struct doc_state *);
+static void	    doc_diff_emit(
+    const struct doc *, struct doc_state *, unsigned int, unsigned int);
+static unsigned int doc_diff_covers(
+    const struct doc *, struct doc_state *, void *);
+static int doc_diff_is_mute(const struct doc_state *);
 
-#define doc_diff_leave(a, b, c) \
-	doc_diff_leave_impl((a), (b), (c), __func__)
-static void	doc_diff_leave_impl(const struct doc *, struct doc_state *,
-    unsigned int, const char *);
+#define doc_diff_leave(a, b, c) doc_diff_leave_impl((a), (b), (c), __func__)
+static void doc_diff_leave_impl(
+    const struct doc *, struct doc_state *, unsigned int, const char *);
 
 /* Emit indentation after new line. */
-#define DOC_PRINT_INDENT	0x00000001u
+#define DOC_PRINT_INDENT 0x00000001u
 /* Internal to doc_print() used to signal that a pending new line is emitted. */
-#define DOC_PRINT_NEWLINE	0x00000002u
+#define DOC_PRINT_NEWLINE 0x00000002u
 /* Emit even if muted. */
-#define DOC_PRINT_FORCE		0x00000004u
+#define DOC_PRINT_FORCE 0x00000004u
 
-static int	doc_print(const struct doc *, struct doc_state *, const char *,
-    size_t, unsigned int);
+static int doc_print(
+    const struct doc *, struct doc_state *, const char *, size_t, unsigned int);
 
-static void	doc_walk_state_snapshot(struct doc_walk_state *,
-    const struct doc_state *);
-static void	doc_walk_state_restore(const struct doc_walk_state *,
-    struct doc_state *);
+static void doc_walk_state_snapshot(
+    struct doc_walk_state *, const struct doc_state *);
+static void doc_walk_state_restore(
+    const struct doc_walk_state *, struct doc_state *);
 
-#define doc_trace(dc, st, fmt, ...) do {				\
-	if ((st)->st_flags & DOC_EXEC_TRACE)				\
-		doc_trace_impl((dc), (st), (fmt), __VA_ARGS__);		\
-} while (0)
-static void	doc_trace_impl(const struct doc *, const struct doc_state *,
-    const char *, ...)
-	__attribute__((format(printf, 3, 4)));
+#define doc_trace(dc, st, fmt, ...)                                            \
+	do {                                                                   \
+		if ((st)->st_flags & DOC_EXEC_TRACE)                           \
+			doc_trace_impl((dc), (st), (fmt), __VA_ARGS__);        \
+	} while (0)
+static void doc_trace_impl(const struct doc *, const struct doc_state *,
+    const char *, ...) __attribute__((format(printf, 3, 4)));
 
-#define doc_trace_enter(dc, st) do {					\
-	if ((st)->st_flags & DOC_EXEC_TRACE)				\
-		doc_trace_enter_impl((dc), (st));			\
-} while (0)
-static void	doc_trace_enter_impl(const struct doc *, struct doc_state *);
+#define doc_trace_enter(dc, st)                                                \
+	do {                                                                   \
+		if ((st)->st_flags & DOC_EXEC_TRACE)                           \
+			doc_trace_enter_impl((dc), (st));                      \
+	} while (0)
+static void doc_trace_enter_impl(const struct doc *, struct doc_state *);
 
-#define doc_trace_leave(dc, st) do {					\
-	if ((st)->st_flags & DOC_EXEC_TRACE)				\
-		doc_trace_leave_impl((dc), (st));			\
-} while (0)
-static void	doc_trace_leave_impl(const struct doc *, struct doc_state *);
+#define doc_trace_leave(dc, st)                                                \
+	do {                                                                   \
+		if ((st)->st_flags & DOC_EXEC_TRACE)                           \
+			doc_trace_leave_impl((dc), (st));                      \
+	} while (0)
+static void doc_trace_leave_impl(const struct doc *, struct doc_state *);
 
-static const char	*docstr(const struct doc *, struct arena_scope *);
-static const char	*indentstr(const struct doc *,
-    const struct doc_state *, struct arena_scope *);
-static const char	*statestr(const struct doc_state *, unsigned int,
-    struct arena_scope *);
+static const char *docstr(const struct doc *, struct arena_scope *);
+static const char *indentstr(
+    const struct doc *, const struct doc_state *, struct arena_scope *);
+static const char *statestr(
+    const struct doc_state *, unsigned int, struct arena_scope *);
 
-static unsigned int	count_verbatim_lines(const char *, size_t,
-    unsigned int);
+static unsigned int count_verbatim_lines(const char *, size_t, unsigned int);
 
 static unsigned int
 doc_width_add(unsigned int a, unsigned int b)
@@ -430,13 +430,14 @@ static void
 doc_sum_one(struct doc *dc)
 {
 	unsigned int flat = 0;
-	int pure = 1;
+	int	     pure = 1;
 
 	switch (dc->dc_type) {
 	case DOC_CONCAT: {
 		struct doc *child;
 
-		LIST_FOREACH(child, &dc->dc_list) {
+		LIST_FOREACH(child, &dc->dc_list)
+		{
 			flat = doc_width_add(flat, child->dc_sum_flat);
 			if (!(child->dc_sum_flags & DOC_SUM_PURE))
 				pure = 0;
@@ -464,14 +465,14 @@ doc_sum_one(struct doc *dc)
 		if (dc->dc_align.tabalign)
 			pure = 0;
 		else
-			flat = doc_width_add(dc->dc_align.indent,
-			    dc->dc_align.spaces);
+			flat = doc_width_add(
+			    dc->dc_align.indent, dc->dc_align.spaces);
 		break;
 	case DOC_LITERAL:
 		/* Tab stops and new lines make the width context dependent. */
 		if (dc->dc_str != nullptr &&
 		    (memchr(dc->dc_str, '\n', dc->dc_len) != nullptr ||
-		     memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
+			memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
 			pure = 0;
 		else
 			flat = (unsigned int)dc->dc_len;
@@ -479,7 +480,7 @@ doc_sum_one(struct doc *dc)
 	case DOC_VERBATIM:
 		if (dc->dc_str != nullptr &&
 		    (memchr(dc->dc_str, '\n', dc->dc_len) != nullptr ||
-		     memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
+			memchr(dc->dc_str, '\t', dc->dc_len) != nullptr))
 			pure = 0;
 		else
 			flat = (unsigned int)dc->dc_len;
@@ -502,19 +503,19 @@ doc_sum_one(struct doc *dc)
 	if (flat >= DOC_WIDTH_INF)
 		pure = 0;
 	dc->dc_sum_flat = flat;
-	dc->dc_sum_flags = DOC_SUM_VALID |
-	    (pure ? DOC_SUM_PURE : 0) |
+	dc->dc_sum_flags = DOC_SUM_VALID | (pure ? DOC_SUM_PURE : 0) |
 	    (flat >= DOC_WIDTH_INF ? DOC_SUM_TOOWIDE : 0);
 
 	{
-		unsigned int depth = 1;
+		unsigned int		      depth = 1;
 		const struct doc_description *desc =
 		    &doc_descriptions[dc->dc_type];
 
 		if (desc->children.many) {
 			struct doc *child;
 
-			LIST_FOREACH(child, &dc->dc_list) {
+			LIST_FOREACH(child, &dc->dc_list)
+			{
 				if (child->dc_sum_depth + 1 > depth)
 					depth = child->dc_sum_depth + 1;
 			}
@@ -538,7 +539,7 @@ doc_summarize(struct doc *root, struct arena *scratch)
 	VECTOR(struct doc *) stack;
 	VECTOR(struct doc *) order;
 	struct doc *dc;
-	size_t i;
+	size_t	    i;
 
 	arena_scope(scratch, s);
 
@@ -555,7 +556,8 @@ doc_summarize(struct doc *root, struct arena *scratch)
 		if (desc->children.many) {
 			struct doc *child;
 
-			LIST_FOREACH_REVERSE(child, &dc->dc_list) {
+			LIST_FOREACH_REVERSE(child, &dc->dc_list)
+			{
 				*ARENA_VECTOR_ALLOC(stack) = child;
 			}
 		} else if (desc->children.one) {
@@ -572,7 +574,7 @@ void
 doc_exec(struct doc_exec_arg *arg)
 {
 	const struct doc *dc = arg->dc;
-	struct doc_state st;
+	struct doc_state  st;
 
 	doc_summarize((struct doc *)dc, arg->scratch);
 	doc_state_init(&st, arg, BREAK);
@@ -673,8 +675,8 @@ doc_root_impl(struct arena_scope *s, const char *fun, int lno)
 }
 
 struct doc *
-doc_alloc_impl(enum doc_type type, struct doc *parent, int val,
-    const char *fun, int lno)
+doc_alloc_impl(
+    enum doc_type type, struct doc *parent, int val, const char *fun, int lno)
 {
 	struct doc *dc;
 
@@ -722,7 +724,7 @@ doc_minimize_impl(const struct doc_minimize *minimizers, size_t nminimizers,
     struct doc *parent, const char *fun, int lno)
 {
 	struct doc *dc;
-	size_t i;
+	size_t	    i;
 
 	dc = doc_alloc_impl(DOC_MINIMIZE, parent, 0, fun, lno);
 	arena_cleanup(dc->dc_scope, doc_minimize_free, dc);
@@ -742,8 +744,7 @@ doc_minimize_impl(const struct doc_minimize *minimizers, size_t nminimizers,
 }
 
 struct doc *
-doc_literal_impl(const char *str, struct doc *dc, const char *fun,
-    int lno)
+doc_literal_impl(const char *str, struct doc *dc, const char *fun, int lno)
 {
 	return doc_literaln_impl(str, strlen(str), dc, fun, lno);
 }
@@ -753,8 +754,8 @@ doc_literal_impl(const char *str, struct doc *dc, const char *fun,
  * bytes.
  */
 struct doc *
-doc_literaln_impl(const char *str, size_t len, struct doc *dc,
-    const char *fun, int lno)
+doc_literaln_impl(
+    const char *str, size_t len, struct doc *dc, const char *fun, int lno)
 {
 	struct doc *literal;
 
@@ -773,8 +774,8 @@ doc_token_free(void *arg)
 }
 
 struct doc *
-doc_token(struct token *tk, struct doc *dc, enum doc_type type,
-    const char *fun, int lno)
+doc_token(struct token *tk, struct doc *dc, enum doc_type type, const char *fun,
+    int lno)
 {
 	struct doc *token;
 
@@ -795,9 +796,9 @@ doc_token(struct token *tk, struct doc *dc, enum doc_type type,
 int
 doc_max(const struct doc *dc, struct arena *scratch)
 {
-	struct doc_state st;
+	struct doc_state    st;
 	struct doc_exec_arg arg = {
-		.scratch = scratch,
+	    .scratch = scratch,
 	};
 	int max = 0;
 
@@ -819,43 +820,44 @@ doc_annotate(struct doc *dc, const char *suffix)
  * minimizers) recurse, bounded by nesting depth rather than document length.
  */
 enum doc_exec_frame_kind {
-	DOC_EXEC_NODE,		/* process frame->dc */
-	DOC_EXEC_CONCAT,	/* resume iteration over a concat's children */
-	DOC_EXEC_GROUP,		/* restore group mode/diff after its child */
+	DOC_EXEC_NODE,	 /* process frame->dc */
+	DOC_EXEC_CONCAT, /* resume iteration over a concat's children */
+	DOC_EXEC_GROUP,	 /* restore group mode/diff after its child */
 };
 
 struct doc_exec_frame {
-	enum doc_exec_frame_kind	 kind;
-	const struct doc		*dc;
+	enum doc_exec_frame_kind kind;
+	const struct doc	*dc;
 	/* DOC_EXEC_CONCAT */
-	const struct doc		*next;
+	const struct doc *next;
 	/* DOC_EXEC_GROUP */
-	unsigned int			 oldmode;
-	int				 diff;
-	int				 has_mode;
+	unsigned int oldmode;
+	int	     diff;
+	int	     has_mode;
 };
 
 static void
 doc_exec1(const struct doc *root, struct doc_state *st)
 {
 	struct doc_exec_frame *stack;
-	size_t n = 0, cap = 32;
+	size_t		       n = 0, cap = 32;
 
 	stack = malloc(cap * sizeof(*stack));
 	if (stack == nullptr)
 		err(1, nullptr);
 
-#define PUSH_EXEC_FRAME(frame) do {					\
-	if (n == cap) {							\
-		struct doc_exec_frame *_tmp;				\
-		cap *= 2;						\
-		_tmp = realloc(stack, cap * sizeof(*stack));		\
-		if (_tmp == nullptr)					\
-			err(1, nullptr);					\
-		stack = _tmp;						\
-	}								\
-	stack[n++] = (frame);						\
-} while (0)
+#define PUSH_EXEC_FRAME(frame)                                                 \
+	do {                                                                   \
+		if (n == cap) {                                                \
+			struct doc_exec_frame *_tmp;                           \
+			cap *= 2;                                              \
+			_tmp = realloc(stack, cap * sizeof(*stack));           \
+			if (_tmp == nullptr)                                   \
+				err(1, nullptr);                               \
+			stack = _tmp;                                          \
+		}                                                              \
+		stack[n++] = (frame);                                          \
+	} while (0)
 
 	PUSH_EXEC_FRAME(((struct doc_exec_frame){
 	    .kind = DOC_EXEC_NODE,
@@ -864,7 +866,7 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 
 	for (;;) {
 		struct doc_exec_frame *fr;
-		const struct doc *dc;
+		const struct doc      *dc;
 
 		if (n == 0)
 			break;
@@ -903,7 +905,7 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 		}
 		if (dc->dc_type == DOC_GROUP) {
 			unsigned int oldmode = 0;
-			int diff, has_mode = 0;
+			int	     diff, has_mode = 0;
 
 			diff = doc_diff_group_enter(dc, st, 0);
 			switch (st->st_mode) {
@@ -916,8 +918,7 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 				st->st_refit = 0;
 				oldmode = st->st_mode;
 				has_mode = 1;
-				st->st_mode = doc_fits(dc, st) ?
-				    MUNGE : BREAK;
+				st->st_mode = doc_fits(dc, st) ? MUNGE : BREAK;
 				break;
 			}
 			fr->kind = DOC_EXEC_GROUP;
@@ -953,8 +954,8 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 
 		case DOC_LITERAL:
 			doc_diff_literal(dc, st);
-			doc_print(dc, st, dc->dc_str, dc->dc_len,
-			    DOC_PRINT_INDENT);
+			doc_print(
+			    dc, st, dc->dc_str, dc->dc_len, DOC_PRINT_INDENT);
 			break;
 
 		case DOC_VERBATIM:
@@ -965,14 +966,15 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 			switch (st->st_mode) {
 			case BREAK:
 				if (st->st_col > style(st->st_st, ColumnLimit))
-					doc_print(dc, st, " ", 1,
-					    DOC_PRINT_INDENT);
+					doc_print(
+					    dc, st, " ", 1, DOC_PRINT_INDENT);
 				else
-					doc_print(dc, st, "\n", 1,
-					    DOC_PRINT_INDENT);
+					doc_print(
+					    dc, st, "\n", 1, DOC_PRINT_INDENT);
 				break;
 			case MUNGE:
-				if (doc_print(dc, st, " ", 1, DOC_PRINT_INDENT)) {
+				if (doc_print(
+					dc, st, " ", 1, DOC_PRINT_INDENT)) {
 					doc_trace(dc, st, "%s: refit %u -> %d",
 					    __func__, st->st_refit, 1);
 					st->st_refit = 1;
@@ -1075,7 +1077,7 @@ doc_exec_indent(const struct doc *dc, struct doc_state *st, int indent)
 		if (indent > 0)
 			st->st_indent.cur += (unsigned int)indent;
 		else if (KS_u32_sub_overflow(st->st_indent.cur,
-		    (unsigned int)-indent, &st->st_indent.cur))
+			     (unsigned int)-indent, &st->st_indent.cur))
 			st->st_indent.cur = 0;
 	}
 	doc_exec1(dc->dc_doc, st);
@@ -1102,8 +1104,8 @@ doc_exec_align(const struct doc *dc, struct doc_state *st)
 		}
 		doc_print_indent1(dc, st, dc->dc_align.spaces, 0);
 	} else {
-		doc_print_indent1(dc, st,
-		    dc->dc_align.indent + dc->dc_align.spaces, 0);
+		doc_print_indent1(
+		    dc, st, dc->dc_align.indent + dc->dc_align.spaces, 0);
 	}
 }
 
@@ -1111,8 +1113,8 @@ static void
 doc_exec_verbatim(const struct doc *dc, struct doc_state *st)
 {
 	struct token *tk = dc->dc_tk;
-	unsigned int diff, oldcol;
-	int isblock, isnewline;
+	unsigned int  diff, oldcol;
+	int	      isblock, isnewline;
 
 	if (doc_is_mute(st)) {
 		if (!(DOC_DIFF(st) && st->st_diff.verbatim == tk))
@@ -1141,7 +1143,7 @@ doc_exec_verbatim(const struct doc *dc, struct doc_state *st)
 	/* Restore indentation after emitting a verbatim block or new line. */
 	if (isblock || isnewline) {
 		struct doc_state_indent *it = &st->st_indent;
-		unsigned int indent;
+		unsigned int		 indent;
 
 		if (oldcol > 0) {
 			/*
@@ -1182,11 +1184,11 @@ doc_exec_minimize_indent(const struct doc *cdc, struct doc_state *st)
 	struct doc *dc = UNSAFE_CAST(struct doc *, cdc);
 	VECTOR(struct doc_minimize) minimizers;
 	struct doc_state_snapshot sn;
-	unsigned int nlines = 0;
-	unsigned int nexceeds = 0;
-	int best = -1;
-	int i, nminimizers;
-	double minpenality = DBL_MAX;
+	unsigned int		  nlines = 0;
+	unsigned int		  nexceeds = 0;
+	int			  best = -1;
+	int			  i, nminimizers;
+	double			  minpenality = DBL_MAX;
 
 	if (st->st_minimize.idx != -1) {
 		doc_exec_minimize_indent1(dc, st, st->st_minimize.idx);
@@ -1220,7 +1222,7 @@ doc_exec_minimize_indent(const struct doc *cdc, struct doc_state *st)
 
 	for (i = 0; i < nminimizers; i++) {
 		struct doc_minimize *mi = &dc->dc_minimizers[i];
-		double p = 0;
+		double		     p = 0;
 
 		if (nlines > 0)
 			p += mi->penality.nlines / (double)nlines;
@@ -1242,17 +1244,17 @@ doc_exec_minimize_indent(const struct doc *cdc, struct doc_state *st)
 	if (st->st_flags & DOC_EXEC_TRACE) {
 		for (i = 0; i < nminimizers; i++) {
 			const struct doc_minimize *mi = &dc->dc_minimizers[i];
-			const char *suffix = "";
+			const char		  *suffix = "";
 
 			if (mi->flags & DOC_MINIMIZE_FORCE)
 				suffix = ", force";
 			else if (i == best)
 				suffix = ", best";
-			doc_trace(dc, st, "%s: type indent, penality %.2f, "
+			doc_trace(dc, st,
+			    "%s: type indent, penality %.2f, "
 			    "indent %#x, nlines %u, nexceeds %u%s",
 			    __func__, mi->penality.sum, mi->indent,
-			    mi->penality.nlines, mi->penality.nexceeds,
-			    suffix);
+			    mi->penality.nlines, mi->penality.nexceeds, suffix);
 		}
 	}
 
@@ -1322,7 +1324,7 @@ doc_exec_maxlines(const struct doc *dc, struct doc_state *st)
 static void
 doc_walk(const struct doc *dc, struct doc_state *st,
     unsigned int (*cb)(const struct doc *, struct doc_state *, void *),
-    void *arg)
+    void	*arg)
 {
 	VECTOR(struct doc_walk_queue) queue;
 
@@ -1333,9 +1335,9 @@ doc_walk(const struct doc *dc, struct doc_state *st,
 	/* Recursion flatten into a loop for increased performance. */
 	*ARENA_VECTOR_ALLOC(queue) = (struct doc_walk_queue){.dc = dc};
 	while (!VECTOR_EMPTY(queue)) {
-		const struct doc_walk_queue *tail;
+		const struct doc_walk_queue  *tail;
 		const struct doc_description *desc;
-		unsigned int rv;
+		unsigned int		      rv;
 
 		tail = VECTOR_POP(queue);
 		dc = tail->dc;
@@ -1353,15 +1355,16 @@ doc_walk(const struct doc *dc, struct doc_state *st,
 			continue;
 		if (rv & DOC_WALK_RESTORE) {
 			*ARENA_VECTOR_ALLOC(queue) = (struct doc_walk_queue){
-			    .dc		= dc,
-			    .restore	= 1,
+			    .dc = dc,
+			    .restore = 1,
 			};
 		}
 
 		if (desc->children.many) {
 			const struct doc_list *dl = &dc->dc_list;
 
-			LIST_FOREACH_REVERSE(dc, dl) {
+			LIST_FOREACH_REVERSE(dc, dl)
+			{
 				*ARENA_VECTOR_ALLOC(queue) =
 				    (struct doc_walk_queue){.dc = dc};
 			}
@@ -1403,9 +1406,9 @@ static int
 doc_fits(const struct doc *dc, struct doc_state *st)
 {
 	struct doc_state fst;
-	struct doc_fits fits = { .fits = 1 };
-	unsigned int col = 0;
-	unsigned int optline = 0;
+	struct doc_fits	 fits = {.fits = 1};
+	unsigned int	 col = 0;
+	unsigned int	 optline = 0;
 
 	if (st->st_flags & DOC_EXEC_TRACE)
 		st->st_stats.nfits++;
@@ -1417,9 +1420,8 @@ doc_fits(const struct doc *dc, struct doc_state *st)
 	doc_walk(dc, &fst, doc_fits1, &fits);
 	col = fst.st_col;
 	optline = fits.optline;
-	doc_trace(dc, st, "%s: %u %s %u, optline %u", __func__,
-	    col, fits.fits ? "<=" : ">", style(st->st_st, ColumnLimit),
-	    optline);
+	doc_trace(dc, st, "%s: %u %s %u, optline %u", __func__, col,
+	    fits.fits ? "<=" : ">", style(st->st_st, ColumnLimit), optline);
 
 	return fits.fits;
 }
@@ -1427,9 +1429,9 @@ doc_fits(const struct doc *dc, struct doc_state *st)
 static unsigned int
 doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 {
-	struct doc_fits *fits = arg;
-	struct doc_walk_state *ws = UNSAFE_CAST(
-	    struct doc_walk_state *, &dc->dc_walk);
+	struct doc_fits	      *fits = arg;
+	struct doc_walk_state *ws =
+	    UNSAFE_CAST(struct doc_walk_state *, &dc->dc_walk);
 	int restore = 0;
 
 	if (st->st_newline) {
@@ -1542,8 +1544,8 @@ doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 }
 
 static unsigned int
-doc_print_indent(const struct doc *dc, struct doc_state *st,
-    unsigned int indent)
+doc_print_indent(
+    const struct doc *dc, struct doc_state *st, unsigned int indent)
 {
 	if (st->st_parens > 0) {
 		/* Align with the left parenthesis on the previous line. */
@@ -1608,8 +1610,8 @@ doc_print(const struct doc *dc, struct doc_state *st, const char *str,
 		 * two results in odd formatting.
 		 */
 		if ((flags & DOC_PRINT_NEWLINE) == 0 && st->st_optline) {
-			doc_trace(dc, st, "%s: optline %d -> 0",
-			    __func__, st->st_optline);
+			doc_trace(dc, st, "%s: optline %d -> 0", __func__,
+			    st->st_optline);
 			st->st_optline = 0;
 		}
 	} else {
@@ -1647,13 +1649,13 @@ doc_walk_state_restore(const struct doc_walk_state *ws, struct doc_state *st)
 static void
 doc_trim_spaces(const struct doc *dc, struct doc_state *st)
 {
-	const char *buf = buffer_get_ptr(st->st_bf);
-	size_t buflen = buffer_get_len(st->st_bf);
+	const char  *buf = buffer_get_ptr(st->st_bf);
+	size_t	     buflen = buffer_get_len(st->st_bf);
 	unsigned int oldcol = st->st_col;
 
 	while (buflen > 0) {
 		unsigned int w;
-		char ch;
+		char	     ch;
 
 		ch = buf[buflen - 1];
 		if (ch != ' ' && ch != '\t')
@@ -1677,11 +1679,11 @@ static void
 doc_trim_lines(const struct doc *dc, struct doc_state *st)
 {
 	const char *buf = buffer_get_ptr(st->st_bf);
-	size_t buflen = buffer_get_len(st->st_bf);
-	int ntrim = 0;
+	size_t	    buflen = buffer_get_len(st->st_bf);
+	int	    ntrim = 0;
 
-	while (buflen > 1 &&
-	    buf[buflen - 1] == '\n' && buf[buflen - 2] == '\n') {
+	while (
+	    buflen > 1 && buf[buflen - 1] == '\n' && buf[buflen - 2] == '\n') {
 		buflen -= buffer_pop(st->st_bf, 1);
 		ntrim++;
 	}
@@ -1708,9 +1710,9 @@ doc_diff_find_chunk(const struct doc_state *st, const struct token *tk)
 static int
 doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 {
-	struct doc_diff dd;
+	struct doc_diff		dd;
 	const struct diffchunk *du;
-	unsigned int end;
+	unsigned int		end;
 
 	if (!DOC_DIFF(st))
 		return 0;
@@ -1732,8 +1734,8 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 	 * first nested group covering a single line to be found.
 	 */
 	dd = (struct doc_diff){
-	    .dd_threshold	= st->st_diff.beg,
-	    .dd_covers		= DOC_DIFF_GROUP_NOT_COVERED,
+	    .dd_threshold = st->st_diff.beg,
+	    .dd_covers = DOC_DIFF_GROUP_NOT_COVERED,
 	    /*
 	     * Upon entering the group for the first time, abort the walk while
 	     * traversing a document with a line number less than the one from
@@ -1744,7 +1746,7 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 	     * Upon nested invocations, we want to move past the threshold in
 	     * order to find the next diff chunk covered by this group.
 	     */
-	    .dd_below_threshold	= nested ? DOC_WALK_CONTINUE : DOC_WALK_BREAK,
+	    .dd_below_threshold = nested ? DOC_WALK_CONTINUE : DOC_WALK_BREAK,
 	};
 	doc_walk(dc, st, doc_diff_covers, &dd);
 	switch (dd.dd_covers) {
@@ -1777,12 +1779,11 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 
 	st->st_diff.group = dc;
 
-	doc_trace(dc, st, "%s: enter chunk: beg %u, end %u, first %u, "
-	    "chunk %u, seen %d, nested %d", __func__,
-	    st->st_diff.beg, st->st_diff.end,
-	    dd.dd_first, dd.dd_tk->tk_lno,
-	    st->st_diff.end > 0,
-	    nested);
+	doc_trace(dc, st,
+	    "%s: enter chunk: beg %u, end %u, first %u, "
+	    "chunk %u, seen %d, nested %d",
+	    __func__, st->st_diff.beg, st->st_diff.end, dd.dd_first,
+	    dd.dd_tk->tk_lno, st->st_diff.end > 0, nested);
 
 	if (st->st_diff.end > 0) {
 		/*
@@ -1855,8 +1856,8 @@ doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 }
 
 static void
-doc_diff_group_leave(const struct doc *UNUSED(dc), struct doc_state *st,
-    int enter)
+doc_diff_group_leave(
+    const struct doc *UNUSED(dc), struct doc_state *st, int enter)
 {
 	if (enter == 0 || !DOC_DIFF(st))
 		return;
@@ -1866,13 +1867,13 @@ doc_diff_group_leave(const struct doc *UNUSED(dc), struct doc_state *st,
 }
 
 static int
-doc_diff_group_has_many_chunks(const struct doc *dc, struct doc_state *st,
-    unsigned int threshold)
+doc_diff_group_has_many_chunks(
+    const struct doc *dc, struct doc_state *st, unsigned int threshold)
 {
 	struct doc_diff dd = {
-		.dd_threshold		= threshold,
-		.dd_covers		= DOC_DIFF_GROUP_NOT_COVERED,
-		.dd_below_threshold	= DOC_WALK_CONTINUE,
+	    .dd_threshold = threshold,
+	    .dd_covers = DOC_DIFF_GROUP_NOT_COVERED,
+	    .dd_below_threshold = DOC_WALK_CONTINUE,
 	};
 
 	doc_walk(dc, st, doc_diff_covers, &dd);
@@ -1894,8 +1895,8 @@ doc_diff_mute_leave(const struct doc *dc, struct doc_state *st)
 		return;
 
 	if (st->st_diff.muteline && st->st_muteline) {
-		doc_trace(dc, st, "%s: muteline %u", __func__,
-		    st->st_diff.muteline);
+		doc_trace(
+		    dc, st, "%s: muteline %u", __func__, st->st_diff.muteline);
 		doc_state_reset_lines(st);
 		doc_print(dc, st, "\n", 1, DOC_PRINT_FORCE);
 	}
@@ -1986,7 +1987,7 @@ doc_diff_emit(const struct doc *dc, struct doc_state *st, unsigned int beg,
     unsigned int end)
 {
 	const char *str;
-	size_t len;
+	size_t	    len;
 
 	doc_trace(dc, st, "%s: range [%u, %u)", __func__, beg, end);
 	if (!lexer_get_lines(st->st_lx, beg, end, &str, &len))
@@ -1995,8 +1996,8 @@ doc_diff_emit(const struct doc *dc, struct doc_state *st, unsigned int beg,
 	if (st->st_flags & DOC_EXEC_TRACE) {
 		arena_scope(st->st_scratch, s);
 
-		doc_trace(dc, st, "%s: verbatim \"%s\"",
-		    __func__, KS_str_vis(str, len, &s));
+		doc_trace(dc, st, "%s: verbatim \"%s\"", __func__,
+		    KS_str_vis(str, len, &s));
 	}
 
 	doc_state_reset_lines(st);
@@ -2073,8 +2074,8 @@ doc_diff_leave_impl(const struct doc *dc, struct doc_state *st,
 	st->st_diff.end = 0;
 	st->st_mute = st->st_diff.mute;
 	st->st_diff.mute = 0;
-	doc_trace(dc, st, "doc_diff_leave: %s: leave chunk: beg %u",
-	    fun, st->st_diff.beg);
+	doc_trace(dc, st, "doc_diff_leave: %s: leave chunk: beg %u", fun,
+	    st->st_diff.beg);
 	/*
 	 * Emit pending new line immediately as we would otherwise lose track of
 	 * it while being mute.
@@ -2110,8 +2111,8 @@ static int
 doc_parens_align(const struct doc_state *st)
 {
 	const char *buf = buffer_get_ptr(st->st_bf);
-	size_t buflen = buffer_get_len(st->st_bf);
-	int nparens = 0;
+	size_t	    buflen = buffer_get_len(st->st_bf);
+	int	    nparens = 0;
 
 	for (; buflen > 0 && buf[buflen - 1] == '('; buflen--)
 		nparens++;
@@ -2170,8 +2171,8 @@ doc_max1(const struct doc *dc, struct doc_state *UNUSED(st), void *arg)
 }
 
 static void
-doc_state_init(struct doc_state *st, struct doc_exec_arg *arg,
-    enum doc_mode mode)
+doc_state_init(
+    struct doc_state *st, struct doc_exec_arg *arg, enum doc_mode mode)
 {
 	ASSERT_CONSISTENCY(arg->flags & DOC_EXEC_DIFF, arg->lx);
 	ASSERT_CONSISTENCY(arg->flags & DOC_EXEC_DIFF, arg->diff_chunks);
@@ -2206,7 +2207,7 @@ doc_state_snapshot(struct doc_state_snapshot *sn, const struct doc_state *st,
     struct arena_scope *s)
 {
 	const char *buf = buffer_get_ptr(st->st_bf);
-	size_t buflen = buffer_get_len(st->st_bf);
+	size_t	    buflen = buffer_get_len(st->st_bf);
 
 	sn->sn_st = *st;
 	sn->sn_bf.ptr = arena_malloc(s, buflen);
@@ -2215,8 +2216,8 @@ doc_state_snapshot(struct doc_state_snapshot *sn, const struct doc_state *st,
 }
 
 static void
-doc_state_snapshot_restore(const struct doc_state_snapshot *sn,
-    struct doc_state *st)
+doc_state_snapshot_restore(
+    const struct doc_state_snapshot *sn, struct doc_state *st)
 {
 	struct buffer *bf = st->st_bf;
 
@@ -2229,7 +2230,7 @@ static void
 doc_trace_impl(const struct doc *UNUSED(dc), const struct doc_state *st,
     const char *fmt, ...)
 {
-	va_list ap;
+	va_list	     ap;
 	unsigned int depth, i;
 
 	arena_scope(st->st_scratch, s);
@@ -2250,8 +2251,8 @@ static void
 doc_trace_enter_impl(const struct doc *dc, struct doc_state *st)
 {
 	const struct doc_description *desc = &doc_descriptions[dc->dc_type];
-	unsigned int depth = st->st_depth;
-	unsigned int i;
+	unsigned int		      depth = st->st_depth;
+	unsigned int		      i;
 
 	arena_scope(st->st_scratch, s);
 
@@ -2297,8 +2298,7 @@ doc_trace_enter_impl(const struct doc *dc, struct doc_state *st)
 		break;
 
 	case DOC_SOFTLINE:
-		fprintf(stderr, "\"%s\", %d",
-		    st->st_mode == BREAK ? "\\n" : "",
+		fprintf(stderr, "\"%s\", %d", st->st_mode == BREAK ? "\\n" : "",
 		    st->st_mode == BREAK ? 1 : 0);
 		break;
 
@@ -2307,8 +2307,8 @@ doc_trace_enter_impl(const struct doc *dc, struct doc_state *st)
 		break;
 
 	case DOC_OPTLINE:
-		fprintf(stderr, "\"%s\", %d",
-		    st->st_optline ? "\\n" : "", st->st_optline ? 1 : 0);
+		fprintf(stderr, "\"%s\", %d", st->st_optline ? "\\n" : "",
+		    st->st_optline ? 1 : 0);
 		break;
 
 	default:
@@ -2323,8 +2323,8 @@ static void
 doc_trace_leave_impl(const struct doc *dc, struct doc_state *st)
 {
 	const struct doc_description *desc = &doc_descriptions[dc->dc_type];
-	unsigned int depth = st->st_depth;
-	unsigned int i;
+	unsigned int		      depth = st->st_depth;
+	unsigned int		      i;
 
 	arena_scope(st->st_scratch, s);
 
@@ -2347,22 +2347,20 @@ static const char *
 docstr(const struct doc *dc, struct arena_scope *s)
 {
 	const char *name;
-	int suffix = dc->dc_suffix != nullptr;
+	int	    suffix = dc->dc_suffix != nullptr;
 
 	name = doc_descriptions[dc->dc_type].name;
-	return arena_sprintf(s, "%s<%s:%d%s%s%s>",
-	    name, dc->dc_fun, dc->dc_lno,
-	    suffix ? ", \"" : "",
-	    suffix ? dc->dc_suffix : "",
+	return arena_sprintf(s, "%s<%s:%d%s%s%s>", name, dc->dc_fun, dc->dc_lno,
+	    suffix ? ", \"" : "", suffix ? dc->dc_suffix : "",
 	    suffix ? "\"" : "");
 }
 
 static const char *
-indentstr(const struct doc *dc, const struct doc_state *st,
-    struct arena_scope *s)
+indentstr(
+    const struct doc *dc, const struct doc_state *st, struct arena_scope *s)
 {
 	struct buffer *bf;
-	int indent;
+	int	       indent;
 
 	bf = arena_buffer_alloc(s, 1 << 5);
 
@@ -2373,8 +2371,7 @@ indentstr(const struct doc *dc, const struct doc_state *st,
 
 	if (IS_DOC_INDENT_NEWLINE(indent)) {
 		buffer_printf(bf, "NEWLINE, %d, %u",
-		    dc->dc_int & ~DOC_INDENT_NEWLINE,
-		    st->st_stats.nlines);
+		    dc->dc_int & ~DOC_INDENT_NEWLINE, st->st_stats.nlines);
 	} else if (IS_DOC_INDENT_PARENS(indent)) {
 		buffer_printf(bf, "PARENS");
 	} else if (IS_DOC_INDENT_FORCE(indent)) {
@@ -2390,7 +2387,7 @@ indentstr(const struct doc *dc, const struct doc_state *st,
 static const char *
 statestr(const struct doc_state *st, unsigned int depth, struct arena_scope *s)
 {
-	const char *mute;
+	const char   *mute;
 	unsigned char mode = 'U';
 
 	switch (st->st_mode) {
@@ -2407,8 +2404,8 @@ statestr(const struct doc_state *st, unsigned int depth, struct arena_scope *s)
 	else
 		mute = arena_sprintf(s, "%d", st->st_mute);
 
-	return arena_sprintf(s, "[D] [%c C=%-3u D=%-3u U=%s O=%d]",
-	    mode, st->st_col, depth, mute, st->st_optline);
+	return arena_sprintf(s, "[D] [%c C=%-3u D=%-3u U=%s O=%d]", mode,
+	    st->st_col, depth, mute, st->st_optline);
 }
 
 static unsigned int
@@ -2422,7 +2419,7 @@ count_verbatim_lines(const char *str, size_t len, unsigned int fallback)
 
 	while (len > 0) {
 		const char *p;
-		size_t linelen;
+		size_t	    linelen;
 
 		p = memchr(str, '\n', len);
 		if (p == nullptr)

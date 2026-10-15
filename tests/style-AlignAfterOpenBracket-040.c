@@ -6,6 +6,6 @@
 int
 main(void)
 {
-	aaaaaaaaaaaaaaaaaaaa = bbbbbbbbbbbbbbbbbbbbb(ccc,
-	    dddddddddddddd, eeeeeeeeeeee);
+	aaaaaaaaaaaaaaaaaaaa =
+	    bbbbbbbbbbbbbbbbbbbbb(ccc, dddddddddddddd, eeeeeeeeeeee);
 }

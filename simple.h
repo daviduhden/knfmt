@@ -2,9 +2,9 @@ struct arena_scope;
 struct options;
 
 /* Force enable pass even if simple mode is not enabled. */
-#define SIMPLE_FORCE			0x00000001u
+#define SIMPLE_FORCE 0x00000001u
 /* Ignore pass including nested invocations. */
-#define SIMPLE_IGNORE			0x00000002u
+#define SIMPLE_IGNORE 0x00000002u
 
 enum simple_pass {
 	SIMPLE_ATTRIBUTES,
@@ -26,21 +26,21 @@ enum simple_pass {
 };
 
 struct simple_cookie {
-	struct simple		*si;
-	enum simple_pass	 pass;
-	int			 state;
+	struct simple	*si;
+	enum simple_pass pass;
+	int		 state;
 };
 
-#define simple_cookie(varname)						\
-	__attribute__((cleanup(simple_leave)))				\
-	struct simple_cookie varname = {0}
+#define simple_cookie(varname)                                                 \
+	__attribute__((                                                        \
+	    cleanup(simple_leave))) struct simple_cookie varname = {0}
 
-struct simple	*simple_alloc(struct arena_scope *, const struct options *);
+struct simple *simple_alloc(struct arena_scope *, const struct options *);
 
-int	simple_enter(struct simple *, enum simple_pass, unsigned int,
-    struct simple_cookie *);
-void	simple_leave(struct simple_cookie *);
-int	is_simple_enabled(const struct simple *, enum simple_pass);
+int simple_enter(
+    struct simple *, enum simple_pass, unsigned int, struct simple_cookie *);
+void simple_leave(struct simple_cookie *);
+int  is_simple_enabled(const struct simple *, enum simple_pass);
 
-int	simple_disable(struct simple *);
-void	simple_enable(struct simple *, int);
+int  simple_disable(struct simple *);
+void simple_enable(struct simple *, int);

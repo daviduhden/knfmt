@@ -3,5 +3,5 @@
  */
 
 typedef int T;
-T (*(*g)(T))(T);
-T (*fp)(T);
+T	    (*(*g)(T))(T);
+T	    (*fp)(T);

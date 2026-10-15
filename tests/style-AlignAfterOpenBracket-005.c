@@ -7,19 +7,15 @@
 int
 main(void)
 {
-	if (foo() &&
-	    bar())
+	if (foo() && bar())
 		return 0;
-	else if (foo() &&
-		 bar())
+	else if (foo() && bar())
 		return 1;
 
-	while (foo() &&
-	       bar())
+	while (foo() && bar())
 		continue;
 
-	switch (foo() &&
-		bar()) {
+	switch (foo() && bar()) {
 	default:
 		return 0;
 	}

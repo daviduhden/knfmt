@@ -2,9 +2,7 @@
  * AFL
  */
 
-int
-main(#
-)
+int main(#)
 {
 	for
 }

@@ -1,16 +1,14 @@
 #include "config.h"
-
 #include "libks/arena.h"
 #include "libks/compiler.h"
 #include "libks/fuzzer.h"
-
 #include "options.h"
 #include "style.h"
 
 struct test_context {
-	struct options	 op;
-	struct arena	*eternal;
-	struct arena	*scratch;
+	struct options op;
+	struct arena  *eternal;
+	struct arena  *scratch;
 };
 
 static void *

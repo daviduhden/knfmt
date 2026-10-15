@@ -1,18 +1,15 @@
-#include "cpp-format.h"
-
-#include "config.h"
-
 #include <ctype.h>
 #include <string.h>
 
+#include "arenas.h"
+#include "config.h"
+#include "cpp-format.h"
+#include "doc.h"
+#include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
 #include "libks/buffer.h"
 #include "libks/compiler.h"
-
-#include "arenas.h"
-#include "doc.h"
-#include "lexer.h"
 #include "ruler.h"
 #include "style.h"
 #include "token.h"
@@ -29,19 +26,18 @@ enum indent_type {
 };
 
 struct alignment {
-	const char		*indent;
-	enum indent_type	 indent_type;
-	enum style_keyword	 mode;
-	unsigned int		 width;
-	unsigned int		 tabs:1,
-				 skip_first_line:1;
+	const char	  *indent;
+	enum indent_type   indent_type;
+	enum style_keyword mode;
+	unsigned int	   width;
+	unsigned int	   tabs:1, skip_first_line:1;
 };
 
 static const char *
 trim_line(const char *str, size_t len, struct arena_scope *s, size_t *lenp)
 {
-	int newlines = 0;
-	char *out;
+	int    newlines = 0;
+	char  *out;
 	size_t n;
 
 	/* Honor up to two trailing new line(s). */
@@ -95,7 +91,7 @@ splice_joins_token(const char *str, size_t len)
 
 	for (i = 0; i + 1 < len; i++) {
 		unsigned char before, after;
-		size_t next;
+		size_t	      next;
 
 		if (str[i] != '\\')
 			continue;
@@ -185,7 +181,7 @@ splice_inside_literal(const char *str, size_t len)
 				j++;
 			i = j;
 		} else if (c == '\\' && i + 1 < len && str[i + 1] == '\n') {
-			i += 2;	/* splice outside a literal */
+			i += 2; /* splice outside a literal */
 		} else {
 			i++;
 		}
@@ -216,7 +212,7 @@ nextline(const char *str, size_t len, const char **nx)
 	if (p == nullptr || p == str || p[-1] != '\\')
 		return nullptr;
 	*nx = &p[1];
-	p--;	/* consume '\\' */
+	p--; /* consume '\\' */
 	while (p > str && isspace((unsigned char)p[-1]))
 		p--;
 	return p;
@@ -289,13 +285,13 @@ sense_alignment(const char *str, size_t len, const struct style *st,
     struct alignment *alignment)
 {
 	struct alignment lines[3] = {0};
-	unsigned int maxcol = style(st, ColumnLimit);
-	unsigned int nlines = 0;
-	unsigned int i;
+	unsigned int	 maxcol = style(st, ColumnLimit);
+	unsigned int	 nlines = 0;
+	unsigned int	 i;
 
 	for (i = 0; i < countof(lines); i++) {
-		const char *indent, *nx;
-		size_t linelen;
+		const char  *indent, *nx;
+		size_t	     linelen;
 		unsigned int col;
 
 		indent = nextline(str, len, &nx);
@@ -324,15 +320,15 @@ sense_alignment(const char *str, size_t len, const struct style *st,
 
 	/* The first line is allowed to not be aligned. */
 	if (nlines >= 2 && all_identical(&lines[1], nlines - 1)) {
-		unsigned int width = alignment->width;
+		unsigned int		width = alignment->width;
 		const struct alignment *max = max_alignment(lines, nlines);
 		if (max != nullptr && max->width < width)
 			width = max->width;
 		*alignment = (struct alignment){
-		    .mode		= Right,
-		    .width		= width,
-		    .tabs		= all_tabs(lines, nlines) ? 1 : 0,
-		    .skip_first_line	= is_not_aligned(&lines[0]) ? 1 : 0,
+		    .mode = Right,
+		    .width = width,
+		    .tabs = all_tabs(lines, nlines) ? 1 : 0,
+		    .skip_first_line = is_not_aligned(&lines[0]) ? 1 : 0,
 		};
 		return 1;
 	}
@@ -354,17 +350,17 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
     struct arenas *arena, const struct options *op, size_t *lenp)
 {
 	struct alignment alignment = {
-		.mode	= style(st, AlignEscapedNewlines),
-		.width	= max_width(st),
-		.tabs	= style_use_tabs(st) ? 1 : 0,
+	    .mode = style(st, AlignEscapedNewlines),
+	    .width = max_width(st),
+	    .tabs = style_use_tabs(st) ? 1 : 0,
 	};
-	struct ruler rl;
+	struct ruler   rl;
 	struct buffer *bf;
-	struct doc *dc;
-	const char *nx, *str;
-	size_t len;
-	int nlines = 0;
-	int didtrim = 0;
+	struct doc    *dc;
+	const char    *nx, *str;
+	size_t	       len;
+	int	       nlines = 0;
+	int	       didtrim = 0;
 
 	if (lenp != nullptr)
 		*lenp = 0;
@@ -387,8 +383,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	if (sense_alignment(str, len, st, &alignment)) {
 		cpp_trace(op, "mode %s, width %u, tabs %d, skip %d",
 		    style_keyword_str(alignment.mode), alignment.width,
-		    alignment.tabs ? 1 : 0,
-		    alignment.skip_first_line ? 1 : 0);
+		    alignment.tabs ? 1 : 0, alignment.skip_first_line ? 1 : 0);
 	}
 	switch (alignment.mode) {
 	case DontAlign:
@@ -414,9 +409,9 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	dc = doc_root(&scratch_scope);
 
 	for (;;) {
-		struct doc *concat;
-		const char *ep, *sp;
-		size_t cpplen, linelen;
+		struct doc  *concat;
+		const char  *ep, *sp;
+		size_t	     cpplen, linelen;
 		unsigned int w;
 
 		concat = doc_alloc(DOC_CONCAT, dc);
@@ -435,10 +430,10 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 		}
 		buffer_reset(bf);
 		w = doc_width(&(struct doc_exec_arg){
-		    .dc		= concat,
-		    .scratch	= arena->scratch,
-		    .bf		= bf,
-		    .st		= st,
+		    .dc = concat,
+		    .scratch = arena->scratch,
+		    .bf = bf,
+		    .st = st,
 		});
 		if (nlines == 0 && alignment.skip_first_line)
 			doc_literal(" ", concat);
@@ -457,7 +452,7 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	}
 	if (len > 0) {
 		const char *literal;
-		size_t litlen;
+		size_t	    litlen;
 
 		literal = trim_line(str, len, &scratch_scope, &litlen);
 		didtrim = len != litlen;
@@ -471,10 +466,10 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
 	ruler_exec(&rl);
 	buffer_reset(bf);
 	doc_exec(&(struct doc_exec_arg){
-	    .dc		= dc,
-	    .scratch	= arena->scratch,
-	    .bf		= bf,
-	    .st		= st,
+	    .dc = dc,
+	    .scratch = arena->scratch,
+	    .bf = bf,
+	    .st = st,
 	});
 	if (lenp != nullptr)
 		*lenp = buffer_get_len(bf);

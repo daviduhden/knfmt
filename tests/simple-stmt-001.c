@@ -53,7 +53,8 @@ test_switch2(void)
 	if (0) {
 		switch (1) {
 		case 1: {
-			TAILQ_FOREACH_REVERSE(dc, dl, doc_stack, dc_entry) {
+			TAILQ_FOREACH_REVERSE(dc, dl, doc_stack, dc_entry)
+			{
 				TAILQ_INSERT_TAIL(&ds, dc, dc_stack);
 			}
 
@@ -92,7 +93,8 @@ test_if3(void)
 					if (4) {
 						if (5) {
 							if (6) {
-								int x = 1111 + 2222;
+								int x =
+								    1111 + 2222;
 							}
 						}
 					}

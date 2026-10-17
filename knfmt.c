@@ -50,9 +50,7 @@ main(int argc, char *argv[])
 	int		    error = 0;
 	int		    ch;
 
-	if (pledge("stdio rpath wpath cpath fattr chown proc exec", nullptr) ==
-	    -1)
-		err(1, "pledge");
+	/* Parsing a style may execute a helper; pledge only after it finishes. */
 
 	options_init(&c.options);
 
@@ -106,15 +104,12 @@ main(int argc, char *argv[])
 		goto out;
 	}
 
-	if (c.options.diff) {
-		if (pledge("stdio rpath wpath cpath proc exec", nullptr) == -1)
-			err(1, "pledge");
-	} else if (c.options.inplace) {
-		if (pledge("stdio rpath wpath cpath fattr chown", nullptr) ==
-		    -1)
-			err(1, "pledge");
-	} else {
-		if (pledge("stdio rpath", nullptr) == -1)
+	/* Diff mode executes diff(1); other modes can now be pledged. */
+	if (!c.options.diff) {
+		const char *promises = c.options.inplace
+		    ? "stdio rpath wpath cpath fattr chown"
+		    : "stdio rpath";
+		if (pledge(promises, nullptr) == -1)
 			err(1, "pledge");
 	}
 

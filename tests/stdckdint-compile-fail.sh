@@ -34,8 +34,8 @@ fail=0
 must_reject() {
 	printf '%s\n' "${2}" >"${tmp}/case.c"
 	if # shellcheck disable=SC2086
-	    "${CC}" ${CFLAGS} ${CSTD} ${WARNINGS} -I"${ROOT_DIR}" \
-		-fsyntax-only "${tmp}/case.c" >/dev/null 2>&1
+		"${CC}" ${CFLAGS} ${CSTD} ${WARNINGS} -I"${ROOT_DIR}" \
+			-fsyntax-only "${tmp}/case.c" >/dev/null 2>&1
 	then
 		printf 'FAIL: %s was accepted\n' "${1}"
 		fail=1
@@ -47,8 +47,8 @@ must_reject() {
 must_accept() {
 	printf '%s\n' "${2}" >"${tmp}/case.c"
 	if # shellcheck disable=SC2086
-	    "${CC}" ${CFLAGS} ${CSTD} ${WARNINGS} -I"${ROOT_DIR}" \
-		-fsyntax-only "${tmp}/case.c" >/dev/null 2>&1
+		"${CC}" ${CFLAGS} ${CSTD} ${WARNINGS} -I"${ROOT_DIR}" \
+			-fsyntax-only "${tmp}/case.c" >/dev/null 2>&1
 	then
 		printf 'ok: %s accepted\n' "${1}"
 	else

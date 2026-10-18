@@ -6,38 +6,41 @@ set -e
 #
 # Removed the leading block comment from file.
 commstrip() {
-	{ while read -r _l; do [ -n "${_l}" ] || break; done; cat; } <"$1"
+	{
+		while read -r _l; do [ -n "${_l}" ] || break; done
+		cat
+	} <"$1"
 }
 
 # clang_format_stub
 clang_format_stub() {
-	local _bindir="${_wrkdir}/bin"
+	_bindir="${_wrkdir}/bin"
 
 	mkdir -p "${_bindir}"
 	cat <<-EOF >"${_bindir}/clang-format"
-	#!/bin/sh
+		#!/bin/sh
 
-	_style=""
-	for _a; do
-		case "\$_a" in
-		-style=*)	_style=\${_a#*=};;
-		esac
-	done
-	cd ${PWD}
-	cat styles/\${_style}
+		_style=""
+		for _a; do
+			case "\$_a" in
+			-style=*)	_style=\${_a#*=};;
+			esac
+		done
+		cd ${PWD}
+		cat styles/\${_style}
 	EOF
 	chmod u+x "${_bindir}/clang-format"
 
-	PATH="${_bindir}:${PATH}"; export PATH
+	PATH="${_bindir}:${PATH}"
+	export PATH
 }
 
 # hascomm file
 #
 # Returns zero if the given file has a comment.
 hascomm() {
-	local _f
-
-	_f="$1"; : "${_f:?}"
+	_f="$1"
+	: "${_f:?}"
 
 	if ! head -1 "${_f}" | grep -q '^/\*$'; then
 		echo "${_f}: missing test case comment" 1>&2
@@ -49,34 +52,41 @@ hascomm() {
 #
 # Run test case.
 testcase() {
-	local _base
-	local _based_on_style=0
-	local _bug=0
-	local _clang=0
-	local _diff="${_wrkdir}/diff"
-	local _exp=0
-	local _ext
-	local _file
-	local _flags="d"
-	local _got=0
-	local _ok=
-	local _ok_required=0
-	local _quiet=0
+	_based_on_style=0
+	_bug=0
+	_clang=0
+	_diff="${_wrkdir}/diff"
+	_exp=0
+	_flags="d"
+	_got=0
+	_ok_required=0
+	_quiet=0
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		-B)	_based_on_style=1;;
-		-b)	_bug=1; _quiet=1;;
-		-c)	_clang=1;;
-		-e)	_exp=1; _flags="";;
-		-i)	_flags=""; _quiet=1;;
-		-o)	_ok_required=1;;
-		-q)	_quiet=1;;
-		*)	break;;
+		-B) _based_on_style=1 ;;
+		-b)
+			_bug=1
+			_quiet=1
+			;;
+		-c) _clang=1 ;;
+		-e)
+			_exp=1
+			_flags=""
+			;;
+		-i)
+			_flags=""
+			_quiet=1
+			;;
+		-o) _ok_required=1 ;;
+		-q) _quiet=1 ;;
+		*) break ;;
 		esac
 		shift
 	done
-	_file="$1"; : "${_file:?}"; shift
+	_file="$1"
+	: "${_file:?}"
+	shift
 	[ "${1:-}" = "--" ] && shift
 
 	_name="${_file##*/}"
@@ -87,7 +97,7 @@ testcase() {
 
 	if [ "${_clang}" -eq 1 ]; then
 		sed -n -e '/^[\/ ]\* /s/^[\/ ]\* //p' -e '/^$/q' "${_file}" |
-		sed -e '/^$/d' >"${_wrkdir}/.clang-format"
+			sed -e '/^$/d' >"${_wrkdir}/.clang-format"
 	fi
 
 	if [ "${_based_on_style}" -eq 1 ]; then
@@ -134,7 +144,7 @@ testcase() {
 			:
 		elif [ "${_exp}" -eq 1 ]; then
 			cat "${_out}" /dev/stdin 1>&2 <<-EOF
-			${_file}: expected exit 1, got ${_got}
+				${_file}: expected exit 1, got ${_got}
 			EOF
 			return 1
 		else
@@ -154,8 +164,8 @@ testcase() {
 
 # Enable hardening malloc(3) options on OpenBSD.
 case "$(uname -s)" in
-OpenBSD)	export MALLOC_OPTIONS="RS";;
-*)		;;
+OpenBSD) export MALLOC_OPTIONS="RS" ;;
+*) ;;
 esac
 
 # Use a distinct sanitizer exit code.
@@ -171,14 +181,15 @@ case "$1" in
 valid-183.c)
 	# Ignore windows line endings test case.
 	;;
-diff-*|inplace-*|../*)
+diff-* | inplace-* | ../*)
 	;;
 *)
 	hascomm "$1" || exit 1
 	;;
 esac
 
-_path="$1"; shift
+_path="$1"
+shift
 
 _rel="${_path}"
 _abs="$(readlink -f "${_rel}" 2>/dev/null || echo "${PWD}/${_rel}")"
@@ -205,7 +216,7 @@ inplace-*)
 	cp "${_abs}" "${_wrkdir}/test.c"
 	testcase -i "${_wrkdir}/test.c" -- -i "$@"
 	;;
-simple-*|../*)
+simple-* | ../*)
 	testcase "${_abs}" -- -s "$@"
 	;;
 style-BasedOnStyle-*)

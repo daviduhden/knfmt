@@ -1,3 +1,4 @@
+#!/bin/sh
 # NUL bytes are ordinary bytes: preserved where the lexer can carry them
 # (e.g. inside a comment), otherwise a clean parse error with no output.
 

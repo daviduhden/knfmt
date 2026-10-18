@@ -14,7 +14,10 @@ set -e
 [ -z "${VALGRINDRC:-}" ] || export "VALGRIND_OPTS=$(xargs <"${VALGRINDRC}")"
 
 KF="${KFAULT:-./knfmt-fault}"
-[ -x "${KF}" ] || { echo "no fault binary: ${KF}" >&2; exit 2; }
+[ -x "${KF}" ] || {
+	echo "no fault binary: ${KF}" >&2
+	exit 2
+}
 
 srcdir="$(dirname "$0")/.."
 wrkdir="$(mktemp -d)"
@@ -25,13 +28,14 @@ limit=200000
 # run <file> [flags ...]: fail each allocation in turn until the program
 # succeeds, requiring a controlled exit and no partial stdout in between.
 run() {
-	local _in="$1"; shift
-	local _n=0 _rc
+	_in="$1"
+	shift
+	_n=0 _rc=
 
 	while [ "${_n}" -lt "${limit}" ]; do
 		_rc=0
 		FAULT_AT="${_n}" "${KF}" "$@" "${_in}" \
-		    >"${wrkdir}/out" 2>"${wrkdir}/err" || _rc=$?
+			>"${wrkdir}/out" 2>"${wrkdir}/err" || _rc=$?
 		_rc=${_rc:-0}
 		if [ "${_rc}" -eq 0 ]; then
 			echo "fault: ${_in} ${*} 0..${_n} controlled"
@@ -53,16 +57,16 @@ run() {
 
 # run_inplace <file>: on failure the target must be unchanged.
 run_inplace() {
-	local _src="$1"
-	local _n=0 _rc
-	local _f="${wrkdir}/in.c" _orig="${wrkdir}/orig.c"
+	_src="$1"
+	_n=0 _rc=
+	_f="${wrkdir}/in.c" _orig="${wrkdir}/orig.c"
 
 	cp "${_src}" "${_orig}"
 	while [ "${_n}" -lt "${limit}" ]; do
 		cp "${_orig}" "${_f}"
 		_rc=0
 		FAULT_AT="${_n}" "${KF}" -i "${_f}" \
-		    >"${wrkdir}/out" 2>"${wrkdir}/err" || _rc=$?
+			>"${wrkdir}/out" 2>"${wrkdir}/err" || _rc=$?
 		_rc=${_rc:-0}
 		if [ "${_rc}" -eq 0 ]; then
 			echo "fault: ${_src} -i 0..${_n} controlled"
@@ -82,11 +86,11 @@ run_inplace() {
 }
 
 for _f in \
-    "${srcdir}/tests/valid-001.c" \
-    "${srcdir}/tests/diff-014.c" \
-    "${srcdir}/tests/repro-idempotence-002.c" \
-    "${srcdir}/tests/repro-idempotence-003.c" \
-    "${srcdir}/tests/simple-attributes-003.c"; do
+	"${srcdir}/tests/valid-001.c" \
+	"${srcdir}/tests/diff-014.c" \
+	"${srcdir}/tests/repro-idempotence-002.c" \
+	"${srcdir}/tests/repro-idempotence-003.c" \
+	"${srcdir}/tests/simple-attributes-003.c"; do
 	run "${_f}"
 	run "${_f}" -s
 done

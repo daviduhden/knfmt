@@ -40,7 +40,7 @@ for _f in known-nonidempotent/*.c; do
 	tr -d '[:space:]' <"${_wrkdir}/o1" >"${_wrkdir}/c2"
 
 	if cmp -s "${_wrkdir}/o1" "${_wrkdir}/o2" &&
-	    cmp -s "${_wrkdir}/c1" "${_wrkdir}/c2"; then
+		cmp -s "${_wrkdir}/c1" "${_wrkdir}/c2"; then
 		echo "${_f}: now correct; move it to tests/repro-idempotence-*.c" >&2
 		_status=1
 	else

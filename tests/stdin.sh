@@ -1,3 +1,4 @@
+#!/bin/sh
 # Inplace edit of stdin does not make sense.
 
 set -e

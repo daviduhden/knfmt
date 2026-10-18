@@ -38,348 +38,386 @@ use warnings;
 use bytes;
 
 my @PUNCT = sort { length($b) <=> length($a) } (
-	'...', '<<=', '>>=', '->', '++', '--', '<<', '>>', '<=', '>=', '==',
-	'!=', '&&', '||', '*=', '/=', '%=', '+=', '-=', '&=', '^=', '|=', '##',
-	'[', ']', '(', ')', '{', '}', '.', '&', '*', '+', '-', '~', '!', '/',
-	'%', '<', '>', '^', '|', '?', ':', ';', '=', ',', '#',
+    '...', '<<=', '>>=', '->', '++', '--', '<<', '>>', '<=', '>=',
+    '==',  '!=',  '&&',  '||', '*=', '/=', '%=', '+=', '-=', '&=',
+    '^=',  '|=',  '##',  '[',  ']',  '(',  ')',  '{',  '}',  '.',
+    '&',   '*',   '+',   '-',  '~',  '!',  '/',  '%',  '<',  '>',
+    '^',   '|',   '?',   ':',  ';',  '=',  ',',  '#',
 );
 
 sub tokenize {
-	my ($d) = @_;
-	# Translation phase 1: trigraph replacement.
-	$d =~ s/\?\?=/#/g;
-	$d =~ s/\?\?\//\\/g;
-	$d =~ s/\?\?'/^/g;
-	$d =~ s/\?\?\(/[/g;
-	$d =~ s/\?\?\)/]/g;
-	$d =~ s/\?\?!/|/g;
-	$d =~ s/\?\?</{/g;
-	$d =~ s/\?\?>/}/g;
-	$d =~ s/\?\?-/~/g;
-	# Translation phase 2: remove every backslash-newline.
-	$d =~ s/\\\r?\n//g;
+    my ($d) = @_;
 
-	my $n = length($d);
-	my $i = 0;
-	my @t;
-	while ($i < $n) {
-		my $c = substr($d, $i, 1);
-		if ($c =~ /[ \t\v\f\r]/) { $i++; next; }
-		if ($c eq "\n") { push @t, ['nl', "\n"]; $i++; next; }
-		if ($c eq '/') {
-			my ($tk, $j) = _scan_comment($d, $i, $n);
-			if (defined $tk) {
-				push @t, $tk;
-				$i = $j;
-				next;
-			}
-		}
-		if ($c eq '"' || $c eq "'") {
-			my ($tk, $j) = _scan_literal($d, $i, $n);
-			push @t, $tk;
-			$i = $j;
-			next;
-		}
-		if ($c eq '\\') { push @t, ['backslash', '\\']; $i++; next; }
-		if ($c =~ /[A-Za-z_]/) {
-			my $j = $i + 1;
-			$j++ while $j < $n && substr($d, $j, 1) =~ /[A-Za-z0-9_]/;
-			push @t, ['ident', substr($d, $i, $j - $i)];
-			$i = $j;
-			next;
-		}
-		if ($c =~ /[0-9]/ ||
-		    ($c eq '.' && substr($d, $i + 1, 1) =~ /[0-9]/)) {
-			my ($tk, $j) = _scan_number($d, $i, $n);
-			push @t, $tk;
-			$i = $j;
-			next;
-		}
-		my ($tk, $j) = _scan_punct($d, $i);
-		if (defined $tk) {
-			push @t, $tk;
-			$i = $j;
-			next;
-		}
-		push @t, ['other', $c];
-		$i++;
-	}
-	return \@t;
+    # Translation phase 1: trigraph replacement.
+    $d =~ s/\?\?=/#/g;
+    $d =~ s/\?\?\//\\/g;
+    $d =~ s/\?\?'/^/g;
+    $d =~ s/\?\?\(/[/g;
+    $d =~ s/\?\?\)/]/g;
+    $d =~ s/\?\?!/|/g;
+    $d =~ s/\?\?</{/g;
+    $d =~ s/\?\?>/}/g;
+    $d =~ s/\?\?-/~/g;
+
+    # Translation phase 2: remove every backslash-newline.
+    $d =~ s/\\\r?\n//g;
+
+    my $n = length($d);
+    my $i = 0;
+    my @t;
+    while ( $i < $n ) {
+        my $c = substr( $d, $i, 1 );
+        if ( $c =~ /[ \t\v\f\r]/ ) { $i++; next; }
+        if ( $c eq "\n" ) { push @t, [ 'nl', "\n" ]; $i++; next; }
+        if ( $c eq '/' ) {
+            my ( $tk, $j ) = _scan_comment( $d, $i, $n );
+            if ( defined $tk ) {
+                push @t, $tk;
+                $i = $j;
+                next;
+            }
+        }
+        if ( $c eq '"' || $c eq "'" ) {
+            my ( $tk, $j ) = _scan_literal( $d, $i, $n );
+            push @t, $tk;
+            $i = $j;
+            next;
+        }
+        if ( $c eq '\\' ) { push @t, [ 'backslash', '\\' ]; $i++; next; }
+        if ( $c =~ /[A-Za-z_]/ ) {
+            my $j = $i + 1;
+            $j++ while $j < $n && substr( $d, $j, 1 ) =~ /[A-Za-z0-9_]/;
+            push @t, [ 'ident', substr( $d, $i, $j - $i ) ];
+            $i = $j;
+            next;
+        }
+        if ( $c =~ /[0-9]/
+            || ( $c eq '.' && substr( $d, $i + 1, 1 ) =~ /[0-9]/ ) )
+        {
+            my ( $tk, $j ) = _scan_number( $d, $i, $n );
+            push @t, $tk;
+            $i = $j;
+            next;
+        }
+        my ( $tk, $j ) = _scan_punct( $d, $i );
+        if ( defined $tk ) {
+            push @t, $tk;
+            $i = $j;
+            next;
+        }
+        push @t, [ 'other', $c ];
+        $i++;
+    }
+    return \@t;
 }
 
 # Scan a block comment (`/*`) or line comment (`//`) at $i.  Returns a
 # ('comment', text) token and the index just past it, or an empty list when
 # $i does not start a comment.
 sub _scan_comment {
-	my ($d, $i, $n) = @_;
-	my $next = substr($d, $i + 1, 1);
-	my $j;
-	if ($next eq '*') {
-		$j = index($d, '*/', $i + 2);
-		$j = ($j < 0) ? $n : $j + 2;
-	} elsif ($next eq '/') {
-		$j = index($d, "\n", $i + 2);
-		$j = ($j < 0) ? $n : $j;
-	} else {
-		return;
-	}
-	return ['comment', substr($d, $i, $j - $i)], $j;
+    my ( $d, $i, $n ) = @_;
+    my $next = substr( $d, $i + 1, 1 );
+    my $j;
+    if ( $next eq '*' ) {
+        $j = index( $d, '*/', $i + 2 );
+        $j = ( $j < 0 ) ? $n : $j + 2;
+    }
+    elsif ( $next eq '/' ) {
+        $j = index( $d, "\n", $i + 2 );
+        $j = ( $j < 0 ) ? $n : $j;
+    }
+    else {
+        return;
+    }
+    return [ 'comment', substr( $d, $i, $j - $i ) ], $j;
 }
 
 # Scan a string or character literal at $i.  A raw newline inside it is a
 # constraint violation, so such a literal is reported as 'uliteral'.  Returns
 # a (type, text) token and the index just past it.
 sub _scan_literal {
-	my ($d, $i, $n) = @_;
-	my $q = substr($d, $i, 1);
-	my $j = $i + 1;
-	while ($j < $n) {
-		my $ch = substr($d, $j, 1);
-		last if $ch eq $q;
-		if ($ch eq '\\') { $j += 2; next; }
-		$j++;
-	}
-	$j = $n if $j > $n;
-	$j++;
-	$j = $n if $j > $n;
-	my $lit = substr($d, $i, $j - $i);
-	return [($lit =~ /\n/ ? 'uliteral' : 'literal'), $lit], $j;
+    my ( $d, $i, $n ) = @_;
+    my $q = substr( $d, $i, 1 );
+    my $j = $i + 1;
+    while ( $j < $n ) {
+        my $ch = substr( $d, $j, 1 );
+        last if $ch eq $q;
+        if ( $ch eq '\\' ) { $j += 2; next; }
+        $j++;
+    }
+    $j = $n if $j > $n;
+    $j++;
+    $j = $n if $j > $n;
+    my $lit = substr( $d, $i, $j - $i );
+    return [ ( $lit =~ /\n/ ? 'uliteral' : 'literal' ), $lit ], $j;
 }
 
 # Scan a preprocessing number at $i.  Returns a (type, text) token and the
 # index just past it.
 sub _scan_number {
-	my ($d, $i, $n) = @_;
-	my $j = $i + 1;
-	while ($j < $n) {
-		my $ch = substr($d, $j, 1);
-		if ($ch =~ /[A-Za-z0-9_.]/) { $j++; next; }
-		if ($ch =~ /[eEpP]/ &&
-		    substr($d, $j + 1, 1) =~ /[+\-]/) {
-			$j += 2;
-			next;
-		}
-		last;
-	}
-	return ['number', substr($d, $i, $j - $i)], $j;
+    my ( $d, $i, $n ) = @_;
+    my $j = $i + 1;
+    while ( $j < $n ) {
+        my $ch = substr( $d, $j, 1 );
+        if ( $ch =~ /[A-Za-z0-9_.]/ ) { $j++; next; }
+        if ( $ch =~ /[eEpP]/
+            && substr( $d, $j + 1, 1 ) =~ /[+\-]/ )
+        {
+            $j += 2;
+            next;
+        }
+        last;
+    }
+    return [ 'number', substr( $d, $i, $j - $i ) ], $j;
 }
 
 # Scan the longest punctuator at $i.  Returns a (type, text) token and the
 # index just past it, or an empty list when no punctuator matches.
 sub _scan_punct {
-	my ($d, $i) = @_;
-	for my $p (@PUNCT) {
-		if (substr($d, $i, length($p)) eq $p) {
-			return ['punct', $p], $i + length($p);
-		}
-	}
-	return;
+    my ( $d, $i ) = @_;
+    for my $p (@PUNCT) {
+        if ( substr( $d, $i, length($p) ) eq $p ) {
+            return [ 'punct', $p ], $i + length($p);
+        }
+    }
+    return;
 }
 
 # True when $tk is the given punctuator.
 sub _is_punct {
-	my ($tk, $p) = @_;
-	return defined $tk && $tk->[0] eq 'punct' && $tk->[1] eq $p;
+    my ( $tk, $p ) = @_;
+    return defined $tk && $tk->[0] eq 'punct' && $tk->[1] eq $p;
 }
 
 # A ';' is dropped before '}', when trailing, and before a directive.
 sub _drop_semi {
-	my ($prev, $next) = @_;
-	return 1 if _is_punct($prev, '}');
-	return 1 if !defined $next;
-	return 1 if _is_punct($next, '}') || _is_punct($next, '#');
-	return 0;
+    my ( $prev, $next ) = @_;
+    return 1 if _is_punct( $prev, '}' );
+    return 1 if !defined $next;
+    return 1 if _is_punct( $next, '}' ) || _is_punct( $next, '#' );
+    return 0;
 }
 
 # Normalize the token stream: drop comments/backslashes/newlines, collapse
 # semicolon runs (keeping the last), drop a ';' before '}'.
 sub _normalize {
-	my ($t) = @_;
-	my @seq = grep { $_->[0] ne 'comment' && $_->[0] ne 'backslash' } @$t;
-	my @out;
-	my $i = 0;
-	while ($i < @seq) {
-		if (_is_punct($seq[$i], ';')) {
-			my $j = $i;
-			$j++ while $j < @seq && _is_punct($seq[$j], ';');
-			push @out, $seq[$j - 1];
-			$i = $j;
-			next;
-		}
-		push @out, $seq[$i];
-		$i++;
-	}
-	@out = grep { $_->[0] ne 'nl' } @out;
-	my @final;
-	for my $k (0 .. $#out) {
-		my $tk = $out[$k];
-		if (_is_punct($tk, ';')) {
-			my $prev = @final ? $final[-1] : undef;
-			my $next = $k + 1 <= $#out ? $out[$k + 1] : undef;
-			next if _drop_semi($prev, $next);
-		}
-		push @final, $tk;
-	}
-	return \@final;
+    my ($t) = @_;
+    my @seq = grep { $_->[0] ne 'comment' && $_->[0] ne 'backslash' } @$t;
+    my @out;
+    my $i = 0;
+    while ( $i < @seq ) {
+        if ( _is_punct( $seq[$i], ';' ) ) {
+            my $j = $i;
+            $j++ while $j < @seq && _is_punct( $seq[$j], ';' );
+            push @out, $seq[ $j - 1 ];
+            $i = $j;
+            next;
+        }
+        push @out, $seq[$i];
+        $i++;
+    }
+    @out = grep { $_->[0] ne 'nl' } @out;
+    my @final;
+    for my $k ( 0 .. $#out ) {
+        my $tk = $out[$k];
+        if ( _is_punct( $tk, ';' ) ) {
+            my $prev = @final          ? $final[-1]     : undef;
+            my $next = $k + 1 <= $#out ? $out[ $k + 1 ] : undef;
+            next if _drop_semi( $prev, $next );
+        }
+        push @final, $tk;
+    }
+    return \@final;
 }
 
 sub _canon {
-	my ($toks) = @_;
-	my $s = '';
-	for my $tk (@$toks) { $s .= $tk->[0] . ':' . $tk->[1] . "\x00"; }
-	return $s;
+    my ($toks) = @_;
+    my $s = '';
+    for my $tk (@$toks) { $s .= $tk->[0] . ':' . $tk->[1] . "\x00"; }
+    return $s;
 }
 
 sub _comments {
-	my ($t) = @_;
-	my @c;
-	for my $tk (@$t) {
-		next unless $tk->[0] eq 'comment';
-		my $s = $tk->[1];
-		$s =~ s/\s+//g;
-		push @c, $s;
-	}
-	return join("\x00", sort @c);
+    my ($t) = @_;
+    my @c;
+    for my $tk (@$t) {
+        next unless $tk->[0] eq 'comment';
+        my $s = $tk->[1];
+        $s =~ s/\s+//g;
+        push @c, $s;
+    }
+    return join( "\x00", sort @c );
 }
 
 # Returns nothing (false) when equivalent, else a (category, detail) list.
 sub compare {
-	my ($a, $b) = @_;
-	my $ta = tokenize($a);
-	my $tb = tokenize($b);
+    my ( $a, $b ) = @_;
+    my $ta = tokenize($a);
+    my $tb = tokenize($b);
 
-	# An unterminated literal (a raw newline inside it) cannot be
-	# interpreted as a preprocessing token; report it as unsupported rather
-	# than comparing bytes that have no defined meaning.
-	for my $tk (@$ta, @$tb) {
-		return ['ORACLE_UNSUPPORTED', ''] if $tk->[0] eq 'uliteral';
-	}
+    # An unterminated literal (a raw newline inside it) cannot be
+    # interpreted as a preprocessing token; report it as unsupported rather
+    # than comparing bytes that have no defined meaning.
+    for my $tk ( @$ta, @$tb ) {
+        return [ 'ORACLE_UNSUPPORTED', '' ] if $tk->[0] eq 'uliteral';
+    }
 
-	my $ca = _canon(_normalize($ta));
-	my $cb = _canon(_normalize($tb));
-	if ($ca ne $cb) {
-		my @la = split /\x00/, $ca, -1;
-		my @lb = split /\x00/, $cb, -1;
-		my $cat = @la < @lb ? 'TOKEN_LOSS'
-		    : @la > @lb ? 'TOKEN_DUPLICATION'
-		    : 'TOKEN_CHANGE';
-		return [$cat, ''];
-	}
-	if (_comments($ta) ne _comments($tb)) {
-		return ['COMMENT_CHANGE', ''];
-	}
-	return;
+    my $ca = _canon( _normalize($ta) );
+    my $cb = _canon( _normalize($tb) );
+    if ( $ca ne $cb ) {
+        my @la = split /\x00/, $ca, -1;
+        my @lb = split /\x00/, $cb, -1;
+        my $cat =
+            @la < @lb ? 'TOKEN_LOSS'
+          : @la > @lb ? 'TOKEN_DUPLICATION'
+          :             'TOKEN_CHANGE';
+        return [ $cat, '' ];
+    }
+    if ( _comments($ta) ne _comments($tb) ) {
+        return [ 'COMMENT_CHANGE', '' ];
+    }
+    return;
 }
 
 sub _selftest {
-	my @cases = (
-		["int x;\n", "int  x ;\n", 1],
-		["int x; int y;\n", "int x;\nint y;\n", 1],
-		["int f(void){}\n", "int f(void){}\n", 1],
-		["int x; int y;\n", "int x;\n", 0],
-		["int x;\n", "int x; int x;\n", 0],
-		["int x = 1;\n", "int x = 2;\n", 0],
-		["a + b;\n", "a - b;\n", 0],
-		["int x; // c\nint y;\n", "int x; // c int y;\n", 0],
-		["/* a */ int x;\n", "int x; /* a */\n", 1],
-		["char *s = \"/*x*/\";\n", "char *s = \"/*x*/\";\n", 1],
-		["#if A\nint a;\n#else\nint b;\n#endif\n",
-		 "#if A\nint b;\n#else\nint a;\n#endif\n", 0],
-		["#define X(a) a ## b\n", "#define X(a) a ## b\n", 1],
-		["#define X(a) a ## b\n", "#define X(a) a # b\n", 0],
-		["int x\\\n;\n", "int x;\n", 1],
-		# Trigraph line continuation (??/ + newline is a splice).
-		["int x??/\n;\n", "int x;\n", 1],
-		# Identifier concatenation.
-		["int x; int y;\n", "int x; inty;\n", 0],
-		# Operator concatenation.
-		["a + +b;\n", "a ++b;\n", 0],
-		["a - -b;\n", "a --b;\n", 0],
-		["a + = b;\n", "a += b;\n", 0],
-		# Token splitting.
-		["a++;\n", "a + +;\n", 0],
-		["a->b;\n", "a - >b;\n", 0],
-		# Deleted punctuation.
-		["int f(int a, int b);\n", "int f(int a int b);\n", 0],
-		["int a, b;\n", "int a b;\n", 0],
-		["int *a, *b;\n", "int *a *b;\n", 0],
-		["int a; int b;\n", "int a int b;\n", 0],
-		# Truncated source at end of file.
-		["int a; int b;\n", "int a;\n", 0],
-		# Duplicate punctuation.
-		["int f(int a);\n", "int f(int a,,);\n", 0],
-		# Changed literal bytes.
-		["char c = 'a';\n", "char c = 'b';\n", 0],
-		# Truncated literal.
-		["char *s = \"abcd\";\n", "char *s = \"abc\";\n", 0],
-		# Swallowed comment.
-		["int x; /* c */ int y;\n", "int x; int y;\n", 0],
-		# Escaped-newline change alters the spliced token stream.
-		["a\\\nb;\n", "a b;\n", 0],
-		# Deleted conditional branch.
-		["#if A\nint a;\n#else\nint b;\n#endif\n",
-		 "#if A\nint a;\n#endif\n", 0],
-		# Duplicated conditional branch.
-		["#if A\nint a;\n#else\nint b;\n#endif\n",
-		 "#if A\nint a;\n#else\nint a;\n#else\nint b;\n#endif\n", 0],
-		# Unterminated literal (raw newline) is unsupported.
-		["char *s = \"a\nb\";\n", "char *s = \"a\nb\";\n", 2],
-		# Trigraph replacement is a character: a replacement that
-		# combines with the next character forms a compound punctuator.
-		["a ??'= b;\n", "a ??'= b;\n", 1],
-		["a ??'= b;\n", "a ??' = b;\n", 0],
-		["a ??!= b;\n", "a ??!= b;\n", 1],
-		["a ??!| b;\n", "a ??!| b;\n", 1],
-		["a ??!| b;\n", "a ??! | b;\n", 0],
-		# A trigraph replacement stays a single character next to its
-		# neighbours: ??' before a digit is not a comment or literal.
-		["x = a ??' b;\n", "x = a??'b;\n", 1],
-		# Identifier split across a backslash-newline splice.
-		["int ab\\\ncd;\n", "int abcd;\n", 1],
-		["int ab\\\ncd;\n", "int ab cd;\n", 0],
-		# Backslash-CRLF splice and consecutive splices.
-		["a\\\r\nb;\n", "ab;\n", 1],
-		["a\\\n\\\nb;\n", "ab;\n", 1],
-		# Splice inside a line comment continues the comment onto the
-		# next physical line, unlike a real line break.
-		["// c\\\nx\nint a;\n", "// c\nx\nint a;\n", 0],
-		# Question marks that are not trigraphs stay punctuators.
-		["a ? b : c;\n", "a?b:c;\n", 1],
-	);
-	my $bad = 0;
-	for my $c (@cases) {
-		my ($a, $b, $ok) = @$c;
-		my $r = compare($a, $b);
-		my $pass;
-		if ($ok == 2) {
-			$pass = defined($r) && $r->[0] eq 'ORACLE_UNSUPPORTED';
-		} else {
-			$pass = $ok ? !defined($r) : defined($r);
-		}
-		if (!$pass) {
-			$bad++;
-			print "SELFTEST FAIL: $a -> $b\n";
-		}
-	}
-	print "oracle selftest: " . scalar(@cases) . " cases, $bad failures\n";
-	return $bad;
+    my @cases = (
+        [ "int x;\n",               "int  x ;\n",             1 ],
+        [ "int x; int y;\n",        "int x;\nint y;\n",       1 ],
+        [ "int f(void){}\n",        "int f(void){}\n",        1 ],
+        [ "int x; int y;\n",        "int x;\n",               0 ],
+        [ "int x;\n",               "int x; int x;\n",        0 ],
+        [ "int x = 1;\n",           "int x = 2;\n",           0 ],
+        [ "a + b;\n",               "a - b;\n",               0 ],
+        [ "int x; // c\nint y;\n",  "int x; // c int y;\n",   0 ],
+        [ "/* a */ int x;\n",       "int x; /* a */\n",       1 ],
+        [ "char *s = \"/*x*/\";\n", "char *s = \"/*x*/\";\n", 1 ],
+        [
+            "#if A\nint a;\n#else\nint b;\n#endif\n",
+            "#if A\nint b;\n#else\nint a;\n#endif\n",
+            0
+        ],
+        [ "#define X(a) a ## b\n", "#define X(a) a ## b\n", 1 ],
+        [ "#define X(a) a ## b\n", "#define X(a) a # b\n",  0 ],
+        [ "int x\\\n;\n",          "int x;\n",              1 ],
+
+        # Trigraph line continuation (??/ + newline is a splice).
+        [ "int x??/\n;\n", "int x;\n", 1 ],
+
+        # Identifier concatenation.
+        [ "int x; int y;\n", "int x; inty;\n", 0 ],
+
+        # Operator concatenation.
+        [ "a + +b;\n",  "a ++b;\n",  0 ],
+        [ "a - -b;\n",  "a --b;\n",  0 ],
+        [ "a + = b;\n", "a += b;\n", 0 ],
+
+        # Token splitting.
+        [ "a++;\n",  "a + +;\n",  0 ],
+        [ "a->b;\n", "a - >b;\n", 0 ],
+
+        # Deleted punctuation.
+        [ "int f(int a, int b);\n", "int f(int a int b);\n", 0 ],
+        [ "int a, b;\n",            "int a b;\n",            0 ],
+        [ "int *a, *b;\n",          "int *a *b;\n",          0 ],
+        [ "int a; int b;\n",        "int a int b;\n",        0 ],
+
+        # Truncated source at end of file.
+        [ "int a; int b;\n", "int a;\n", 0 ],
+
+        # Duplicate punctuation.
+        [ "int f(int a);\n", "int f(int a,,);\n", 0 ],
+
+        # Changed literal bytes.
+        [ "char c = 'a';\n", "char c = 'b';\n", 0 ],
+
+        # Truncated literal.
+        [ "char *s = \"abcd\";\n", "char *s = \"abc\";\n", 0 ],
+
+        # Swallowed comment.
+        [ "int x; /* c */ int y;\n", "int x; int y;\n", 0 ],
+
+        # Escaped-newline change alters the spliced token stream.
+        [ "a\\\nb;\n", "a b;\n", 0 ],
+
+        # Deleted conditional branch.
+        [
+            "#if A\nint a;\n#else\nint b;\n#endif\n",
+            "#if A\nint a;\n#endif\n", 0
+        ],
+
+        # Duplicated conditional branch.
+        [
+            "#if A\nint a;\n#else\nint b;\n#endif\n",
+            "#if A\nint a;\n#else\nint a;\n#else\nint b;\n#endif\n",
+            0
+        ],
+
+        # Unterminated literal (raw newline) is unsupported.
+        [ "char *s = \"a\nb\";\n", "char *s = \"a\nb\";\n", 2 ],
+
+        # Trigraph replacement is a character: a replacement that
+        # combines with the next character forms a compound punctuator.
+        [ "a ??'= b;\n", "a ??'= b;\n",  1 ],
+        [ "a ??'= b;\n", "a ??' = b;\n", 0 ],
+        [ "a ??!= b;\n", "a ??!= b;\n",  1 ],
+        [ "a ??!| b;\n", "a ??!| b;\n",  1 ],
+        [ "a ??!| b;\n", "a ??! | b;\n", 0 ],
+
+        # A trigraph replacement stays a single character next to its
+        # neighbours: ??' before a digit is not a comment or literal.
+        [ "x = a ??' b;\n", "x = a??'b;\n", 1 ],
+
+        # Identifier split across a backslash-newline splice.
+        [ "int ab\\\ncd;\n", "int abcd;\n",  1 ],
+        [ "int ab\\\ncd;\n", "int ab cd;\n", 0 ],
+
+        # Backslash-CRLF splice and consecutive splices.
+        [ "a\\\r\nb;\n",   "ab;\n", 1 ],
+        [ "a\\\n\\\nb;\n", "ab;\n", 1 ],
+
+        # Splice inside a line comment continues the comment onto the
+        # next physical line, unlike a real line break.
+        [ "// c\\\nx\nint a;\n", "// c\nx\nint a;\n", 0 ],
+
+        # Question marks that are not trigraphs stay punctuators.
+        [ "a ? b : c;\n", "a?b:c;\n", 1 ],
+    );
+    my $bad = 0;
+    for my $c (@cases) {
+        my ( $a, $b, $ok ) = @$c;
+        my $r = compare( $a, $b );
+        my $pass;
+        if ( $ok == 2 ) {
+            $pass = defined($r) && $r->[0] eq 'ORACLE_UNSUPPORTED';
+        }
+        else {
+            $pass = $ok ? !defined($r) : defined($r);
+        }
+        if ( !$pass ) {
+            $bad++;
+            print "SELFTEST FAIL: $a -> $b\n";
+        }
+    }
+    print "oracle selftest: " . scalar(@cases) . " cases, $bad failures\n";
+    return $bad;
 }
 
 return 1 if caller;
 
-if (@ARGV && $ARGV[0] eq '--selftest') {
-	exit(_selftest() ? 1 : 0);
+if ( @ARGV && $ARGV[0] eq '--selftest' ) {
+    exit( _selftest() ? 1 : 0 );
 }
-if (@ARGV == 3 && $ARGV[0] eq 'compare') {
-	open(my $fa, '<:raw', $ARGV[1]) or die "$ARGV[1]: $!\n";
-	local $/ = undef; my $a = <$fa>;
-	close $fa or die "$ARGV[1]: $!\n";
-	open(my $fb, '<:raw', $ARGV[2]) or die "$ARGV[2]: $!\n";
-	my $b = <$fb>;
-	close $fb or die "$ARGV[2]: $!\n";
-	my $r = compare($a, $b);
-	exit 0 unless defined $r;
-	print "$r->[0]\n";
-	exit 1;
+if ( @ARGV == 3 && $ARGV[0] eq 'compare' ) {
+    open( my $fa, '<:raw', $ARGV[1] ) or die "$ARGV[1]: $!\n";
+    local $/ = undef;
+    my $a = <$fa>;
+    close $fa                         or die "$ARGV[1]: $!\n";
+    open( my $fb, '<:raw', $ARGV[2] ) or die "$ARGV[2]: $!\n";
+    my $b = <$fb>;
+    close $fb or die "$ARGV[2]: $!\n";
+    my $r = compare( $a, $b );
+    exit 0 unless defined $r;
+    print "$r->[0]\n";
+    exit 1;
 }
 die "usage: semanticoracle.pl --selftest | compare A B\n";

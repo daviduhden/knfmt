@@ -809,11 +809,11 @@ CalculatePrefetchSchedule(struct display_mode_lib *mode_lib,
 			//             it should be officially done in the VBA
 			//             code as well.
 			//			if (mode_lib->NumberOfCursors >
-			//0 || XFCEnabled)
+			// 0 || XFCEnabled)
 			TimeForFetchingMetaPTE = LineTime / 4;
 			//			else
 			//				TimeForFetchingMetaPTE =
-			//0.0;
+			// 0.0;
 		}
 
 		if ((GPUVMEnable == true || DCCEnable == true)) {
@@ -829,11 +829,12 @@ CalculatePrefetchSchedule(struct display_mode_lib *mode_lib,
 		} else {
 			// See note above dated 5/30/2018
 			//			if (NumberOfCursors > 0 ||
-			//XFCEnabled)
+			// XFCEnabled)
 			TimeForFetchingRowInVBlank =
 			    (LineTime - TimeForFetchingMetaPTE) / 2.0;
 			//			else // TODO: Did someone else
-			//add this?? 				TimeForFetchingRowInVBlank = 0.0;
+			// add this??
+			// TimeForFetchingRowInVBlank = 0.0;
 		}
 
 		*DestinationLinesToRequestVMInVBlank =

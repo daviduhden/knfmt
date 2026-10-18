@@ -1,3 +1,4 @@
+#!/bin/sh
 # No such file or directory.
 
 set -e

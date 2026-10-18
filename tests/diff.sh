@@ -1,3 +1,4 @@
+#!/bin/sh
 # Exercise diff mode.
 
 set -e

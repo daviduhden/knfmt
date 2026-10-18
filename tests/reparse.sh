@@ -21,14 +21,17 @@ fmt() {
 	fi
 }
 
-fail=0; n=0; na=0
+fail=0
+n=0
+na=0
 for f in ${files}; do
 	for opts in "" "-s"; do
-		out=$(mktemp); out2=$(mktemp)
+		out=$(mktemp)
+		out2=$(mktemp)
 		if fmt "${opts}" "${f}" "${out}"; then
 			n=$((n + 1))
 			if ! fmt "${opts}" "${out}" "${out2}" ||
-			    ! cmp -s "${out}" "${out2}"; then
+				! cmp -s "${out}" "${out2}"; then
 				echo "REPARSE FAIL: ${f} opts='${opts}'"
 				fail=$((fail + 1))
 			fi

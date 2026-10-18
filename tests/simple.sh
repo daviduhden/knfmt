@@ -1,3 +1,4 @@
+#!/bin/sh
 # Simple mode not reset regression.
 
 set -e

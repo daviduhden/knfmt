@@ -50,7 +50,8 @@ main(int argc, char *argv[])
 	int		    error = 0;
 	int		    ch;
 
-	/* Parsing a style may execute a helper; pledge only after it finishes. */
+	/* Parsing a style may execute a helper; pledge only after it finishes.
+	 */
 
 	options_init(&c.options);
 
@@ -106,9 +107,9 @@ main(int argc, char *argv[])
 
 	/* Diff mode executes diff(1); other modes can now be pledged. */
 	if (!c.options.diff) {
-		const char *promises = c.options.inplace
-		    ? "stdio rpath wpath cpath fattr chown"
-		    : "stdio rpath";
+		const char *promises = c.options.inplace ?
+		    "stdio rpath wpath cpath fattr chown" :
+		    "stdio rpath";
 		if (pledge(promises, nullptr) == -1)
 			err(1, "pledge");
 	}

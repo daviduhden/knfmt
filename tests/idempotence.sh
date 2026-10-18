@@ -17,12 +17,12 @@ trap 'rm -r $_wrkdir' EXIT
 # stable <file> [flags]: format, then format the result again, and require the
 # two outputs to be byte-identical.
 stable() {
-	local _f="$1" _flags="$2"
+	_f="$1" _flags="$2"
 
 	${EXEC:-} "${KNFMT}" ${_flags:+-${_flags}} "${_f}" \
-	    >"${_wrkdir}/o1" 2>"${_wrkdir}/e1"
+		>"${_wrkdir}/o1" 2>"${_wrkdir}/e1"
 	${EXEC:-} "${KNFMT}" ${_flags:+-${_flags}} "${_wrkdir}/o1" \
-	    >"${_wrkdir}/o2" 2>"${_wrkdir}/e2"
+		>"${_wrkdir}/o2" 2>"${_wrkdir}/e2"
 	cmp -s "${_wrkdir}/o1" "${_wrkdir}/o2"
 }
 

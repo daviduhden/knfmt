@@ -1,3 +1,4 @@
+#!/bin/sh
 # Raw-byte input domain: newline conventions, high-bit bytes, missing final
 # newline, and backslash-newline splicing. knfmt is byte oriented: high-bit
 # bytes are preserved verbatim, CRLF is accepted as a line boundary, a lone CR
@@ -14,11 +15,11 @@ trap 'rm -r $_wrkdir' EXIT
 # run <file>: format in place, then format the result again and require the
 # same bytes.
 stable() {
-	local _f="$1"
+	_f="$1"
 
 	(cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" "${_f}") >"${_wrkdir}/o1" 2>"${_wrkdir}/e1"
 	(cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" "${_wrkdir}/o1") \
-	    >"${_wrkdir}/o2" 2>"${_wrkdir}/e2"
+		>"${_wrkdir}/o2" 2>"${_wrkdir}/e2"
 	cmp -s "${_wrkdir}/o1" "${_wrkdir}/o2"
 }
 
@@ -31,7 +32,7 @@ cmp -s "${_wrkdir}/o1" "${_wrkdir}/crlf.ok"
 # A lone CR is not a line boundary; formatting fails cleanly with no output.
 printf 'int x = 1;\rint y = 2;\r' >"${_wrkdir}/cr.c"
 if (cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" cr.c) \
-    >"${_wrkdir}/o1" 2>"${_wrkdir}/e1"; then
+	>"${_wrkdir}/o1" 2>"${_wrkdir}/e1"; then
 	exit 1
 fi
 [ ! -s "${_wrkdir}/o1" ]
@@ -66,7 +67,7 @@ cmp -s "${_wrkdir}/o1" "${_wrkdir}/mixed.ok"
 # A lone CR remains rejected even when mixed with LF.
 printf 'int x = 1;\n\rint y = 2;\n' >"${_wrkdir}/mixed-cr.c"
 if (cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" mixed-cr.c) \
-    >"${_wrkdir}/o1" 2>"${_wrkdir}/e1"; then
+	>"${_wrkdir}/o1" 2>"${_wrkdir}/e1"; then
 	exit 1
 fi
 [ ! -s "${_wrkdir}/o1" ]

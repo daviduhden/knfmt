@@ -317,10 +317,11 @@ pointer_align(size_t size, size_t *out)
  */
 
 /* initial number of buckets */
-#define HASH_INITIAL_NUM_BUCKETS 32U	 /* initial number of buckets        */
-#define HASH_INITIAL_NUM_BUCKETS_LOG2 5U /* lg2 of initial number of buckets   \
-					  */
-#define HASH_BKT_CAPACITY_THRESH 10U	 /* expand when bucket count reaches */
+#define HASH_INITIAL_NUM_BUCKETS 32U /* initial number of buckets        */
+#define HASH_INITIAL_NUM_BUCKETS_LOG2                                          \
+	5U			     /* lg2 of initial number of buckets       \
+				      */
+#define HASH_BKT_CAPACITY_THRESH 10U /* expand when bucket count reaches */
 
 static_assert(HASH_INITIAL_NUM_BUCKETS == (1U << HASH_INITIAL_NUM_BUCKETS_LOG2),
     "HASH_INITIAL_NUM_BUCKETS_LOG2 must be log2 of HASH_INITIAL_NUM_BUCKETS");

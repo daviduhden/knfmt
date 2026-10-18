@@ -1,3 +1,4 @@
+#!/bin/sh
 # Ensure main include detection works with relative include(s).
 
 set -e

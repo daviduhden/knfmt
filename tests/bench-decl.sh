@@ -4,7 +4,8 @@
 
 K="${KNFMT:-./knfmt}"
 [ -x "${K}" ] || K="./knfmt"
-TMP=$(mktemp -d); trap 'rm -rf "${TMP}"' EXIT
+TMP=$(mktemp -d)
+trap 'rm -rf "${TMP}"' EXIT
 prev=""
 if [ "$#" -eq 0 ]; then
 	set -- 320 640 1280 2560 5120 10240
@@ -13,10 +14,16 @@ for n in "$@"; do
 	perl -e 'for my $i (0 .. $ARGV[0] - 1) { print "int f$i () A B;\n"; }' "${n}" >"${TMP}/d.c"
 	t0=$(date +%s.%N)
 	if command -v /usr/bin/time >/dev/null 2>&1; then
-		/usr/bin/time -f '%M' -o "${TMP}/rss" "${K}" "${TMP}/d.c" >"${TMP}/o1" 2>/dev/null || { echo "N=${n} FAILED"; continue; }
+		/usr/bin/time -f '%M' -o "${TMP}/rss" "${K}" "${TMP}/d.c" >"${TMP}/o1" 2>/dev/null || {
+			echo "N=${n} FAILED"
+			continue
+		}
 		rss=$(cat "${TMP}/rss")
 	else
-		"${K}" "${TMP}/d.c" >"${TMP}/o1" 2>/dev/null || { echo "N=${n} FAILED"; continue; }
+		"${K}" "${TMP}/d.c" >"${TMP}/o1" 2>/dev/null || {
+			echo "N=${n} FAILED"
+			continue
+		}
 		rss="-"
 	fi
 	t1=$(date +%s.%N)
@@ -26,6 +33,6 @@ for n in "$@"; do
 	ratio="-"
 	[ -n "${prev}" ] && ratio=$(echo "scale=2; ${t} / ${prev}" | bc)
 	printf 'N=%-6s in=%-8s time=%-8s rssKB=%-7s ratio=%-5s idem=%s\n' \
-	    "${n}" "$(wc -c <"${TMP}/d.c")" "${t}" "${rss}" "${ratio}" "${idem}"
+		"${n}" "$(wc -c <"${TMP}/d.c")" "${t}" "${rss}" "${ratio}" "${idem}"
 	prev="${t}"
 done

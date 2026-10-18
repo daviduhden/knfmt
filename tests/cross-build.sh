@@ -31,8 +31,8 @@ for f in "${src}"/tests/*.c "${src}"/tests/*.h; do
 		r2=${r2:-0}
 		count=$((count + 1))
 		if [ "${r1}" != "${r2}" ] ||
-		    ! cmp -s "${tmp}/o1" "${tmp}/o2" ||
-		    ! cmp -s "${tmp}/e1" "${tmp}/e2"; then
+			! cmp -s "${tmp}/o1" "${tmp}/o2" ||
+			! cmp -s "${tmp}/e1" "${tmp}/e2"; then
 			echo "MISMATCH: ${f} opts='${opts}' rc ${r1}/${r2}" >&2
 			fail=1
 		fi

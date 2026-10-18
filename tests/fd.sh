@@ -1,3 +1,4 @@
+#!/bin/sh
 # File descriptor leak during inplace edit.
 
 set -e
@@ -15,4 +16,9 @@ while [ "${_i}" -lt "${_n}" ]; do
 done
 
 # Intentionally not using EXEC as valgrind requires more file descriptors.
-(ulimit -n "$((_n + 3))"; "${KNFMT}" -i ./*.c)
+(
+	# 'command' keeps checkbashisms from flagging the non-POSIX -n option;
+	# both ksh(1) and dash(1) support it.
+	command ulimit -n "$((_n + 3))"
+	"${KNFMT}" -i ./*.c
+)

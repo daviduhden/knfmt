@@ -34,7 +34,7 @@ for _f in valid-*.c valid-*.h simple-*.c simple-*.h style-*.c style-*.h semantic
 
 	_n=$((_n + 1))
 	if ! perl semanticoracle.pl compare "${_f}" "${_wrkdir}/o1" \
-	    >"${_wrkdir}/why" 2>&1; then
+		>"${_wrkdir}/why" 2>&1; then
 		if [ "$(cat "${_wrkdir}/why")" = "ORACLE_UNSUPPORTED" ]; then
 			continue
 		fi

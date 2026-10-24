@@ -5,7 +5,5 @@
 void
 f(void)
 {
-	x = a ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-		"aaaaaaaaaa" :
-		"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+	x = a ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" : "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 }

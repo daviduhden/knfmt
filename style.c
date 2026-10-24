@@ -158,6 +158,7 @@ static int parse_Priority(
     struct style *, struct lexer *, const struct style_option *);
 static int parse_Regex(
     struct style *, struct lexer *, const struct style_option *);
+static void include_categories_recompile(struct style *);
 
 static const char *yaml_type_str(enum yaml_type);
 
@@ -1282,6 +1283,7 @@ static int
 parse_IncludeCategories(
     struct style *st, struct lexer *lx, const struct style_option *so)
 {
+	int error = 0;
 	int scope;
 
 	if (!lexer_if(lx, so->so_type, nullptr))
@@ -1297,13 +1299,43 @@ parse_IncludeCategories(
 		if (ic == nullptr)
 			err(1, nullptr);
 		st->regex = &ic->regex;
-		style_parse_yaml_documents(st, lx, 1);
+		error |= style_parse_yaml_documents(st, lx, 1);
 		st->regex = nullptr;
 	}
 	st->scope = scope;
+	if (error & FAIL)
+		return FAIL;
+	include_categories_recompile(st);
 	/* Only used by style_dump(). */
 	style_set(st, IncludeCategories, None, None);
 	return GOOD;
+}
+
+/*
+ * parse_Regex() compiles every pattern case-insensitively. Recompile the
+ * include categories when CaseSensitive was requested; a failed recompile
+ * keeps the previous pattern instead of discarding a valid option.
+ */
+static void
+include_categories_recompile(struct style *st)
+{
+	size_t i;
+
+	if (!st->options[CaseSensitive].isset ||
+	    st->options[CaseSensitive].val != True)
+		return;
+
+	for (i = 0; i < VECTOR_LENGTH(st->include_categories); i++) {
+		struct include_category *ic = &st->include_categories[i];
+		regex_t			 r;
+
+		if (ic->regex.pattern == nullptr)
+			continue;
+		if (regcomp(&r, ic->regex.pattern, REG_EXTENDED | REG_NOSUB))
+			continue;
+		regfree(&ic->regex.r);
+		ic->regex.r = r;
+	}
 }
 
 static int

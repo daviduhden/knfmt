@@ -15,7 +15,7 @@ set -e
 
 [ -z "${VALGRINDRC:-}" ] || export "VALGRIND_OPTS=$(xargs <"${VALGRINDRC}")"
 
-_wrkdir="$(mktemp -dt knfmt.XXXXXX)"
+_wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
 trap 'rm -r "${_wrkdir}"' EXIT
 
 _status=0

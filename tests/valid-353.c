@@ -6,7 +6,7 @@ int
 xdr_exports(XDR *xdrsp, struct exportslist **exp)
 {
 	struct exportslist *ep;
-	struct grouplist   *gp;
+	struct grouplist *gp;
 	int bool, grpbool;
 	char *strp;
 

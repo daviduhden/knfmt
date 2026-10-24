@@ -8,5 +8,5 @@ free(struct foo *p)
 	if (p == NULL)
 		return
 
-		    free(p);
+	free(p);
 }

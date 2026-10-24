@@ -11,12 +11,12 @@ int x =
     1
 #endif
 
-    i;
+i;	
 
 // clang-format on
 
 int x = 0
-    // clang-format off
+// clang-format off
 ;
 
 g-f

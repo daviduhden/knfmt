@@ -5,6 +5,7 @@
 int
 main(void)
 {
-	if (foo() || bar(cpu, constantconstanconstant))
+	if (foo() || bar(cpu,
+	    constantconstanconstant))
 		return 1;
 }

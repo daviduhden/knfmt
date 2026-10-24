@@ -19,7 +19,7 @@ set -e
 
 perl semanticoracle.pl --selftest >/dev/null
 
-_wrkdir="$(mktemp -dt knfmt.XXXXXX)"
+_wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
 trap 'rm -r "${_wrkdir}"' EXIT
 
 _fail=0

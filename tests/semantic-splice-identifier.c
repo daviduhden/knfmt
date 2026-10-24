@@ -4,7 +4,7 @@
  * splits it.
  */
 
-#define CONSUMER_DESCRIPTOR                                                    \
+#define CONSUMER_DESCRIPTOR \
 	(sizeof(consumer_descrip\
 tor) + 1)
 

@@ -23,7 +23,10 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
-#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
 #include <err.h>
 #include <errno.h>
 #include <event.h>
@@ -31,30 +34,28 @@
 #include <imsg.h>
 #include <pwd.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <syslog.h>
-#include <termios.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <util.h>
 
 #include "got_opentemp.h"
 #include "got_reference.h"
+
 #include "gotwebd.h"
 #include "log.h"
 
 __dead void usage(void);
 
-int  main(int, char **);
-int  gotwebd_configure(struct gotwebd *, uid_t, gid_t);
-void gotwebd_configure_done(struct gotwebd *);
-void gotwebd_sighdlr(int sig, short event, void *arg);
-void gotwebd_shutdown(void);
-void gotwebd_dispatch_server(int, short, void *);
-void gotwebd_dispatch_gotweb(int, short, void *);
+int	 main(int, char **);
+int	 gotwebd_configure(struct gotwebd *, uid_t, gid_t);
+void	 gotwebd_configure_done(struct gotwebd *);
+void	 gotwebd_sighdlr(int sig, short event, void *arg);
+void	 gotwebd_shutdown(void);
+void	 gotwebd_dispatch_server(int, short, void *);
+void	 gotwebd_dispatch_gotweb(int, short, void *);
 
-struct gotwebd *gotwebd_env;
+struct gotwebd	*gotwebd_env;
 
 void
 imsg_event_add(struct imsgev *iev)
@@ -87,10 +88,10 @@ imsg_compose_event(struct imsgev *iev, uint16_t type, uint32_t peerid,
 }
 
 static int
-send_imsg(
-    struct imsgev *iev, uint32_t type, int fd, const void *data, uint16_t len)
+send_imsg(struct imsgev *iev, uint32_t type, int fd, const void *data,
+    uint16_t len)
 {
-	int ret, d = -1;
+	int	 ret, d = -1;
 
 	if (fd != -1 && (d = dup(fd)) == -1)
 		goto err;
@@ -115,11 +116,11 @@ err:
 }
 
 int
-main_compose_sockets(
-    struct gotwebd *env, uint32_t type, int fd, const void *data, uint16_t len)
+main_compose_sockets(struct gotwebd *env, uint32_t type, int fd,
+    const void *data, uint16_t len)
 {
 	size_t i;
-	int    ret = 0;
+	int ret = 0;
 
 	for (i = 0; i < env->nserver; ++i) {
 		ret = send_imsg(&env->iev_server[i], type, fd, data, len);
@@ -131,11 +132,11 @@ main_compose_sockets(
 }
 
 int
-main_compose_gotweb(
-    struct gotwebd *env, uint32_t type, int fd, const void *data, uint16_t len)
+main_compose_gotweb(struct gotwebd *env, uint32_t type, int fd,
+    const void *data, uint16_t len)
 {
 	size_t i;
-	int    ret = 0;
+	int ret = 0;
 
 	for (i = 0; i < env->nserver; ++i) {
 		ret = send_imsg(&env->iev_gotweb[i], type, fd, data, len);
@@ -147,8 +148,8 @@ main_compose_gotweb(
 }
 
 int
-sockets_compose_main(
-    struct gotwebd *env, uint32_t type, const void *d, uint16_t len)
+sockets_compose_main(struct gotwebd *env, uint32_t type, const void *d,
+    uint16_t len)
 {
 	return (imsg_compose_event(env->iev_parent, type, 0, -1, -1, d, len));
 }
@@ -156,19 +157,19 @@ sockets_compose_main(
 void
 gotwebd_dispatch_server(int fd, short event, void *arg)
 {
-	struct imsgev  *iev = arg;
-	struct imsgbuf *ibuf;
-	struct imsg	imsg;
-	struct gotwebd *env = gotwebd_env;
-	ssize_t		n;
-	int		shut = 0;
+	struct imsgev		*iev = arg;
+	struct imsgbuf		*ibuf;
+	struct imsg		 imsg;
+	struct gotwebd		*env = gotwebd_env;
+	ssize_t			 n;
+	int			 shut = 0;
 
 	ibuf = &iev->ibuf;
 
 	if (event & EV_READ) {
 		if ((n = imsgbuf_read(ibuf)) == -1)
 			fatal("imsgbuf_read error");
-		if (n == 0) /* Connection closed */
+		if (n == 0)	/* Connection closed */
 			shut = 1;
 	}
 	if (event & EV_WRITE) {
@@ -179,7 +180,7 @@ gotwebd_dispatch_server(int fd, short event, void *arg)
 	for (;;) {
 		if ((n = imsg_get(ibuf, &imsg)) == -1)
 			fatal("imsg_get");
-		if (n == 0) /* No more messages. */
+		if (n == 0)	/* No more messages. */
 			break;
 
 		switch (imsg.hdr.type) {
@@ -206,19 +207,19 @@ gotwebd_dispatch_server(int fd, short event, void *arg)
 void
 gotwebd_dispatch_gotweb(int fd, short event, void *arg)
 {
-	struct imsgev  *iev = arg;
-	struct imsgbuf *ibuf;
-	struct imsg	imsg;
-	struct gotwebd *env = gotwebd_env;
-	ssize_t		n;
-	int		shut = 0;
+	struct imsgev		*iev = arg;
+	struct imsgbuf		*ibuf;
+	struct imsg		 imsg;
+	struct gotwebd		*env = gotwebd_env;
+	ssize_t			 n;
+	int			 shut = 0;
 
 	ibuf = &iev->ibuf;
 
 	if (event & EV_READ) {
 		if ((n = imsgbuf_read(ibuf)) == -1)
 			fatal("imsgbuf_read error");
-		if (n == 0) /* Connection closed */
+		if (n == 0)	/* Connection closed */
 			shut = 1;
 	}
 	if (event & EV_WRITE) {
@@ -229,7 +230,7 @@ gotwebd_dispatch_gotweb(int fd, short event, void *arg)
 	for (;;) {
 		if ((n = imsg_get(ibuf, &imsg)) == -1)
 			fatal("imsg_get");
-		if (n == 0) /* No more messages. */
+		if (n == 0)	/* No more messages. */
 			break;
 
 		switch (imsg.hdr.type) {
@@ -283,10 +284,10 @@ spawn_process(struct gotwebd *env, const char *argv0, struct imsgev *iev,
     enum gotwebd_proc_type proc_type, const char *username,
     void (*handler)(int, short, void *))
 {
-	const char *argv[9];
-	int	    argc = 0;
-	int	    p[2];
-	pid_t	    pid;
+	const char	*argv[9];
+	int		 argc = 0;
+	int		 p[2];
+	pid_t		 pid;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, p) == -1)
 		fatal("socketpair");
@@ -294,9 +295,9 @@ spawn_process(struct gotwebd *env, const char *argv0, struct imsgev *iev,
 	switch (pid = fork()) {
 	case -1:
 		fatal("fork");
-	case 0: /* child */
+	case 0:		/* child */
 		break;
-	default: /* parent */
+	default:	/* parent */
 		close(p[0]);
 		if (imsgbuf_init(&iev->ibuf, p[1]) == -1)
 			fatal("imsgbuf_init");
@@ -337,7 +338,7 @@ spawn_process(struct gotwebd *env, const char *argv0, struct imsgev *iev,
 		fatal("fcntl");
 
 	/* obnoxious cast */
-	execvp(argv0, (char *const *)argv);
+	execvp(argv0, (char * const *)argv);
 	fatal("execvp %s", argv0);
 }
 
@@ -352,19 +353,19 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct event	   sigint, sigterm, sighup, sigpipe, sigusr1;
-	struct event_base *evb;
-	struct gotwebd	  *env;
-	struct passwd	  *pw;
-	int		   ch, i, gotwebd_ngroups;
-	int		   no_action = 0;
-	int		   proc_type = GOTWEBD_PROC_PARENT;
-	const char	  *conffile = GOTWEBD_CONF;
-	const char	  *gotwebd_username = GOTWEBD_DEFAULT_USER;
-	const char	  *www_username = GOTWEBD_WWW_USER;
-	gid_t		   www_gid;
-	gid_t		   gotwebd_groups[NGROUPS_MAX];
-	const char	  *argv0;
+	struct event		 sigint, sigterm, sighup, sigpipe, sigusr1;
+	struct event_base	*evb;
+	struct gotwebd		*env;
+	struct passwd		*pw;
+	int			 ch, i, gotwebd_ngroups;
+	int			 no_action = 0;
+	int			 proc_type = GOTWEBD_PROC_PARENT;
+	const char		*conffile = GOTWEBD_CONF;
+	const char		*gotwebd_username = GOTWEBD_DEFAULT_USER;
+	const char		*www_username = GOTWEBD_WWW_USER;
+	gid_t			 www_gid;
+	gid_t			 gotwebd_groups[NGROUPS_MAX];
+	const char		*argv0;
 
 	if ((argv0 = argv[0]) == NULL)
 		argv0 = "gotwebd";
@@ -440,11 +441,10 @@ main(int argc, char **argv)
 	pw = getpwnam(gotwebd_username);
 	if (pw == NULL)
 		fatalx("unknown user %s", gotwebd_username);
-	if (getgrouplist(gotwebd_username, pw->pw_gid, gotwebd_groups,
-		&gotwebd_ngroups) == -1)
+	if (getgrouplist(gotwebd_username, pw->pw_gid, gotwebd_groups, &gotwebd_ngroups) == -1)
 		fatalx("too many groups for user %s", gotwebd_username);
-	fprintf(stderr, "XXX uid %d, guid %d, ngroups %d\n", pw->pw_uid,
-	    pw->pw_gid, gotwebd_ngroups);
+	fprintf(stderr, "XXX uid %d, guid %d, ngroups %d\n",
+		pw->pw_uid, pw->pw_gid, gotwebd_ngroups);
 
 	/* check for root privileges */
 	if (geteuid())
@@ -561,13 +561,13 @@ static void
 connect_children(struct gotwebd *env)
 {
 	struct imsgev *iev1, *iev2;
-	int	       pipe[2];
-	int	       i;
+	int pipe[2];
+	int i;
 
 	for (i = 0; i < env->nserver; i++) {
 		iev1 = &env->iev_server[i];
 		iev2 = &env->iev_gotweb[i];
-
+	
 		if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pipe) == -1)
 			fatal("socketpair");
 
@@ -593,19 +593,17 @@ gotwebd_configure(struct gotwebd *env, uid_t uid, gid_t gid)
 	env->gotweb_pending = env->prefork_gotwebd;
 
 	/* send our gotweb servers */
-	TAILQ_FOREACH(srv, &env->servers, entry)
-	{
-		if (main_compose_sockets(
-			env, GOTWEBD_IMSG_CFG_SRV, -1, srv, sizeof(*srv)) == -1)
+	TAILQ_FOREACH(srv, &env->servers, entry) {
+		if (main_compose_sockets(env, GOTWEBD_IMSG_CFG_SRV,
+		    -1, srv, sizeof(*srv)) == -1)
 			fatal("main_compose_sockets GOTWEBD_IMSG_CFG_SRV");
-		if (main_compose_gotweb(
-			env, GOTWEBD_IMSG_CFG_SRV, -1, srv, sizeof(*srv)) == -1)
+		if (main_compose_gotweb(env, GOTWEBD_IMSG_CFG_SRV,
+		    -1, srv, sizeof(*srv)) == -1)
 			fatal("main_compose_gotweb GOTWEBD_IMSG_CFG_SRV");
 	}
 
 	/* send our sockets */
-	TAILQ_FOREACH(sock, &env->sockets, entry)
-	{
+	TAILQ_FOREACH(sock, &env->sockets, entry) {
 		if (config_setsock(env, sock, uid, gid) == -1)
 			fatalx("%s: send socket error", __func__);
 	}
@@ -629,16 +627,16 @@ gotwebd_configure_done(struct gotwebd *env)
 	if (env->servers_pending > 0) {
 		env->servers_pending--;
 		if (env->servers_pending == 0 &&
-		    main_compose_sockets(
-			env, GOTWEBD_IMSG_CTL_START, -1, NULL, 0) == -1)
+		    main_compose_sockets(env, GOTWEBD_IMSG_CTL_START,
+		        -1, NULL, 0) == -1)
 			fatal("main_compose_sockets GOTWEBD_IMSG_CTL_START");
 	}
 
 	if (env->gotweb_pending > 0) {
 		env->gotweb_pending--;
 		if (env->gotweb_pending == 0 &&
-		    main_compose_gotweb(
-			env, GOTWEBD_IMSG_CTL_START, -1, NULL, 0) == -1)
+		    main_compose_gotweb(env, GOTWEBD_IMSG_CTL_START,
+		        -1, NULL, 0) == -1)
 			fatal("main_compose_sockets GOTWEBD_IMSG_CTL_START");
 	}
 }
@@ -646,9 +644,9 @@ gotwebd_configure_done(struct gotwebd *env)
 void
 gotwebd_shutdown(void)
 {
-	struct gotwebd *env = gotwebd_env;
-	pid_t		pid;
-	int		i, status;
+	struct gotwebd	*env = gotwebd_env;
+	pid_t		 pid;
+	int		 i, status;
 
 	for (i = 0; i < env->nserver; ++i) {
 		event_del(&env->iev_server[i].ev);
@@ -675,7 +673,8 @@ gotwebd_shutdown(void)
 			log_warnx("lost child: pid %u terminated; signal %d",
 			    pid, WTERMSIG(status));
 		else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
-			log_warnx("lost child: pid %u exited abnormally", pid);
+			log_warnx("lost child: pid %u exited abnormally",
+			    pid);
 	} while (pid != -1 || (pid == -1 && errno == EINTR));
 
 	while (!TAILQ_EMPTY(&gotwebd_env->addresses)) {

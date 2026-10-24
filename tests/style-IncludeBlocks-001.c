@@ -17,15 +17,18 @@
  * SortIncludes: CaseSensitive
  */
 
+#include "test.h"
+
+#include "config.h"
+
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include <assert.h>
 
-#include "alloc.h"
-#include "config.h"
 #include "libks/buffer.h"
-#include "test.h"
+
+#include "alloc.h"
 
 int
 main(void)

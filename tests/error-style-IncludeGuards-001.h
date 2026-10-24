@@ -4,7 +4,8 @@
  *     PathComponents: 2
  */
 
-nc * / I/*
+nc */
+I/*
   
 #ifndef NDDEBUG
 

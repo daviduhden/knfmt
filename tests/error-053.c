@@ -5,10 +5,11 @@
 int
 main(void)
 {
-	20 -
-	{
-		iD iftG iftGi s stsssss t static iiiiiiiiiiiiiiiiiiiuiiiMiIi;
-		*
-	}
-	intBi;
+	20 - {
+		iD iftG	iftGi		 s
+stsssss
+ t
+static    
+iiiiiiiiiiiiiiiiiiiuiiiMiIi;
+	*} intBi;
 }

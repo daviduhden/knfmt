@@ -25,29 +25,31 @@
 
 #include "extern.h"
 
-#define _PATH_DIFF "/usr/bin/diff"
+#define _PATH_DIFF	"/usr/bin/diff"
 
-static __dead void usage(void);
+static __dead void	usage(void);
 
-static int filelist(int, char **, struct file_list *, const struct config *);
-static int fileformat(
-    const struct file *, struct error *, const struct config *);
-static int filediff(const struct buffer *, const struct buffer *, const char *);
-static int filewrite(
-    const struct buffer *, const struct buffer *, const char *);
-static int fileattr(const char *, const char *);
+static int	filelist(int, char **, struct file_list *,
+    const struct config *);
+static int	fileformat(const struct file *, struct error *,
+    const struct config *);
+static int	filediff(const struct buffer *, const struct buffer *,
+    const char *);
+static int	filewrite(const struct buffer *, const struct buffer *,
+    const char *);
+static int	fileattr(const char *, const char *);
 
-static int tmpfd(const char *, char *, size_t);
+static int	tmpfd(const char *, char *, size_t);
 
 int
 main(int argc, char *argv[])
 {
-	struct file_list   files;
-	struct config	   cf;
-	struct error	   er;
+	struct file_list files;
+	struct config cf;
+	struct error er;
 	const struct file *fe;
-	int		   error = 0;
-	int		   ch;
+	int error = 0;
+	int ch;
 
 	if (pledge("stdio rpath wpath cpath fattr chown proc exec", NULL) == -1)
 		err(1, "pledge");
@@ -100,8 +102,7 @@ main(int argc, char *argv[])
 		error = 1;
 		goto out;
 	}
-	TAILQ_FOREACH(fe, &files, fe_entry)
-	{
+	TAILQ_FOREACH(fe, &files, fe_entry) {
 		if (fileformat(fe, &er, &cf)) {
 			error = 1;
 			error_flush(&er);
@@ -126,8 +127,8 @@ usage(void)
 }
 
 static int
-filelist(
-    int argc, char **argv, struct file_list *files, const struct config *cf)
+filelist(int argc, char **argv, struct file_list *files,
+    const struct config *cf)
 {
 	struct file *fe;
 
@@ -152,8 +153,8 @@ static int
 fileformat(const struct file *fe, struct error *er, const struct config *cf)
 {
 	const struct buffer *dst, *src;
-	struct parser	    *pr;
-	int		     error = 0;
+	struct parser *pr;
+	int error = 0;
 
 	pr = parser_alloc(fe, er, cf);
 	if (pr == NULL) {
@@ -182,12 +183,12 @@ out:
 static int
 filediff(const struct buffer *src, const struct buffer *dst, const char *path)
 {
-	char  dstpath[PATH_MAX], srcpath[PATH_MAX];
+	char dstpath[PATH_MAX], srcpath[PATH_MAX];
 	pid_t pid;
-	int   dstfd = -1;
-	int   error = 1;
-	int   srcfd = -1;
-	int   status;
+	int dstfd = -1;
+	int error = 1;
+	int srcfd = -1;
+	int status;
 
 	srcfd = tmpfd(src->bf_ptr, srcpath, sizeof(srcpath));
 	if (srcfd == -1)
@@ -202,9 +203,9 @@ filediff(const struct buffer *src, const struct buffer *dst, const char *path)
 		goto out;
 	}
 	if (pid == 0) {
-		char	label[PATH_MAX];
+		char label[PATH_MAX];
 		ssize_t siz = sizeof(label);
-		int	n;
+		int n;
 
 		n = snprintf(label, siz, "%s.orig", path);
 		if (n < 0 || n >= siz)
@@ -235,11 +236,11 @@ out:
 static int
 filewrite(const struct buffer *src, const struct buffer *dst, const char *path)
 {
-	char	    tmppath[PATH_MAX];
+	char tmppath[PATH_MAX];
 	const char *buf;
-	ssize_t	    siz = sizeof(tmppath);
-	size_t	    len;
-	int	    fd, n;
+	ssize_t siz = sizeof(tmppath);
+	size_t len;
+	int fd, n;
 
 	if (buffer_cmp(src, dst) == 0)
 		return 0;
@@ -328,11 +329,11 @@ fileattr(const char *srcpath, const char *dstpath)
 static int
 tmpfd(const char *buf, char *path, size_t pathsiz)
 {
-	char	tmppath[PATH_MAX];
+	char tmppath[PATH_MAX];
 	ssize_t siz = sizeof(tmppath);
-	size_t	len;
-	int	fd = -1;
-	int	n;
+	size_t len;
+	int fd = -1;
+	int n;
 
 	n = snprintf(tmppath, siz, "/tmp/knfmt.XXXXXXXX");
 	if (n < 0 || n >= siz) {

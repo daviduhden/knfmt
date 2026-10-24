@@ -10,4 +10,4 @@ int foo i({
 i({}) N;
 
 do {
-	int otus_debug = 1;
+int otus_debug = 1;

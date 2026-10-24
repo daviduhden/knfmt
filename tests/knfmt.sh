@@ -42,7 +42,7 @@ hascomm() {
 	_f="$1"
 	: "${_f:?}"
 
-	if ! head -1 "${_f}" | grep -q '^/\*$'; then
+	if ! head -n 1 "${_f}" | grep -q '^/\*$'; then
 		echo "${_f}: missing test case comment" 1>&2
 		return 1
 	fi
@@ -172,8 +172,8 @@ esac
 export ASAN_OPTIONS="exitcode=66"
 export UBSAN_OPTIONS="exitcode=66"
 
-_wrkdir="$(mktemp -dt knfmt.XXXXXX)"
-trap 'rm -rf ${_wrkdir}' 0
+_wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
+trap 'rm -rf "${_wrkdir}"' 0
 _out="${_wrkdir}/out"
 
 # Ensure presence of test case description.
@@ -192,7 +192,19 @@ _path="$1"
 shift
 
 _rel="${_path}"
-_abs="$(readlink -f "${_rel}" 2>/dev/null || echo "${PWD}/${_rel}")"
+case "${_rel}" in
+/*) _abs="${_rel}" ;;
+*)
+	_dir="${_rel%/*}"
+	[ "${_dir}" = "${_rel}" ] && _dir="."
+	_base="${_rel##*/}"
+	if _abs="$(cd "${_dir}" 2>/dev/null && pwd)"; then
+		_abs="${_abs}/${_base}"
+	else
+		_abs="${PWD}/${_rel}"
+	fi
+	;;
+esac
 case "${_rel}" in
 bug-*)
 	testcase -b -o "${_abs}" -- -s "$@"
@@ -215,6 +227,16 @@ error-*)
 inplace-*)
 	cp "${_abs}" "${_wrkdir}/test.c"
 	testcase -i "${_wrkdir}/test.c" -- -i "$@"
+	if ! (cd "${_wrkdir}" && ${EXEC:-} "${KNFMT}" "${_abs}") \
+		>"${_wrkdir}/inplace-expected" 2>"${_wrkdir}/inplace-error"; then
+		cat "${_wrkdir}/inplace-error" 1>&2
+		exit 1
+	fi
+	if ! cmp -s "${_wrkdir}/test.c" "${_wrkdir}/inplace-expected"; then
+		echo "inplace: result differs from stdout formatting" 1>&2
+		diff -u "${_wrkdir}/inplace-expected" "${_wrkdir}/test.c" 1>&2 || :
+		exit 1
+	fi
 	;;
 simple-* | ../*)
 	testcase "${_abs}" -- -s "$@"

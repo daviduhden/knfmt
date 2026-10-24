@@ -9,17 +9,14 @@
 int
 main(void)
 {
-	if (0) {
-		if (fffffffffffffff(
-			aaa, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) &
-		    FOO(42))
+        if (0) {
+                if (fffffffffffffff(aaa,
+                        CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) & FOO(42))
 			return 0;
-		if (fffffffffffffff(
-			aaa, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) &
-		    FOO(42))
+                if (fffffffffffffff(aaa,
+                        CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) & FOO(42))
 			return 0;
-		bool bbbbbbb = fffffffffffffff(aaa,
-				   CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) &
-		    FOO(42);
-	}
+                bool bbbbbbb = fffffffffffffff(aaa,
+                        CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC) & FOO(42);
+        }
 }

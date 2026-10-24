@@ -8,8 +8,8 @@ main(void)
 	if (0) {
 		if (0) {
 			if (0) {
-				for (length = 1; isu8cont((unsigned char)
-					     query[cursor_position - length]);
+				for (length = 1;
+				    isu8cont((unsigned char)query[cursor_position - length]);
 				    length++)
 					continue;
 			}

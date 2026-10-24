@@ -4,6 +4,6 @@
  *   AfterStruct: true
  */
 
-struct { /* comment */
+struct {	/* comment */
 	int x;
 };

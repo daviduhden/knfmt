@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	ggggggggggggggggggggggggggggggg int i;
+	ggggggggggggggggggggggggggggggg	int i;
 }

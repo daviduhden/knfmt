@@ -2,9 +2,11 @@
  * Semicolon after braces with cpp branch.
  */
 
-int main(void){
+int
+main(void)
+{
 #if 0
 	}
 #endif
-    ;
+;
 }

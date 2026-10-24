@@ -5,7 +5,7 @@
 struct s {
 	int a;
 	union {
-		int  b;
+		int b;
 		char c;
 	};
 };

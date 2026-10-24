@@ -97,6 +97,10 @@ parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 	int	      ndecl = 0;
 	int	      error;
 
+	if (!parser_depth_enter(pr))
+		return parser_fail(pr);
+	parser_depth_guard(pr);
+
 	arena_scope(pr->pr_arena.ruler, ruler_scope);
 
 	ruler_init(&rl, 0, RULER_ALIGN_SENSE, &ruler_scope);

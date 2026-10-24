@@ -2,4 +2,4 @@
  * Declarations sense alignment.
  */
 
-const foo *x = 0;
+const foo*x = 0;

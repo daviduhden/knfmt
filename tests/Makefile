@@ -128,6 +128,7 @@ TESTS+=	error-073.c
 TESTS+=	error-074.c
 TESTS+=	error-075.c
 TESTS+=	error-076.c
+TESTS+=	error-077.c
 TESTS+=	error-style-IncludeGuards-001.h
 TESTS+=	error-style-IncludeGuards-002.h
 
@@ -952,10 +953,10 @@ TESTS+=	stdckdint-compile-fail.sh
 .SUFFIXES: .c .c-phony .h .h-phony .sh .sh-phony
 
 .c.c-phony:
-	sh ${.CURDIR}/knfmt.sh $< ${T}
+	sh ${.CURDIR}/knfmt.sh $<
 
 .h.h-phony:
-	sh ${.CURDIR}/knfmt.sh $< ${T}
+	sh ${.CURDIR}/knfmt.sh $<
 
 .sh.sh-phony:
 	sh ${.CURDIR}/$<

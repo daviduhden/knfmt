@@ -4,5 +4,5 @@
  * example from the fuzzer.
  */
 
-int (* //
-    ex_eval)(void);
+int	(*//
+ex_eval)(void);

@@ -2,5 +2,4 @@
  * String concatenation.
  */
 
-const char str[] = "one"
-		   "two";
+const char	str[] = "one" "two";

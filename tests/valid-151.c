@@ -5,6 +5,6 @@
 int
 main(void)
 {
-	int	    x;
-	const char *p;
+	int		 x;
+	const char	*p;
 }

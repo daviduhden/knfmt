@@ -2,5 +2,5 @@
  * Declarations sense alignment.
  */
 
-macro(aaaaaaaaaaaaaaaaaaaaaaaaaa) cpu;
-int A err;
+macro(aaaaaaaaaaaaaaaaaaaaaaaaaa)cpu;
+int			A	 err;

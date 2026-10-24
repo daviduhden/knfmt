@@ -1,3 +1,5 @@
-int x;
+int
+x;
 
-static int y;
+static int
+y;

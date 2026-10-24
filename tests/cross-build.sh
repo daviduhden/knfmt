@@ -14,7 +14,7 @@ if [ -z "${bin1}" ] || [ -z "${bin2}" ]; then
 fi
 
 src="$(dirname "$0")/.."
-tmp="$(mktemp -d)"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
 trap 'rm -rf "${tmp}"' EXIT
 
 fail=0
@@ -22,7 +22,7 @@ count=0
 
 for f in "${src}"/tests/*.c "${src}"/tests/*.h; do
 	[ -f "${f}" ] || continue
-	for opts in "" "-s" "-D" "-d"; do
+	for opts in "" "-s" "-d"; do
 		# shellcheck disable=SC2086,SC2248
 		"${bin1}" ${opts} "${f}" >"${tmp}/o1" 2>"${tmp}/e1" || r1=$?
 		r1=${r1:-0}
@@ -38,6 +38,29 @@ for f in "${src}"/tests/*.c "${src}"/tests/*.h; do
 		fi
 		unset r1 r2
 	done
+
+	# -D reads a unified diff from stdin and rejects file operands. Build a
+	# synthetic patch that marks every line as added and feed it to both
+	# binaries, exercising the partial-formatting path.
+	n="$(wc -l <"${f}")"
+	[ "${n}" -gt 0 ] || continue
+	{
+		printf '%s\n' "--- ${f}" "+++ ${f}" \
+			"@@ -0,0 +1,${n} @@"
+		sed 's/^/+/' "${f}"
+	} >"${tmp}/patch"
+	"${bin1}" -D <"${tmp}/patch" >"${tmp}/o1" 2>"${tmp}/e1" || r1=$?
+	r1=${r1:-0}
+	"${bin2}" -D <"${tmp}/patch" >"${tmp}/o2" 2>"${tmp}/e2" || r2=$?
+	r2=${r2:-0}
+	count=$((count + 1))
+	if [ "${r1}" != "${r2}" ] ||
+		! cmp -s "${tmp}/o1" "${tmp}/o2" ||
+		! cmp -s "${tmp}/e1" "${tmp}/e2"; then
+		echo "MISMATCH: ${f} opts='-D' rc ${r1}/${r2}" >&2
+		fail=1
+	fi
+	unset r1 r2
 done
 
 if [ "${fail}" -ne 0 ]; then

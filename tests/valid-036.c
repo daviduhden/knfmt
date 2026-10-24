@@ -3,7 +3,7 @@
  */
 
 #if 1
-int x;
+int	x;
 #endif
 
-int main(void *);
+int	main(void *);

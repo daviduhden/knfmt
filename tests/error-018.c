@@ -12,8 +12,8 @@ mavn(#etr)
 void
 test_block(void)
 {
-#if (0)
-	;
+		#if (0)
+		;
 	x x(
 }
 

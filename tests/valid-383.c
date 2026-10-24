@@ -14,4 +14,4 @@ int x =
 
 // clang-format on
 
-int y;
+	int y;

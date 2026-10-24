@@ -1,4 +1,4 @@
-.Dd $Mdocdate: April 10 2021 $
+.Dd October 24, 2026
 .Dt KNFMT 1
 .Os
 .Sh NAME
@@ -7,9 +7,13 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dis
-.Op Ar
+.Op Fl c Ar file
+.Op Fl t Ar flags
+.Op Ar file ...
 .Nm
 .Op Fl Ddis
+.Op Fl c Ar file
+.Op Fl t Ar flags
 .Sh DESCRIPTION
 The
 .Nm
@@ -19,17 +23,42 @@ a best effort fashion, see
 .Pp
 The options are as follows:
 .Bl -tag -width "file"
+.It Fl c Ar file
+Read the clang-format configuration from
+.Ar file
+instead of searching for
+.Pa .clang-format .
 .It Fl D
-Only format changed lines extracted from a unified diff read from standard
-input.
+Only format source regions that intersect changed lines extracted from a
+unified diff read from standard input.
+Unchanged regions are copied verbatim.
+The files to format are named by the
+.Pa +++
+headers of the diff; file operands are not accepted.
+May be combined with
+.Fl d ,
+.Fl i
+and
+.Fl s .
 .It Fl d
 Produce a diff for each given
 .Ar file .
+The external
+.Xr diff 1
+utility is used, and
+.Nm
+exits 1 when differences are found.
 .It Fl i
 In place edit of
 .Ar file .
+Standard input cannot be edited in place unless
+.Fl D
+is also given.
 .It Fl s
-Simplify the source code.
+Subjectively simplify the source code.
+.It Fl t Ar flags
+Enable implementation tracing for the given flags.
+This option is intended for development and is not a stable interface.
 .It Ar file
 One or many files to format.
 If omitted, defaults to reading from standard input.
@@ -81,8 +110,7 @@ Do not align backslashes.
 	int y
 .Ed
 .It Cm Left
-Not supported, interpreted as
-.Cm DontAlign .
+Align backslashes to the left-most column.
 .It Cm Right
 Align backslashes to the right-most column with respect to
 .Cm ColumnLimit .
@@ -164,6 +192,16 @@ definition(void)
 Not supported, interpreted as
 .Cm AllDefinitions .
 .El
+.It Cm BasedOnStyle
+Base the style on a named clang-format style by running
+.Xr clang-format 1
+with
+.Fl dump-config .
+The value
+.Cm OpenBSD
+is accepted as a no-op, and
+.Cm InheritParentConfig
+is accepted but does not load a parent configuration file.
 .It Cm BitFieldColonSpacing
 Insert spaces around bitfields.
 .Bl -tag -width Ds
@@ -280,7 +318,8 @@ int x = 11111111
     + 22222222;
 .Ed
 .It Cm All
-Break before all binary operators.
+Break before all non-assignment binary operators.
+Assignment operators always break after the operator.
 .Bd -literal
 int x = 11111111
     + 22222222;
@@ -343,6 +382,15 @@ Regroup blocks of includes according to
 .El
 .It Cm IncludeCategories
 Rules used to group includes into blocks.
+Each item supports
+.Cm Regex ,
+.Cm Priority ,
+.Cm SortPriority
+and
+.Cm CaseSensitive .
+Regular expression matching is case-insensitive unless
+.Cm CaseSensitive
+is set for the category list.
 .It Cm IncludeGuards Pq extension
 List of headers in which include guards must be present.
 The supported nested options are as follows:
@@ -375,6 +423,12 @@ $ cat libks/vector.h
 .It Cm IndentWidth
 Indentation width.
 .Pq default 8
+.It Cm Language
+YAML documents whose
+.Cm Language
+is not
+.Cm Cpp
+are ignored.
 .It Cm SortIncludes
 Sort blocks of preprocessor include directives.
 .Bl -tag -width Ds
@@ -384,8 +438,10 @@ Do not sort includes.
 .It Cm CaseSensitive
 Sort includes in a case sensitive manner.
 .It Cm CaseInsensitive
-Not supported, interpreted as
-.Cm Never .
+Accepted for compatibility.
+It does not enable sorting by itself; when
+.Fl s
+is given, include blocks are sorted case-sensitively.
 .El
 .It Cm UseTab
 Use tabs for indentation.
@@ -406,9 +462,22 @@ Use tabs for indentation.
 .Pq default
 .El
 .El
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 .Ex -std
+The
+.Nm
+utility exits 1 if any input cannot be read, parsed or written, when the
+style configuration named by
+.Fl c
+cannot be read, or when
+.Fl d
+finds a difference.
+.Sh DIAGNOSTICS
+Diagnostics are written to standard error as
+.Pa file:line: message
+followed by the offending source line and a caret marker.
 .Sh SEE ALSO
 .Xr style 9
 .Sh AUTHORS
 .An Anton Lindqvist Aq Mt anton@basename.se
+.An David Uhden Collado Aq Mt daviduhden@gmail.com

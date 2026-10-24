@@ -21,7 +21,7 @@
 #if defined(__x86_64__)
 
 #if defined(__linux__) && defined(__ELF__)
-#define ASM_PROLOGUE .section.note.GNU - stack, "", % progbits
+#define ASM_PROLOGUE .section .note.GNU-stack,"",%progbits
 #else
 #define ASM_PROLOGUE
 #endif

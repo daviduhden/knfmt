@@ -3,6 +3,8 @@
  */
 
 int
-main(int x, int y, int z)
+main(int x,
+    int y,
+    int z)
 {
 }

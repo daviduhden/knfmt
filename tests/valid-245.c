@@ -4,10 +4,10 @@
 
 static
 #ifndef SMALL_KERNEL
-    __inline__
+__inline__
 #endif
-    long
-    BUCKETINDX(size_t sz)
+long
+BUCKETINDX(size_t sz)
 {
 }
 

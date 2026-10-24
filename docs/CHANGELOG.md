@@ -1,3 +1,71 @@
+# Unreleased
+
+## Bug fixes
+
+- Restore the Linux x86-64 assembler prologue and the GCC AddressSanitizer
+  preprocessor comment that the source reformat had corrupted.
+- Check for overflow when growing the last arena allocation, close
+  `ARENA_TRACE` descriptors in `arena_free()`, and reject failed arena-vector
+  allocations.
+- Null the caller's pointer in `MAP_FREE` and reserve buffer space after a
+  full read so a file that grows after `fstat(2)` is not truncated.
+- Guard unified-diff hunk arithmetic against unsigned overflow.
+- Store declaration-scan cache offsets as `size_t` instead of `unsigned int`.
+- Honor `IncludeCategories.CaseSensitive` by recompiling category regexes
+  without `REG_ICASE`, and propagate nested category parse failures.
+- Bound statement and declaration recursion with `PARSER_MAX_DEPTH` instead
+  of relying on the process stack.
+  (David Uhden Collado)
+
+## Build and tests
+
+- Build `str-match` from the shared source list instead of the bmake-only
+  `:N` modifier, so the target also works with GNU make.
+- Register `tests/error-077.c` and remove the undefined `${T}` from the test
+  recipes.
+- Compare `inplace-*` results with stdout formatting instead of only checking
+  for a clean exit.
+- Restore the `tests/*.c` and `tests/*.h` fixtures to their pre-reformat
+  state. The bulk reformat had rewritten 613 test inputs without updating
+  their `.ok`/`.patch` companions, invalidating include-sorting, brace and
+  diff fixtures. `.gitattributes` now exempts fixtures from whitespace checks
+  so raw input bytes are not "fixed" by tooling.
+- Make `tests/diff.sh` fail when `-d` succeeds or emits diagnostics, and make
+  `tests/cross-build.sh` exercise `-D` with a patch on standard input.
+- Exclude development-only scripts from the `mkls.sh` test list so the
+  generated `tests/Makefile` matches the committed one, and add
+  `fuzz-parse.c` to the static-analysis lists.
+- Remove the GitHub Actions workflows. The project no longer ships CI
+  configuration.
+- Give `configure` a `--help` option, reject unknown options and diagnose a
+  missing `--fuzz`/`--sanitize` value instead of failing silently.
+- Honor `AFLAGS`/`ASFLAGS` in the `.S.o` rules and correct the GNU make probe
+  file name used for object-directory detection.
+- Record `PREFIX` in `config.mk` and derive the default `BINDIR`/`MANDIR`
+  from it so `make PREFIX=... install` takes effect.
+- Remove the unused header probe from `configure`.
+- Make `tests/mutate.pl` use a temporary directory and an in-process alarm
+  instead of a hard-coded `/tmp/opencode` path and the external `timeout`
+  utility.
+- Remove GNU-only test dependencies: use `mktemp` templates, Perl for
+  high-resolution timing and arithmetic, and POSIX path resolution instead
+  of `date +%s.%N`, `bc`, `readlink -f` and `mktemp -t`/`mktemp -d` without
+  a template. Benchmark RSS measurement uses the BSD `time -l` format when
+  available and reports `-` otherwise; no GNU-specific `time` flags are used.
+
+## Documentation
+
+- Document `-c` and `-t`, the `-D` operand and combination rules, and the
+  `-d` exit status in `knfmt.1`; update the synopsis, date and authors.
+- Correct the reported behavior of `AlignEscapedNewlines`,
+  `SortIncludes: CaseInsensitive`, `BreakBeforeBinaryOperators` and `-D`.
+- Refresh `docs/FUZZ.md` with the libFuzzer harnesses, dictionaries and
+  mutation driver.
+- Correct stale counts, known-failure inventory and sanitizer instructions in
+  `docs/ARCHITECTURE.md`, and mark the progress document as historical.
+- Add `AGENTS.md` and the `.agents/skills/` instructions for AI agents.
+  (David Uhden Collado)
+
 # 6.1.0 - 2026-10-14
 
 ## News

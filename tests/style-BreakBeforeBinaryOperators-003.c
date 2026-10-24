@@ -7,5 +7,6 @@
 int
 main(void)
 {
-	bool rv = foo() || bar();
+	bool rv = foo()
+		  || bar();
 }

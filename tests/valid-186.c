@@ -11,6 +11,7 @@ main(void)
 
 		if (copyout(&tmp, iov->iov_base, sizeof(char)) != 0)
 			return (EFAULT);
-	} break;
+	}
+		break;
 	}
 }

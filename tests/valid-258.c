@@ -13,7 +13,8 @@ main(void)
 			x = 0 &
 			    1;
 #else
-			y = 2 & 3;
+			y = 2 &
+			    3;
 #endif
 		}
 	}

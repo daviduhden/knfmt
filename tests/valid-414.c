@@ -6,8 +6,7 @@ int
 main(void)
 {
 	if (reg > 0) {
-		reg =
-		    (uint32_t)(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -
-			1);
+		reg = (uint32_t)(
+		    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - 1);
 	}
 }

@@ -5,6 +5,7 @@
 struct s {
 
 	int x;
+
 };
 
 enum {
@@ -16,4 +17,5 @@ enum {
 union {
 
 	int x;
+
 };

@@ -4,4 +4,4 @@
 
 static
 #foo
-    static
+static

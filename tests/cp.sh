@@ -49,8 +49,8 @@ shift $((OPTIND - 1))
 _path="$1"
 _type="$2"
 
-TMP="$(mktemp -t knfmt.XXXXXX)"
-trap 'rm $TMP' 0
+TMP="$(mktemp "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
+trap 'rm -rf "${TMP}"' 0
 
 _n="$(next tests "${_type}")"
 "${_exec}" "$(printf 'mv %s tests/%s-%03d.c\n' "${_path}" "${_type}" "${_n}")"

@@ -9,5 +9,6 @@ main(void)
 	if (next) {
 
 		int x;
+
 	}
 }

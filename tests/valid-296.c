@@ -4,4 +4,4 @@
 
 __nein
 
-    int x;
+int x;

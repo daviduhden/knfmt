@@ -227,6 +227,8 @@ matchchunk(const char *str, unsigned int *sl, unsigned int *el)
 		lno = strtou(str + rm[3].rm_so);
 		if (lno == 0)
 			return 0;
+		if (lno > UINT_MAX - *sl + 1)
+			return 0;
 		*el = (*sl + lno) - 1;
 	} else {
 		*el = *sl;

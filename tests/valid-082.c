@@ -2,4 +2,4 @@
  * Function pointer argument.
  */
 
-void f(void (*f)(int, void *));
+void	f(void (*f)(int, void *));

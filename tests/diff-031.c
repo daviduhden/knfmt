@@ -1,6 +1,9 @@
 static inline unsigned long
-bitmap_find_next_zero_area(unsigned long *map, unsigned long size,
-    unsigned long start, unsigned int nr, unsigned long align_mask)
+bitmap_find_next_zero_area(unsigned long *map,
+			   unsigned long size,
+			   unsigned long start,
+			   unsigned int nr,
+			   unsigned long align_mask)
 {
 }
 
@@ -21,8 +24,7 @@ bitmap_clear(void *p, int b, u_int n)
  *
  * Return: 0 if successful, negative error code otherwise
  */
-STATIC int
-dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
+STATIC int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 {
 	/*
 	 * Currently assuming that there is a dedicated host channel for
@@ -34,14 +36,13 @@ dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 
 	num_channels = hsotg->params.host_channels;
 	if ((hsotg->periodic_channels + hsotg->non_periodic_channels <
-		num_channels) &&
-	    (hsotg->periodic_channels < num_channels - 1)) {
+	     num_channels) && (hsotg->periodic_channels < num_channels - 1)) {
 		status = 0;
 	} else {
 		dev_dbg(hsotg->dev,
-		    "%s: Total channels: %d, Periodic: %d, Non-periodic: %d\n",
-		    __func__, num_channels, hsotg->periodic_channels,
-		    hsotg->non_periodic_channels);
+			"%s: Total channels: %d, Periodic: %d, Non-periodic: %d\n",
+			__func__, num_channels,
+			hsotg->periodic_channels, hsotg->non_periodic_channels);
 		status = -ENOSPC;
 	}
 
@@ -60,8 +61,8 @@ dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
  * For simplicity, this calculation assumes that all the transfers in the
  * periodic schedule may occur in the same (micro)frame
  */
-STATIC int
-dwc2_check_periodic_bandwidth(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+STATIC int dwc2_check_periodic_bandwidth(struct dwc2_hsotg *hsotg,
+					 struct dwc2_qh *qh)
 {
 }
 
@@ -78,8 +79,8 @@ dwc2_check_periodic_bandwidth(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  *
  * Returns: the map or NULL if a map couldn't be found.
  */
-static unsigned long *
-dwc2_get_ls_map(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static unsigned long *dwc2_get_ls_map(struct dwc2_hsotg *hsotg,
+				      struct dwc2_qh *qh)
 {
 }
 
@@ -96,8 +97,8 @@ dwc2_get_ls_map(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @fmt:   The format for printf.
  * @...:   The args for printf.
  */
-static __printf(3, 4) void cat_printf(
-    char **buf, size_t *size, const char *fmt, ...)
+static __printf(3, 4)
+void cat_printf(char **buf, size_t *size, const char *fmt, ...)
 {
 	if (i >= *size) {
 	} else {
@@ -117,16 +118,17 @@ static __printf(3, 4) void cat_printf(
  * @print_fn:        The function to call for printing.
  * @print_data:      Opaque data to pass to the print function.
  */
-static void
-pmap_print(unsigned long *map, int bits_per_period, int periods_in_map,
-    const char *period_name, const char *units,
-    void (*print_fn)(const char *str, void *data), void *print_data)
+static void pmap_print(unsigned long *map, int bits_per_period,
+		       int periods_in_map, const char *period_name,
+		       const char *units,
+		       void (*print_fn)(const char *str, void *data),
+		       void *print_data)
 {
 }
 
 struct dwc2_qh_print_data {
 	struct dwc2_hsotg *hsotg;
-	struct dwc2_qh	  *qh;
+	struct dwc2_qh *qh;
 };
 
 /**
@@ -135,8 +137,7 @@ struct dwc2_qh_print_data {
  * @str:  The string to print
  * @data: A pointer to a struct dwc2_qh_print_data
  */
-static void
-dwc2_qh_print(const char *str, void *data)
+static void dwc2_qh_print(const char *str, void *data)
 {
 }
 
@@ -146,17 +147,17 @@ dwc2_qh_print(const char *str, void *data)
  * @hsotg: The HCD state structure for the DWC OTG controller.
  * @qh:    QH to print.
  */
-static void
-dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
+				   struct dwc2_qh *qh)
 {
 }
 #else
-static inline void dwc2_qh_schedule_print(
-    struct dwc2_hsotg *hsotg, struct dwc2_qh *qh) {};
+static inline void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
+					  struct dwc2_qh *qh) {};
 #endif
 
-static int
-dwc2_uframe_schedule_split(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static int dwc2_uframe_schedule_split(struct dwc2_hsotg *hsotg,
+				      struct dwc2_qh *qh)
 {
 	while (ls_search_slice < DWC2_LS_SCHEDULE_SLICES) {
 		/*
@@ -177,12 +178,12 @@ dwc2_uframe_schedule_split(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		if (!qh->ep_is_in &&
 		    (first_data_bytes != min_t(int, 188, bytecount))) {
 			dwc2_sch_dbg(hsotg,
-			    "QH=%p avoiding broken 1st xfer (%d, %d)\n", qh,
-			    first_data_bytes, bytecount);
+				     "QH=%p avoiding broken 1st xfer (%d, %d)\n",
+				     qh, first_data_bytes, bytecount);
 			if (qh->schedule_low_speed)
 				dwc2_ls_pmap_unschedule(hsotg, qh);
-			ls_search_slice =
-			    (start_s_uframe + 1) * DWC2_SLICES_PER_UFRAME;
+			ls_search_slice = (start_s_uframe + 1) *
+				DWC2_SLICES_PER_UFRAME;
 			continue;
 		}
 
@@ -206,8 +207,7 @@ dwc2_uframe_schedule_split(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @hsotg:       The HCD state structure for the DWC OTG controller.
  * @qh:          QH for the periodic transfer.
  */
-static int
-dwc2_uframe_schedule_hs(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static int dwc2_uframe_schedule_hs(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 }
 
@@ -220,8 +220,7 @@ dwc2_uframe_schedule_hs(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @hsotg:       The HCD state structure for the DWC OTG controller.
  * @qh:          QH for the periodic transfer.
  */
-static int
-dwc2_uframe_schedule_ls(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static int dwc2_uframe_schedule_ls(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 }
 
@@ -234,8 +233,7 @@ dwc2_uframe_schedule_ls(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @hsotg:       The HCD state structure for the DWC OTG controller.
  * @qh:          QH for the periodic transfer.
  */
-static int
-dwc2_uframe_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static int dwc2_uframe_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 }
 
@@ -254,8 +252,7 @@ dwc2_uframe_schedule(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @qh:    QH for a periodic endpoint
  *
  */
-static void
-dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static void dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	u16 frame_number;
 	u16 earliest_frame;
@@ -298,7 +295,7 @@ dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		WARN_ON(qh->num_hs_transfers < 1);
 
 		relative_frame = qh->hs_transfers[0].start_schedule_us /
-		    DWC2_HS_PERIODIC_US_PER_UFRAME;
+				 DWC2_HS_PERIODIC_US_PER_UFRAME;
 
 		/* Adjust interval as per high speed schedule */
 		interval = gcd(qh->host_interval, DWC2_HS_SCHEDULE_UFRAMES);
@@ -312,7 +309,7 @@ dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		 * controller tick at low speed.
 		 */
 		relative_frame = qh->ls_start_schedule_slice /
-		    DWC2_LS_PERIODIC_SLICES_PER_FRAME;
+				 DWC2_LS_PERIODIC_SLICES_PER_FRAME;
 		interval = gcd(qh->host_interval, DWC2_LS_SCHEDULE_FRAMES);
 	}
 
@@ -333,8 +330,8 @@ dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	 * Actually choose to start at the frame number we've been
 	 * scheduled for.
 	 */
-	next_active_frame =
-	    dwc2_frame_num_inc(next_active_frame, relative_frame);
+	next_active_frame = dwc2_frame_num_inc(next_active_frame,
+					       relative_frame);
 
 	/*
 	 * We actually need 1 frame before since the next_active_frame is
@@ -348,15 +345,15 @@ dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	 * up intervals until we're not.
 	 */
 	while (dwc2_frame_num_gt(earliest_frame, next_active_frame))
-		next_active_frame =
-		    dwc2_frame_num_inc(next_active_frame, interval);
+		next_active_frame = dwc2_frame_num_inc(next_active_frame,
+						       interval);
 
 exit:
 	qh->next_active_frame = next_active_frame;
 	qh->start_active_frame = next_active_frame;
 
-	dwc2_sch_vdbg(hsotg, "QH=%p First fn=%04x nxt=%04x\n", qh, frame_number,
-	    qh->next_active_frame);
+	dwc2_sch_vdbg(hsotg, "QH=%p First fn=%04x nxt=%04x\n",
+		      qh, frame_number, qh->next_active_frame);
 }
 
 /**
@@ -370,8 +367,7 @@ exit:
  *
  * Returns: 0 upon success; error upon failure.
  */
-static int
-dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 }
 
@@ -384,8 +380,7 @@ dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  * @hsotg: The HCD state structure for the DWC OTG controller
  * @qh:    QH for the periodic transfer.
  */
-static void
-dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
+static void dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	MUTEX_ASSERT_LOCKED(&hsotg->lock);
 
@@ -420,12 +415,11 @@ dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  *
  * @t: Address to a qh unreserve_work.
  */
-static void
-dwc2_unreserve_timer_fn(void *arg)
+static void dwc2_unreserve_timer_fn(void *arg)
 {
-	struct dwc2_qh	  *qh = arg;
+	struct dwc2_qh *qh = arg;
 	struct dwc2_hsotg *hsotg = qh->hsotg;
-	unsigned long	   flags;
+	unsigned long flags;
 
 	/*
 	 * Wait for the lock, or for us to be scheduled again.  We

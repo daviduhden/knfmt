@@ -24,6 +24,7 @@ use warnings;
 use bytes;
 use Carp    ();
 use FindBin qw($Bin);
+use File::Temp qw(tempdir);
 
 # $Bin is only known at run time, so the include path cannot be a bareword.
 require "$Bin/semanticoracle.pl";    ## no critic (Modules::RequireBarewordIncludes)
@@ -168,13 +169,41 @@ sub mutate {
     return $data;
 }
 
-# Run $cmd with $data on stdin. Returns (exitcode, signal).
+# Run $cmd with $data on stdin. Returns (exitcode, signal). The child is
+# forked directly so paths containing spaces are safe and no external
+# timeout(1) utility is required.
 sub run_stdin {
     my ( $cmd, $data, $wrk ) = @_;
     open( my $fh, '>:raw', "$wrk/in" ) or Carp::croak("$wrk/in: $!");
     print {$fh} $data                  or Carp::croak("$wrk/in: $!");
     close $fh                          or Carp::croak("$wrk/in: $!");
-    my $st = system("timeout $TIMEOUT $cmd <$wrk/in >$wrk/out 2>/dev/null");
+
+    my $pid = fork();
+    Carp::croak("fork: $!") unless defined $pid;
+    if ( $pid == 0 ) {
+        open( STDIN,  '<:raw', "$wrk/in" )  or exit 127;
+        open( STDOUT, '>:raw', "$wrk/out" ) or exit 127;
+        open( STDERR, '>',    '/dev/null' ) or exit 127;
+        exec { $cmd } $cmd;
+        exit 127;
+    }
+
+    my $timedout = 0;
+    eval {
+        local $SIG{ALRM} = sub {
+            $timedout = 1;
+            kill 'KILL', $pid;
+            die "timeout\n";
+        };
+        alarm $TIMEOUT;
+        waitpid( $pid, 0 );
+        alarm 0;
+    };
+    if ($timedout) {
+        waitpid( $pid, 0 );
+        return ( 124, 0 );
+    }
+    my $st = $?;
     return ( ( $st >> 8 ), ( $st & 127 ) );
 }
 
@@ -210,11 +239,8 @@ sub check {
     return ( 'SEMANTIC',    $r->[0], $r->[0] );
 }
 
-my $wrk = "/tmp/opencode/fuzz/work.$$";
-mkdir "/tmp/opencode/fuzz" unless -d "/tmp/opencode/fuzz";
-mkdir $wrk or Carp::croak("$wrk: $!");
+my $wrk = tempdir( 'knfmt-fuzz.XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 mkdir $OUT unless -d $OUT;
-END { system("rm -rf $wrk"); }
 
 my $seeds = load_seeds();
 die "no seeds\n" unless @$seeds;

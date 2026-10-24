@@ -6,7 +6,6 @@ int
 main(void)
 {
 	if (0) {
-		int x =
-		    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa() ? bb() : cc();
+		int x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa() ? bb() : cc();
 	}
 }

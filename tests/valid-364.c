@@ -5,6 +5,6 @@
 int
 main(void)
 {
-	slaves[i].tblock =
-	    (char (*)[TP_BSIZE])(((long)&buf[ntrec + 1] + pgoff) & ~pgoff);
+	slaves[i].tblock = (char (*)[TP_BSIZE])
+	    (((long)&buf[ntrec + 1] + pgoff) & ~pgoff);
 }

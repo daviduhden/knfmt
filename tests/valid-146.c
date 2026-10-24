@@ -2,4 +2,4 @@
  * Function array size argument.
  */
 
-static void getsockpair(int[2]);
+static void	getsockpair(int[2]);

@@ -3,7 +3,6 @@
  */
 
 int
-main(
-    int x __attribute__((looooooooooooooooooooooooooooooooooooooooooooooooong)))
+main(int x __attribute__((looooooooooooooooooooooooooooooooooooooooooooooooong)))
 {
 }

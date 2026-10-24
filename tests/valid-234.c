@@ -7,7 +7,6 @@ int
 main(void)
 {
 	for (i = 2; i < 16; i++) {
-		bus_space_write_4(
-		    sc->sc_iot, sc->sc_d_ioh, ICD_ICRn(i * nconfigs), 0);
+		bus_space_write_4(sc->sc_iot, sc->sc_d_ioh, ICD_ICRn(i * nconfigs), 0);
 	}
 }

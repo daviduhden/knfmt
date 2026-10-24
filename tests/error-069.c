@@ -20,4 +20,5 @@ vinh({
 ) O;
 
 #endif
+
 ) in(voyd);

@@ -6,6 +6,6 @@ int
 main(void)
 {
 	if (0) {
-	} else		  /* comment */
+	} else /* comment */
 		return 0; /* comment */
 }

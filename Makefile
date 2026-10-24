@@ -79,7 +79,10 @@ OBJS_fault=	${OBJS_knfmt} tests/fault-wrap.o
 DEPS_fault=	tests/fault-wrap.d
 PROG_fault=	knfmt-fault
 
-OBJS_strmatch=	tests/str-match.o ${OBJS_knfmt:Nknfmt.o}
+SRCS_strmatch+=	${SRCS}
+SRCS_strmatch+=	tests/str-match.c
+OBJS_strmatch:=	${SRCS_strmatch:.c=.o}
+OBJS_strmatch:=	${OBJS_strmatch:.S=.o}
 DEPS_strmatch=	tests/str-match.d
 PROG_strmatch=	strmatch
 
@@ -239,6 +242,7 @@ CLANGTIDY+=	expr.h
 CLANGTIDY+=	file.c
 CLANGTIDY+=	file.h
 CLANGTIDY+=	fuzz-dict.c
+CLANGTIDY+=	fuzz-parse.c
 CLANGTIDY+=	fuzz-style.c
 CLANGTIDY+=	knfmt.c
 CLANGTIDY+=	lexer-callbacks.h
@@ -321,6 +325,7 @@ CPPCHECK+=	error.c
 CPPCHECK+=	expr.c
 CPPCHECK+=	file.c
 CPPCHECK+=	fuzz-dict.c
+CPPCHECK+=	fuzz-parse.c
 CPPCHECK+=	fuzz-style.c
 CPPCHECK+=	knfmt.c
 CPPCHECK+=	lexer.c
@@ -388,6 +393,7 @@ IWYU+=	expr.h
 IWYU+=	file.c
 IWYU+=	file.h
 IWYU+=	fuzz-dict.c
+IWYU+=	fuzz-parse.c
 IWYU+=	fuzz-style.c
 IWYU+=	knfmt.c
 IWYU+=	lexer-callbacks.h

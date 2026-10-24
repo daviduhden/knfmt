@@ -5,12 +5,12 @@
 int
 main(void)
 {
-	/*
-	 * foo
-	 */
+        /*
+         * foo
+         */
 
-	/* comment */
-	// comment
+        /* comment */
+        // comment
 
 	int x; // comment
 }

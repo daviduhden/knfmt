@@ -11,6 +11,6 @@ main(void)
 
 #else
 
-    if
+if
 
 #endif

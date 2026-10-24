@@ -2,7 +2,4 @@
  * Nested brace initializers.
  */
 
-const struct s s = {
-    {0},
-    1,
-};
+const struct s	s = { { 0 },	1, };

@@ -928,7 +928,7 @@ parser_type_decl_list_then_lbrace(struct parser *pr)
 	struct lexer	  *lx = pr->pr_lx;
 	struct lexer_state s;
 	struct token	  *tk = nullptr, *first;
-	unsigned int	   beg_off, end_off = 0;
+	size_t		   beg_off, end_off = 0;
 	int		   reached_eof = 0;
 	int		   peek = 0;
 
@@ -991,7 +991,7 @@ out:
 		 */
 		pr->pr_decl_scan_beg = beg_off;
 		pr->pr_decl_scan_end = reached_eof ?
-		    ~0U :
+		    (size_t)-1 :
 		    (end_off != 0 ? end_off + 1 : beg_off + 1);
 		pr->pr_decl_scan_nolbrace = 1;
 	}

@@ -2,10 +2,10 @@
  * Hard lines are not honored in function prototypes as part of a declaration.
  */
 
-int
+int	
 
 main(
 
-    void
+void
 
 );

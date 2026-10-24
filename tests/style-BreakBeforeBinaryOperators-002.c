@@ -5,5 +5,6 @@
 int
 main(void)
 {
-	x.flags |= 0;
+	x.flags |=
+	    0;
 }

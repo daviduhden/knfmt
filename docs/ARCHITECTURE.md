@@ -10,8 +10,9 @@ the cross-cutting contracts and the evidence that supports them.
 ## Source layout
 
 - `lexer.c` turns source code into a list of tokens and owns the associated
-  memory, so tokens are constant, comparable by pointer, and valid until
-  `lexer_free()`. The API is split into `lexer_if_*` routines that consume one
+  memory, so tokens have stable identity, are comparable by pointer, and are
+  valid until `lexer_free()`. Token contents and flags may be updated in
+  place. The API is split into `lexer_if_*` routines that consume one
   or many tokens and `lexer_peek_*` routines that peek at them; both return
   non-zero when the tokens satisfy the criterion. A token may carry dangling
   tokens (`tk_prefixes`/`tk_suffixes`) holding preprocessor directives and
@@ -76,8 +77,12 @@ the cross-cutting contracts and the evidence that supports them.
   `parser_type_decl_list_then_lbrace()` records that a scanned token range
   contains no declaration list followed by `{`, so a run of annotated
   declarations is not rescanned (near-linear).
-- Expression parsing is recursive and guarded (`EXPR_MAX_DEPTH`); it is
-  bounded by nesting, not by flat length.
+- Expression parsing is recursive and guarded (`EXPR_MAX_DEPTH`); document
+  construction additionally enforces `EXPR_STACK_BUDGET`. It is bounded by
+  nesting, not by flat length. Declarator scanning has its own
+  `SCAN_MAX_DEPTH` guard, and statement/declaration nesting is bounded by
+  `PARSER_MAX_DEPTH` (8000). New recursive descent must still account for
+  process stack use.
 - Parser outputs are initialised on every return path where a caller may
   observe them (`parser_expr()` sets `*expr = NULL` up front;
   `parser_attributes_expr()` falls back to the enclosing document).
@@ -119,9 +124,10 @@ munge mode (no line breaks).
 - `DOC_LINE`: a new line in break mode and a space in munge mode.
 - `DOC_SOFTLINE`: a new line in break mode and nothing in munge mode.
 - `DOC_HARDLINE`: a new line in both modes.
-- `DOC_OPTLINE`: honored only inside `DOC_OPTIONAL`.
-- `DOC_MUTE`: suppresses emission except `DOC_HARDLINE`; used while
-  traversing cpp branches.
+- `DOC_OPTLINE`: honored inside `DOC_OPTIONAL`, or unconditionally when the
+  node carries a nonzero forced value (used after C99 comments).
+- `DOC_MUTE`: suppresses emission while muted; hard lines update line state
+  but are not printed. Used while traversing cpp branches.
 - `DOC_UNMUTE`: the `DOC_MUTE` counterpart used for clang-format off/on
   comments; new lines missed while muted are not honored on unmute.
 - `DOC_OPTIONAL`: allows `DOC_OPTLINE` to be emitted.
@@ -180,22 +186,24 @@ and crossed branches".
 See [ARCHITECTURE-REWRITE-PROGRESS.md](ARCHITECTURE-REWRITE-PROGRESS.md) for measured results. Commands:
 
 ```sh
-LC_ALL=C bmake test                       # fixtures (C89-C23, GNU, error, diff)
+LC_ALL=C make test                        # GNU make; bmake also works
 KNFMT=./knfmt sh tests/reparse.sh         # one-pass stability, normal and -s
 KNFMT=./knfmt sh tests/bytes.sh           # raw-byte domain
 KNFMT=./knfmt sh tests/nul.sh             # NUL contract
-KNFMT=./knfmt sh tests/bench.sh 10000 200000   # time + peak RSS
+KNFMT=./knfmt sh tests/bench.sh 10000 200000   # time; RSS when available
 sh tests/cross-build.sh ./knfmt <clang-asan-knfmt>   # normal vs sanitized
 ```
 
-Sanitizer builds (clean, compiler consistent): `CC=clang ./configure` then set
-`DEBUG` to `-fsanitize=address` / `-fsanitize=undefined` /
-`-fsanitize=unsigned-integer-overflow` with `-fno-sanitize-recover=all` and
-rebuild with `rm -f *.o libks/*.o knfmt; bmake`.
+Sanitizer builds (clean, compiler consistent): `CC=clang ./configure
+--sanitize address` (or `undefined`), then rebuild with
+`rm -f *.o libks/*.o knfmt; make`. To add flags manually, pass them on the
+`make` command line (`make DEBUG=...`); an environment `DEBUG` is overridden
+by the generated `config.mk`.
 
-Fuzzing: `CC=clang ./configure --fuzz llvm`, `bmake fuzz-parse`, then run
+Fuzzing: `CC=clang ./configure --fuzz llvm`, `make fuzz-parse`, then run
 `./fuzz-parse <seed-dir>`. libFuzzer needs a C++ runtime at link time
-(`LDFLAGS=-L<gcc-libstdc++-dir>` in this environment).
+(`LDFLAGS=-L<gcc-libstdc++-dir>` in this environment). The AFL-mode harness
+and the mutation driver are described in [FUZZ.md](FUZZ.md).
 
 ## Reentrancy
 
@@ -215,7 +223,7 @@ established and is not claimed.
   untouched, which makes `F(F(x)) == F(x)` hold in one pass. Valid
   expressions are unaffected because a binary operator's left operand
   never ends in an operator. Regression: `tests/idempotence.sh` (runs
-  `tests/repro-idempotence-00{1,2}.c` twice, normal and `-s`).
+  every `tests/repro-idempotence-*.c` twice, normal and `-s`).
 
 ## Brace initializers
 
@@ -223,16 +231,16 @@ established and is not claimed.
   the *absence* of a nested brace too: a flat initializer otherwise
   rescanned the token stream to its end for every element (quadratic;
   a 640 KB initializer took 60 s). With negative caching the same input
-  formats in <1 s and `tests/valid-292.c` (210 KB) in ~0.25 s.
+  formats in <1 s and the large `tests/valid-292.c` fixture in ~0.25 s.
 
 ## Allocation fault injection
 
-- `bmake fault` links a test-only `knfmt-fault` binary using
+- `make fault` links a test-only `knfmt-fault` binary using
   `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc` and
   `tests/fault-wrap.c`, then `tests/fault.sh` fails each allocation in
   turn (`FAULT_AT=0,1,2,…`) and requires a controlled exit (status 1, no
   partial stdout) and an unchanged in-place target. This is a development
-  target, not part of `bmake test`.
+  target, not part of `make test`.
 
 ## Sanitizer instrumentation
 
@@ -253,7 +261,7 @@ established and is not claimed.
 - `.valgrindrc` enables `--leak-check=full` with
   `--errors-for-leak-kinds=all` and `--error-exitcode=1`, so a clean exit
   already implies no memory errors and no leaks.
-- The whole `tests/*.c`/`*.h` corpus (928 files) runs Valgrind-clean, and
+- The whole `tests/*.c`/`*.h` corpus runs Valgrind-clean, and
   so does a `-s` subset. This compensates for the unavailable
   LeakSanitizer.
 
@@ -325,8 +333,8 @@ codebase.
 - Two malformed-recovery idempotence cases were formerly preserved under
   `tests/known-nonidempotent/00{1,2}.c` (an aligned continuation after an
   unexpected identifier before a subscript designator, and a CPP branch
-  soup). Both are now fixed and promoted to reproducers; the directory is
-  empty.
+  soup). Both are now fixed and promoted to reproducers. The directory still
+  contains `005.c`, a known include-guard recovery case.
 
 ## Recovered assignment with a brace initializer
 
@@ -542,8 +550,9 @@ behaviour is pre-existing and unchanged by the recovery corrections.
   the formatter's lexer and catches token loss, duplication and reordering
   that idempotence cannot see. Not applied to `-s`, which legitimately
   rewrites tokens.
-- `tests/semanticoracle.pl --selftest` exercises 29 cases covering identifier
-  and operator concatenation, token splitting, deleted/duplicate punctuation,
+- `tests/semanticoracle.pl --selftest` exercises its own case set covering
+  identifier and operator concatenation, token splitting, deleted/duplicate
+  punctuation,
   changed and truncated literals, swallowed comments, macro continuation and
   escaped-newline changes, and CPP branch deletion/duplication/reordering.
 - `tests/mutate.pl` runs the same check on every mutant, so the fuzzer

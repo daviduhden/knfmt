@@ -4,5 +4,6 @@
  */
 
 struct s {
-	unsigned a:1 b:1;
+	unsigned a:1
+	b:1;
 };

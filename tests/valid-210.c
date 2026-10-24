@@ -5,16 +5,16 @@
 int
 main(void)
 {
-out0:
+ out0:
 	return 0;
 
-out1:
+  out1:
 	return 1;
 
 	/* Comment before label. */
-out2:
+ out2:
 	return 2;
 
-out3:
+	out3:
 	return 3;
 }

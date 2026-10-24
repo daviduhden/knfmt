@@ -5,6 +5,7 @@
 int
 main(void)
 {
-	for (;; i++) {
+	for (;; i++)
+	{
 	}
 }

@@ -6,5 +6,6 @@
 int
 f(int a, int b)
 {
-	a = ? ?'= b; return a;
+	a =??'= b;
+	return a;
 }

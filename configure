@@ -56,15 +56,6 @@ fatal() {
 	exit 1
 }
 
-headers() {
-	local _tmp="${WRKDIR}/headers"
-
-	cat >"${_tmp}"
-	[ -s "${_tmp}" ] || return 0
-
-	xargs printf '#include <%s>\n' <"${_tmp}"
-}
-
 is_openbsd() {
 	case "$(uname -s)" in
 	OpenBSD)	return 0;;
@@ -76,7 +67,7 @@ make_has_object_dir() (
 	cd "${WRKDIR}"
 	# shellcheck disable=SC2016
 	printf 'all:\n\t[ ${PWD} = ${.OBJDIR} ]\n' >Makefile
-	printf 'all:\n\tfalse\n' >GNUMakefile
+	printf 'all:\n\tfalse\n' >GNUmakefile
 	mkdir -p obj
 	make >/dev/null 1>&2
 )
@@ -119,10 +110,33 @@ _sanitize=''
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--benchmark)	_benchmark=1;;
-	--fuzz)		shift; _fuzz="$1"; _sanitize="address";;
+	--fuzz)
+		[ $# -ge 2 ] || {
+			echo "configure: --fuzz requires a value" >&2
+			exit 1
+		}
+		shift
+		_fuzz="$1"
+		_sanitize="address"
+		;;
+	--help)
+		echo "usage: configure [--benchmark] [--fuzz type] [--pedantic]"
+		echo "                  [--sanitize type]"
+		exit 0
+		;;
 	--pedantic)	_pedantic=1;;
-	--sanitize)	shift; _sanitize="${1}";;
-	*)		;;
+	--sanitize)
+		[ $# -ge 2 ] || {
+			echo "configure: --sanitize requires a value" >&2
+			exit 1
+		}
+		shift
+		_sanitize="$1"
+		;;
+	*)
+		echo "configure: unknown option: $1" >&2
+		exit 1
+		;;
 	esac
 	shift
 done
@@ -155,8 +169,18 @@ ASFLAGS="$(make_variable ASFLAGS || :) -MD -MP"
 LDFLAGS="$(unset DEBUG; make_variable LDFLAGS || :)"
 LDFLAGS_benchmark=""
 PREFIX="$(make_variable PREFIX || echo /usr/local)"
-BINDIR="$(make_variable BINDIR || echo "${PREFIX}/bin")"
-MANDIR="$(make_variable MANDIR || echo "${PREFIX}/man")"
+BINDIR="$(make_variable BINDIR || :)"
+MANDIR="$(make_variable MANDIR || :)"
+if [ -n "${BINDIR}" ]; then
+	_bindir="${BINDIR}"
+else
+	_bindir='$(PREFIX)/bin'
+fi
+if [ -n "${MANDIR}" ]; then
+	_mandir="${MANDIR}"
+else
+	_mandir='$(PREFIX)/man'
+fi
 INSTALL="$(make_variable INSTALL || echo install)"
 INSTALL_MAN="$(make_variable INSTALL_MAN || echo "${INSTALL}")"
 
@@ -255,11 +279,6 @@ exec 1>config.h
 
 printf '#ifndef CONFIG_H\n#define CONFIG_H\n'
 
-# Headers needed for function prototypes.
-{
-	:
-} | sort | uniq | headers
-
 [ "${HAVE_PLEDGE}" -eq 1 ] && printf '#define HAVE_PLEDGE\t1\n'
 
 if [ -n "${_fuzz}" ]; then
@@ -289,8 +308,9 @@ ASFLAGS=		$(rmdup ${ASFLAGS})
 LDFLAGS=		$(rmdup ${LDFLAGS})
 LDFLAGS_benchmark=	$(rmdup ${LDFLAGS_benchmark})
 
-BINDIR?=		$(echo ${BINDIR})
-MANDIR?=		$(echo ${MANDIR})
+PREFIX?=		$(echo ${PREFIX})
+BINDIR?=		$(echo ${_bindir})
+MANDIR?=		$(echo ${_mandir})
 INSTALL?=		$(echo ${INSTALL})
 INSTALL_MAN?=		$(echo ${INSTALL_MAN})
 
@@ -306,7 +326,7 @@ if make_has_object_dir; then
 .cc.o:
 	\${CXX} \${CPPFLAGS} \${CXXFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.cc=%.o} \$<
 .S.o:
-	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.S=%.o} \$<
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${AFLAGS} \${ASFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.S=%.o} \$<
 EOF
 else
 	cat <<EOF
@@ -317,6 +337,6 @@ else
 .cc.o:
 	\${CXX} \${CPPFLAGS} \${CXXFLAGS} \${DEBUG} -c -o \$@ \$<
 .S.o:
-	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \$@ \$<
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${AFLAGS} \${ASFLAGS} \${DEBUG} -c -o \$@ \$<
 EOF
 fi

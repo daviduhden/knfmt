@@ -14,8 +14,8 @@
 
 set -u
 
-TESTS_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-ROOT_DIR=$(CDPATH='' cd -- "${TESTS_DIR}/.." && pwd)
+TESTS_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+ROOT_DIR=$(CDPATH='' cd "${TESTS_DIR}/.." && pwd)
 
 # The project is built with clang; fall back to cc when it is not installed.
 CC=${CC:-clang}
@@ -26,7 +26,7 @@ CFLAGS=${CFLAGS:--O2 -pipe}
 WARNINGS=${WARNINGS:--Wall -Wextra -Wpedantic}
 CSTD=${CSTD:--std=c23}
 
-tmp="$(mktemp -d)" || exit 1
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")" || exit 1
 trap 'rm -rf "${tmp}"' EXIT HUP INT TERM
 
 fail=0

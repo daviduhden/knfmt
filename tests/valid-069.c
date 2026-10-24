@@ -7,7 +7,7 @@ int
 
 main(
 
-    void
+void
 
 )
 {

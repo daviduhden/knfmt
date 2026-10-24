@@ -5,7 +5,7 @@
 int
 main(void)
 {
-	struct foo *const *a, b;
+	struct foo * const *a, b;
 
 	return 0;
 }

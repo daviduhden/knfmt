@@ -8,17 +8,18 @@ int mD,
 u
 #else
 
-    void
-    malloc(void)
+void
+malloc(void)
 {
 	{}
 #endif
 
 #if 1
-	;
+;
 #endif
 
-	void est_for(void)
-	{
+void
+est_for(void)
+{
 	}
 }

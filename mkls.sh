@@ -23,5 +23,5 @@ mkls -s "$@" -- \
 	TESTS trace*.c -- \
 	TESTS bug*.c -- \
 	TESTS style*.[ch] -- \
-	TESTS !(cp|knfmt).sh
+	TESTS !(cp|knfmt|reparse|bench|bench-decl|cross-build|fault).sh
 EOF

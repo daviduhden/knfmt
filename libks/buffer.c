@@ -137,7 +137,13 @@ buffer_read_fd_impl(struct buffer *bf, int fd)
 		if (n == 0)
 			break;
 		bf->bf_len += (size_t)n;
-		if (doreserve && buffer_reserve(bf, bf->bf_siz / 8, 1))
+		/*
+		 * Reserve after a full read as well: a regular file can grow
+		 * after the fstat(2) estimate, and a zero-byte read from a
+		 * full buffer would otherwise be mistaken for EOF.
+		 */
+		if ((doreserve || bf->bf_len == bf->bf_siz) &&
+		    buffer_reserve(bf, bf->bf_siz / 8, 1))
 			return 1;
 	}
 

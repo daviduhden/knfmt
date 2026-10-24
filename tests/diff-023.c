@@ -5,14 +5,14 @@
 #include "extern.h"
 
 struct ruler_datum {
-	struct doc  *rd_dc;
-	unsigned int rd_len;
-	unsigned int rd_nspaces;
+	struct doc	*rd_dc;
+	unsigned int	 rd_len;
+	unsigned int	 rd_nspaces;
 };
 
-static int isdecl(const struct token *);
-static int isnexttoken(const struct token *, enum token_type);
-static int minimize(const struct ruler_column *);
+static int	isdecl(const struct token *);
+static int	isnexttoken(const struct token *, enum token_type);
+static int	minimize(const struct ruler_column *);
 
 void
 ruler_init(struct ruler *rl)
@@ -54,7 +54,7 @@ ruler_insert(struct ruler *rl, const struct token *tk, struct doc *dc,
     unsigned int col, unsigned int len, unsigned int nspaces)
 {
 	struct ruler_column *rc;
-	struct ruler_datum  *rd;
+	struct ruler_datum *rd;
 
 	if (col > rl->rl_columns.b_len) {
 		struct ruler_column *ptr = rl->rl_columns.b_ptr;
@@ -111,8 +111,8 @@ ruler_exec(struct ruler *rl)
 
 	for (i = 0; i < rl->rl_columns.b_len; i++) {
 		struct ruler_column *rc = &rl->rl_columns.b_ptr[i];
-		size_t		     j;
-		unsigned int	     maxlen;
+		size_t j;
+		unsigned int maxlen;
 
 		if (rc->rc_ntabs == 0)
 			continue;
@@ -122,12 +122,11 @@ ruler_exec(struct ruler *rl)
 			/* Round up the longest column to a multiple of 8. */
 			maxlen += 8 - (maxlen % 8);
 		}
-		// fprintf(stderr, "%s: maxlen %u, maxspaces %zu\n", __func__,
-		// maxlen, rc->rc_nspaces);
+		//fprintf(stderr, "%s: maxlen %u, maxspaces %zu\n", __func__, maxlen, rc->rc_nspaces);
 
 		for (j = 0; j < rc->rc_datums.b_len; j++) {
 			struct ruler_datum *rd = &rc->rc_datums.b_ptr[j];
-			unsigned int	    indent;
+			unsigned int indent;
 
 			if (rd->rd_len == 0)
 				continue;
@@ -147,10 +146,11 @@ ruler_exec(struct ruler *rl)
 static int
 minimize(const struct ruler_column *rc)
 {
-	size_t	     i;
+	size_t i;
 	unsigned int minspaces = 0;
 
-	if (rc->rc_datums.b_len < 2 || rc->rc_nspaces == 0 ||
+	if (rc->rc_datums.b_len < 2 ||
+	    rc->rc_nspaces == 0 ||
 	    rc->rc_len % 8 > 0)
 		return 0;
 
@@ -178,7 +178,8 @@ static int
 isdecl(const struct token *tk)
 {
 	return token_is_decl(tk, TOKEN_ENUM) ||
-	    token_is_decl(tk, TOKEN_STRUCT) || token_is_decl(tk, TOKEN_UNION);
+	    token_is_decl(tk, TOKEN_STRUCT) ||
+	    token_is_decl(tk, TOKEN_UNION);
 }
 
 static int

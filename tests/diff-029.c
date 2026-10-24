@@ -5,8 +5,7 @@
  *
  * @hsotg: Programming view of the DWC_otg controller
  */
-STATIC int
-dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
+STATIC int dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_gregs_backup *gr;
 
@@ -38,9 +37,8 @@ dwc2_backup_global_registers(struct dwc2_hsotg *hsotg)
  * @rem_wakeup: indicates whether resume is initiated by Reset.
  * @restore: Controller registers need to be restored
  */
-int
-dwc2_exit_partial_power_down(
-    struct dwc2_hsotg *hsotg, int rem_wakeup, bool restore)
+int dwc2_exit_partial_power_down(struct dwc2_hsotg *hsotg, int rem_wakeup,
+				 bool restore)
 {
 	struct dwc2_gregs_backup *gr;
 
@@ -52,8 +50,8 @@ dwc2_exit_partial_power_down(
 	 * value of the "gotgctl" register.
 	 */
 	if (gr->gotgctl & GOTGCTL_CURMODE_HOST)
-		return dwc2_host_exit_partial_power_down(
-		    hsotg, rem_wakeup, restore);
+		return dwc2_host_exit_partial_power_down(hsotg, rem_wakeup,
+							 restore);
 	else
 		return dwc2_gadget_exit_partial_power_down(hsotg, restore);
 }

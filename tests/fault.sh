@@ -20,7 +20,7 @@ KF="${KFAULT:-./knfmt-fault}"
 }
 
 srcdir="$(dirname "$0")/.."
-wrkdir="$(mktemp -d)"
+wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
 trap 'rm -rf "${wrkdir}"' EXIT
 
 limit=200000

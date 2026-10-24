@@ -4,5 +4,5 @@
 
 struct pool_page_header {
 	XSIMPLEQ_HEAD(, pool_item)
-	ph_items;
+				ph_items;
 };

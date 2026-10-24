@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	t static x;
+	t static	x;
 }

@@ -1,15 +1,16 @@
 # knfmt architecture rewrite — progress checkpoint
 
-Base/head: `8ca00d2` on `main`, six commits ahead of `origin/main`.
-Working tree clean. All commits below are on `main`.
-
-This file is a chronological record of the rewrite. The most recent state is
-summarised in [Current status](#current-status); the dated `Update —` sections
-below are kept as an evidence log.
+Checkpoint: `f63d034` on `main` (2026-10-18), plus the current working-tree
+agent-instruction and fixture-restoration changes.
+This file is a historical chronological record of the rewrite, not a
+description of the current contracts. Read [ARCHITECTURE.md](ARCHITECTURE.md)
+for the implementation as it exists. The dated `Update —` sections below are
+kept as an evidence log; measurements in them predate later changes.
 
 ## Current status
 
-Verified on `8ca00d2` (2026-10-13):
+Verified on `8ca00d2` (2026-10-13), before the documentation and formatting
+commits that followed:
 
 - **Scalability.** Flat binary expressions build and render iteratively, so
   process-stack use is O(1) in the number of terms. 200k flat terms format in

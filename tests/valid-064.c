@@ -2,4 +2,4 @@
  * Multiple declarations.
  */
 
-int x, y;
+int	x, y;

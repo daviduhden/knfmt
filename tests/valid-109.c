@@ -2,10 +2,10 @@
  * Brace initializers with cpp branch
  */
 
-const struct sysctl_bounded_args kern_vars[] = {
+const struct sysctl_bounded_args	kern_vars[] = {
 #ifdef SYSVMSG
-    &int_one,
+	&int_one,
 #else
-    &int_zero,
+	&int_zero,
 #endif
 };

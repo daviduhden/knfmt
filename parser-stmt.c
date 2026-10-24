@@ -88,6 +88,10 @@ parser_stmt1(struct parser *pr, struct doc *dc)
 	    .flags = PARSER_STMT_BLOCK_TRIM,
 	};
 
+	if (!parser_depth_enter(pr))
+		return parser_fail(pr);
+	parser_depth_guard(pr);
+
 	/* C23 standard attributes may prefix a statement. */
 	while (parser_attributes_std_peek(pr, nullptr)) {
 		struct doc *concat;

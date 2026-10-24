@@ -3,4 +3,6 @@
  * AlignOperands: Align
  */
 
-void (*func)(int, int, int);
+void (*func)(int,
+	     int,
+	     int);

@@ -67,94 +67,95 @@
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tls.h>
 #include <unistd.h>
+
+#include <tls.h>
 
 #include "cmds.h"
 #include "ftp_var.h"
 
-int trace;
-int hash;
-int mark;
-int sendport;
-int verbose;
-int connected;
-int fromatty;
-int interactive;
+int	trace;
+int	hash;
+int	mark;
+int	sendport;
+int	verbose;
+int	connected;
+int	fromatty;
+int	interactive;
 #ifndef SMALL
-int   confirmrest;
-int   debug;
-int   bell;
-char *altarg;
+int	confirmrest;
+int	debug;
+int	bell;
+char   *altarg;
 #endif /* !SMALL */
-int	     doglob;
-int	     autologin;
-int	     proxy;
-int	     proxflag;
-int	     gatemode;
-char	    *gateserver;
-int	     sunique;
-int	     runique;
-int	     mcase;
-int	     ntflag;
-int	     mapflag;
-int	     preserve;
-int	     progress;
-int	     code;
-int	     crflag;
-char	     pasv[BUFSIZ];
-int	     passivemode;
-int	     activefallback;
-char	     ntin[17];
-char	     ntout[17];
-char	     mapin[PATH_MAX];
-char	     mapout[PATH_MAX];
-char	     typename[32];
-int	     type;
-int	     curtype;
-char	     structname[32];
-int	     stru;
-char	     formname[32];
-int	     form;
-char	     modename[32];
-int	     mode;
-char	     bytename[32];
-int	     bytesize;
-int	     anonftp;
-int	     dirchange;
+int	doglob;
+int	autologin;
+int	proxy;
+int	proxflag;
+int	gatemode;
+char   *gateserver;
+int	sunique;
+int	runique;
+int	mcase;
+int	ntflag;
+int	mapflag;
+int	preserve;
+int	progress;
+int	code;
+int	crflag;
+char	pasv[BUFSIZ];
+int	passivemode;
+int	activefallback;
+char	ntin[17];
+char	ntout[17];
+char	mapin[PATH_MAX];
+char	mapout[PATH_MAX];
+char	typename[32];
+int	type;
+int	curtype;
+char	structname[32];
+int	stru;
+char	formname[32];
+int	form;
+char	modename[32];
+int	mode;
+char	bytename[32];
+int	bytesize;
+int	anonftp;
+int	dirchange;
 unsigned int retry_connect;
-int	     ttywidth;
-int	     epsv4;
-int	     epsv4bad;
+int	ttywidth;
+int	epsv4;
+int	epsv4bad;
 
 #ifndef SMALL
 int	  editing;
 EditLine *el;
-History	 *hist;
+History  *hist;
 char	 *cursor_pos;
 size_t	  cursor_argc;
 size_t	  cursor_argo;
 int	  resume;
 char	 *srcaddr;
-int	  timestamp;
+int  	  timestamp;
 #endif /* !SMALL */
 
-char *cookiefile;
+char	 *cookiefile;
 
-off_t bytes;
-off_t filesize;
-char *direction;
+off_t	bytes;
+off_t	filesize;
+char   *direction;
 
-char *hostname;
-int   unix_server;
-int   unix_proxy;
+char   *hostname;
+int	unix_server;
+int	unix_proxy;
 
 char *ftpport;
 char *httpport;
@@ -164,28 +165,28 @@ char *httpsport;
 char *httpuseragent;
 char *gateport;
 
-jmp_buf toplevel;
+jmp_buf	toplevel;
 
 #ifndef SMALL
-char	    line[FTPBUFLEN];
-char	   *argbase;
-char	   *stringbase;
-char	    argbuf[FTPBUFLEN];
+char	line[FTPBUFLEN];
+char	*argbase;
+char	*stringbase;
+char	argbuf[FTPBUFLEN];
 StringList *marg_sl;
-int	    margc;
-int	    options;
+int	margc;
+int	options;
 #endif /* !SMALL */
 
-int cpend;
-int mflag;
+int	cpend;
+int	mflag;
 
 #ifndef SMALL
-int	     macnum;
+int macnum;
 struct macel macros[16];
-char	     macbuf[4096];
+char macbuf[4096];
 #endif /* !SMALL */
 
-FILE *ttyout;
+FILE	*ttyout;
 
 int connect_timeout;
 
@@ -195,38 +196,40 @@ int server_timestamps = 1;
 #endif
 
 #ifndef NOSSL
-char *const ssl_verify_opts[] = {
-#define SSL_CAFILE 0
-    "cafile",
-#define SSL_CAPATH 1
-    "capath",
-#define SSL_CIPHERS 2
-    "ciphers",
-#define SSL_DONTVERIFY 3
-    "dont",
-#define SSL_DOVERIFY 4
-    "do",
-#define SSL_VERIFYDEPTH 5
-    "depth",
-#define SSL_MUSTSTAPLE 6
-    "muststaple",
-#define SSL_NOVERIFYTIME 7
-    "noverifytime",
-#define SSL_SESSION 8
-    "session",
-#define SSL_PROTOCOLS 9
-    "protocols", NULL};
+char * const ssl_verify_opts[] = {
+#define SSL_CAFILE		0
+	"cafile",
+#define SSL_CAPATH		1
+	"capath",
+#define SSL_CIPHERS		2
+	"ciphers",
+#define SSL_DONTVERIFY		3
+	"dont",
+#define SSL_DOVERIFY		4
+	"do",
+#define SSL_VERIFYDEPTH		5
+	"depth",
+#define SSL_MUSTSTAPLE		6
+	"muststaple",
+#define SSL_NOVERIFYTIME	7
+	"noverifytime",
+#define SSL_SESSION		8
+	"session",
+#define SSL_PROTOCOLS		9
+	"protocols",
+	NULL
+};
 
 struct tls_config *tls_config;
-int		   tls_session_fd = -1;
+int tls_session_fd = -1;
 
 static void
 process_ssl_options(char *cp)
 {
 	const char *errstr;
-	char	   *str;
-	int	    depth;
-	uint32_t    protocols;
+	char *str;
+	int depth;
+	uint32_t protocols;
 
 	while (*cp) {
 		switch (getsubopt(&cp, ssl_verify_opts, &str)) {
@@ -276,14 +279,12 @@ process_ssl_options(char *cp)
 		case SSL_SESSION:
 			if (str == NULL)
 				errx(1, "missing session file");
-			if ((tls_session_fd =
-				    open(str, O_RDWR | O_CREAT, 0600)) == -1)
-				err(1,
-				    "failed to open or create session file "
-				    "'%s'",
-				    str);
-			if (tls_config_set_session_fd(
-				tls_config, tls_session_fd) == -1)
+			if ((tls_session_fd = open(str, O_RDWR|O_CREAT,
+			    0600)) == -1)
+				err(1, "failed to open or create session file "
+				    "'%s'", str);
+			if (tls_config_set_session_fd(tls_config,
+			    tls_session_fd) == -1)
 				errx(1, "failed to set session: %s",
 				    tls_config_error(tls_config));
 			break;
@@ -292,8 +293,7 @@ process_ssl_options(char *cp)
 				errx(1, "missing protocol name");
 			if (tls_config_parse_protocols(&protocols, str) != 0)
 				errx(1, "failed to parse TLS protocols");
-			if (tls_config_set_protocols(tls_config, protocols) !=
-			    0)
+			if (tls_config_set_protocols(tls_config, protocols) != 0)
 				errx(1, "failed to set TLS protocols: %s",
 				    tls_config_error(tls_config));
 			break;
@@ -317,10 +317,10 @@ main(volatile int argc, char *argv[])
 	int top;
 #endif
 	struct passwd *pw = NULL;
-	char	      *cp, homedir[PATH_MAX];
-	char	      *outfile = NULL;
-	const char    *errstr;
-	int	       dumb_terminal = 0;
+	char *cp, homedir[PATH_MAX];
+	char *outfile = NULL;
+	const char *errstr;
+	int dumb_terminal = 0;
 
 	ftpport = "ftp";
 	httpport = "http";
@@ -379,8 +379,8 @@ main(volatile int argc, char *argv[])
 		gateserver = "";
 	if (gatemode) {
 		if (*gateserver == '\0') {
-			warnx("Neither $FTPSERVER nor $GATE_SERVER is defined; "
-			      "disabling gate-ftp");
+			warnx(
+"Neither $FTPSERVER nor $GATE_SERVER is defined; disabling gate-ftp");
 			gatemode = 0;
 		}
 	}
@@ -390,16 +390,16 @@ main(volatile int argc, char *argv[])
 	    !strcmp(cp, "emacs") || !strcmp(cp, "su"));
 	fromatty = isatty(fileno(stdin));
 	if (fromatty) {
-		verbose = 1; /* verbose if from a tty */
+		verbose = 1;		/* verbose if from a tty */
 #ifndef SMALL
 		if (!dumb_terminal)
-			editing = 1; /* editing mode on if tty is usable */
-#endif				     /* !SMALL */
+			editing = 1;	/* editing mode on if tty is usable */
+#endif /* !SMALL */
 	}
 
 	ttyout = stdout;
 	if (isatty(fileno(ttyout)) && !dumb_terminal && foregroundproc())
-		progress = 1; /* progress bar on if tty is usable */
+		progress = 1;		/* progress bar on if tty is usable */
 
 #ifndef NOSSL
 	cookiefile = getenv("http_cookies");
@@ -407,8 +407,8 @@ main(volatile int argc, char *argv[])
 		tls_config = tls_config_new();
 		if (tls_config == NULL)
 			errx(1, "tls config failed");
-		if (tls_config_set_protocols(tls_config, TLS_PROTOCOLS_ALL) !=
-		    0)
+		if (tls_config_set_protocols(tls_config,
+		    TLS_PROTOCOLS_ALL) != 0)
 			errx(1, "tls set protocols failed: %s",
 			    tls_config_error(tls_config));
 		if (tls_config_set_ciphers(tls_config, "legacy") != 0)
@@ -481,11 +481,11 @@ main(volatile int argc, char *argv[])
 			break;
 
 		case 'k':
-			keep_alive_timeout =
-			    strtonum(optarg, 0, INT_MAX, &errstr);
+			keep_alive_timeout = strtonum(optarg, 0, INT_MAX,
+			    &errstr);
 			if (errstr != NULL) {
 				warnx("keep alive amount is %s: %s", errstr,
-				    optarg);
+					optarg);
 				usage();
 			}
 			break;
@@ -524,7 +524,8 @@ main(volatile int argc, char *argv[])
 		case 'r':
 			retry_connect = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL) {
-				warnx("retry amount is %s: %s", errstr, optarg);
+				warnx("retry amount is %s: %s", errstr,
+					optarg);
 				usage();
 			}
 			break;
@@ -552,13 +553,12 @@ main(volatile int argc, char *argv[])
 
 #ifndef SMALL
 		case 'U':
-			free(httpuseragent);
+			free (httpuseragent);
 			if (strcspn(optarg, "\r\n") != strlen(optarg))
 				errx(1, "Invalid User-Agent: %s.", optarg);
-			if (asprintf(
-				&httpuseragent, "User-Agent: %s", optarg) == -1)
-				errx(1,
-				    "Can't allocate memory for HTTP(S) "
+			if (asprintf(&httpuseragent, "User-Agent: %s",
+			    optarg) == -1)
+				errx(1, "Can't allocate memory for HTTP(S) "
 				    "User-Agent");
 			break;
 		case 'u':
@@ -592,10 +592,10 @@ main(volatile int argc, char *argv[])
 	if (httpuseragent == NULL)
 		httpuseragent = HTTP_USER_AGENT;
 
-	cpend = 0;     /* no pending replies */
-	proxy = 0;     /* proxy not active */
-	crflag = 1;    /* strip c.r. on ascii gets */
-	sendport = -1; /* not using ports */
+	cpend = 0;	/* no pending replies */
+	proxy = 0;	/* proxy not active */
+	crflag = 1;	/* strip c.r. on ascii gets */
+	sendport = -1;	/* not using ports */
 	/*
 	 * Set up the home directory in case we're globbing.
 	 */
@@ -617,31 +617,28 @@ main(volatile int argc, char *argv[])
 		if (isurl(argv[0])) {
 			if (pipeout) {
 #ifndef SMALL
-				if (pledge("stdio rpath dns tty inet proc exec "
-					   "fattr",
-					NULL) == -1)
+				if (pledge("stdio rpath dns tty inet proc exec fattr",
+				    NULL) == -1)
 					err(1, "pledge");
 #else
 				if (pledge("stdio rpath dns tty inet fattr",
-					NULL) == -1)
+				    NULL) == -1)
 					err(1, "pledge");
 #endif
 			} else {
 #ifndef SMALL
-				if (pledge("stdio rpath wpath cpath dns tty "
-					   "inet proc exec fattr",
-					NULL) == -1)
+				if (pledge("stdio rpath wpath cpath dns tty inet proc exec fattr",
+				    NULL) == -1)
 					err(1, "pledge");
 #else
-				if (pledge("stdio rpath wpath cpath dns tty "
-					   "inet fattr",
-					NULL) == -1)
+				if (pledge("stdio rpath wpath cpath dns tty inet fattr",
+				    NULL) == -1)
 					err(1, "pledge");
 #endif
 			}
 
 			rval = auto_fetch(argc, argv, outfile);
-			if (rval >= 0) /* -1 == connected and cd-ed */
+			if (rval >= 0)		/* -1 == connected and cd-ed */
 				exit(rval);
 		} else {
 #ifndef SMALL
@@ -657,7 +654,7 @@ main(volatile int argc, char *argv[])
 			xargv[3] = argv[2];
 			xargv[4] = NULL;
 			do {
-				setpeer(argc + 1, xargv);
+				setpeer(argc+1, xargv);
 				if (!retry_connect)
 					break;
 				if (!connected) {
@@ -667,7 +664,7 @@ main(volatile int argc, char *argv[])
 				}
 			} while (!connected);
 			retry_connect = 0; /* connected, stop hiding msgs */
-#endif					   /* !SMALL */
+#endif /* !SMALL */
 		}
 	}
 #ifndef SMALL
@@ -681,7 +678,7 @@ main(volatile int argc, char *argv[])
 		cmdscanner(top);
 		top = 1;
 	}
-#else  /* !SMALL */
+#else /* !SMALL */
 	usage();
 #endif /* !SMALL */
 }
@@ -748,8 +745,8 @@ void
 cmdscanner(int top)
 {
 	struct cmd *c;
-	int	    num;
-	HistEvent   hev;
+	int num;
+	HistEvent hev;
 
 	if (!top && !editing)
 		(void)putc('\n', ttyout);
@@ -835,7 +832,7 @@ getcmd(const char *name)
 {
 	const char *p, *q;
 	struct cmd *c, *found;
-	int	    nmatches, longest;
+	int nmatches, longest;
 
 	if (name == NULL)
 		return (0);
@@ -845,9 +842,9 @@ getcmd(const char *name)
 	found = 0;
 	for (c = cmdtab; (p = c->c_name) != NULL; c++) {
 		for (q = name; *q == *p++; q++)
-			if (*q == 0) /* exact match? */
+			if (*q == 0)		/* exact match? */
 				return (c);
-		if (!*q) { /* the name was a prefix */
+		if (!*q) {			/* the name was a prefix */
 			if (q - name > longest) {
 				longest = q - name;
 				nmatches = 1;
@@ -872,11 +869,11 @@ makeargv(void)
 {
 	char *argp;
 
-	stringbase = line; /* scan from first of buffer */
-	argbase = argbuf;  /* store from first of buffer */
+	stringbase = line;		/* scan from first of buffer */
+	argbase = argbuf;		/* store from first of buffer */
 	slrflag = 0;
-	marg_sl->sl_cur = 0; /* reset to start of marg_sl */
-	for (margc = 0;; margc++) {
+	marg_sl->sl_cur = 0;		/* reset to start of marg_sl */
+	for (margc = 0; ; margc++) {
 		argp = slurpstring();
 		sl_add(marg_sl, argp);
 		if (argp == NULL)
@@ -887,19 +884,16 @@ makeargv(void)
 		cursor_argo = 0;
 	} else if (cursor_pos != NULL) {
 		cursor_argc = margc;
-		cursor_argo = strlen(margv[margc - 1]);
+		cursor_argo = strlen(margv[margc-1]);
 	}
 }
 
-#define INC_CHKCURSOR(x)                                                       \
-	{                                                                      \
-		(x)++;                                                         \
-		if (x == cursor_pos) {                                         \
-			cursor_argc = margc;                                   \
-			cursor_argo = ap - argbase;                            \
-			cursor_pos = NULL;                                     \
-		}                                                              \
-	}
+#define INC_CHKCURSOR(x)	{ (x)++ ; \
+				if (x == cursor_pos) { \
+					cursor_argc = margc; \
+					cursor_argo = ap-argbase; \
+					cursor_pos = NULL; \
+				} }
 
 /*
  * Parse string into argbuf;
@@ -909,24 +903,24 @@ makeargv(void)
 char *
 slurpstring(void)
 {
-	int   got_one = 0;
+	int got_one = 0;
 	char *sb = stringbase;
 	char *ap = argbase;
-	char *tmp = argbase; /* will return this if token found */
+	char *tmp = argbase;		/* will return this if token found */
 
-	if (*sb == '!' || *sb == '$') { /* recognize ! as a token for shell */
+	if (*sb == '!' || *sb == '$') {	/* recognize ! as a token for shell */
 		switch (slrflag) {	/* and $ as token for macro invoke */
-		case 0:
-			slrflag++;
-			INC_CHKCURSOR(stringbase);
-			return ((*sb == '!') ? "!" : "$");
-			/* NOTREACHED */
-		case 1:
-			slrflag++;
-			altarg = stringbase;
-			break;
-		default:
-			break;
+			case 0:
+				slrflag++;
+				INC_CHKCURSOR(stringbase);
+				return ((*sb == '!') ? "!" : "$");
+				/* NOTREACHED */
+			case 1:
+				slrflag++;
+				altarg = stringbase;
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -943,15 +937,15 @@ S0:
 
 	default:
 		switch (slrflag) {
-		case 0:
-			slrflag++;
-			break;
-		case 1:
-			slrflag++;
-			altarg = sb;
-			break;
-		default:
-			break;
+			case 0:
+				slrflag++;
+				break;
+			case 1:
+				slrflag++;
+				altarg = sb;
+				break;
+			default:
+				break;
 		}
 		goto S1;
 	}
@@ -962,18 +956,18 @@ S1:
 	case ' ':
 	case '\t':
 	case '\0':
-		goto OUT; /* end of token */
+		goto OUT;	/* end of token */
 
 	case '\\':
 		INC_CHKCURSOR(sb);
-		goto S2; /* slurp next character */
+		goto S2;	/* slurp next character */
 
 	case '"':
 		INC_CHKCURSOR(sb);
-		goto S3; /* slurp quoted string */
+		goto S3;	/* slurp quoted string */
 
 	default:
-		*ap = *sb; /* add character to token */
+		*ap = *sb;	/* add character to token */
 		ap++;
 		INC_CHKCURSOR(sb);
 		got_one = 1;
@@ -1015,21 +1009,21 @@ S3:
 OUT:
 	if (got_one)
 		*ap++ = '\0';
-	argbase = ap;	 /* update storage pointer */
-	stringbase = sb; /* update scan pointer */
+	argbase = ap;			/* update storage pointer */
+	stringbase = sb;		/* update scan pointer */
 	if (got_one) {
 		return (tmp);
 	}
 	switch (slrflag) {
-	case 0:
-		slrflag++;
-		break;
-	case 1:
-		slrflag++;
-		altarg = (char *)0;
-		break;
-	default:
-		break;
+		case 0:
+			slrflag++;
+			break;
+		case 1:
+			slrflag++;
+			altarg = (char *) 0;
+			break;
+		default:
+			break;
 	}
 	return (NULL);
 }
@@ -1047,8 +1041,7 @@ help(int argc, char *argv[])
 		StringList *buf;
 
 		buf = sl_init();
-		fprintf(ttyout,
-		    "%sommands may be abbreviated.  Commands are:\n\n",
+		fprintf(ttyout, "%sommands may be abbreviated.  Commands are:\n\n",
 		    proxy ? "Proxy c" : "C");
 		for (c = cmdtab; c < &cmdtab[NCMDS]; c++)
 			if (c->c_name && (!proxy || c->c_proxy))
@@ -1058,7 +1051,7 @@ help(int argc, char *argv[])
 		return;
 	}
 
-#define HELPINDENT ((int)sizeof("disconnect"))
+#define HELPINDENT ((int) sizeof("disconnect"))
 
 	while (--argc > 0) {
 		char *arg;
@@ -1070,8 +1063,8 @@ help(int argc, char *argv[])
 		else if (c == NULL)
 			fprintf(ttyout, "?Invalid help command %s\n", arg);
 		else
-			fprintf(ttyout, "%-*s\t%s\n", HELPINDENT, c->c_name,
-			    c->c_help);
+			fprintf(ttyout, "%-*s\t%s\n", HELPINDENT,
+				c->c_name, c->c_help);
 	}
 }
 #endif /* !SMALL */
@@ -1079,23 +1072,19 @@ help(int argc, char *argv[])
 __dead void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: "
+	fprintf(stderr, "usage: "
 #ifndef SMALL
 	    "ftp [-46AadEegiMmnptVv] [-D title] [-k seconds] [-P port] "
 	    "[-r seconds]\n"
 	    "           [-s sourceaddr] [host [port]]\n"
 	    "       ftp [-C] [-N name] [-o output] [-s sourceaddr]\n"
 	    "           ftp://[user:password@]host[:port]/file[/] ...\n"
-	    "       ftp [-CTu] [-c cookie] [-N name] [-o output] [-S "
-	    "ssl_options] "
+	    "       ftp [-CTu] [-c cookie] [-N name] [-o output] [-S ssl_options] "
 	    "[-s sourceaddr]\n"
 	    "           [-U useragent] [-w seconds] "
 	    "http[s]://[user:password@]host[:port]/file ...\n"
-	    "       ftp [-C] [-N name] [-o output] [-s sourceaddr] file:file "
-	    "...\n"
-	    "       ftp [-C] [-N name] [-o output] [-s sourceaddr] "
-	    "host:/file[/] ...\n"
+	    "       ftp [-C] [-N name] [-o output] [-s sourceaddr] file:file ...\n"
+	    "       ftp [-C] [-N name] [-o output] [-s sourceaddr] host:/file[/] ...\n"
 #else /* !SMALL */
 	    "ftp [-N name] [-o output] "
 	    "ftp://[user:password@]host[:port]/file[/] ...\n"
@@ -1103,12 +1092,11 @@ usage(void)
 	    "       ftp [-N name] [-o output] [-S ssl_options] [-w seconds] "
 	    "http[s]://[user:password@]host[:port]/file ...\n"
 #else
-	    "       ftp [-N name] [-o output] [-w seconds] "
-	    "http://host[:port]/file ...\n"
+	    "       ftp [-N name] [-o output] [-w seconds] http://host[:port]/file ...\n"
 #endif /* NOSSL */
 	    "       ftp [-N name] [-o output] file:file ...\n"
 	    "       ftp [-N name] [-o output] host:/file[/] ...\n"
 #endif /* !SMALL */
-	);
+	    );
 	exit(1);
 }

@@ -5,8 +5,8 @@
 
 struct s {
 #if 1
-	const char *s;
+	const char	*s;
 #endif
 
-	int i;
+	int		 i;
 };

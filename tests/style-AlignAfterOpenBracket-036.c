@@ -7,8 +7,7 @@
 int
 main(void)
 {
-	if (foo() ||
-	    bar(cpu, constantconstanconstant) ==
-		somethingsomethingsomethingsomething)
+	if (foo() || bar(cpu,
+	    constantconstanconstant) == somethingsomethingsomethingsomething)
 		return 1;
 }

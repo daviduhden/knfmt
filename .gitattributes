@@ -1,0 +1,4 @@
+# Test fixtures are byte-oriented inputs. Trailing whitespace, unusual
+# indentation and blank lines at EOF are part of the data, not style errors.
+tests/*.c whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+tests/*.h whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab

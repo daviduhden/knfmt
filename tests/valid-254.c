@@ -5,5 +5,6 @@
 int
 main(void)
 {
-	sk_NAME_FUNCS_value(name_funcs_stack, ret->type)->free_func(ret->name);
+	sk_NAME_FUNCS_value(
+	    name_funcs_stack, ret->type)->free_func(ret->name);
 }

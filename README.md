@@ -27,23 +27,25 @@ It can subjectively try to simplify the source code:
 $ knfmt -s knfmt.c
 ```
 
-It can given a unified diff only format the changed lines. This option is
-compatible with the options mentioned above:
+Given a unified diff, it can format only the changed lines. The diff is read
+from standard input and names the files to format in its `+++` headers; file
+operands are not accepted with `-D`. It is compatible with `-d`, `-i` and
+`-s`:
 
 ```sh
 $ git diff | knfmt -Dds
 ```
 
-It can interoperate with clang-format if a `.clang-format` file is found in
-any directory along the current working path, see [knfmt(1)][knfmt] for
-further details.
+It can interoperate with clang-format if a `.clang-format` file is found by
+searching upward from the current working directory, see [knfmt(1)][knfmt]
+for further details.
 
 The implementation is further described in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Documentation
 
-All documentation lives under [`docs/`](docs/):
+All user-facing documentation lives under [`docs/`](docs/):
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implementation, contracts and
   verification.
@@ -51,6 +53,11 @@ All documentation lives under [`docs/`](docs/):
 - [docs/FUZZ.md](docs/FUZZ.md) — fuzzing guide.
 - [docs/ARCHITECTURE-REWRITE-PROGRESS.md](docs/ARCHITECTURE-REWRITE-PROGRESS.md)
   — chronological evidence log of the rewrite.
+
+## Agent instructions
+
+[AGENTS.md](AGENTS.md) contains the permanent project instructions for AI
+agents. Specialized procedures live in [.agents/skills/](.agents/skills/).
 
 [knfmt]: https://www.basename.se/knfmt/
 [style]: https://man.openbsd.org/style.9
@@ -63,10 +70,14 @@ All documentation lives under [`docs/`](docs/):
 # pkg_add knfmt
 ```
 
+The OpenBSD package tracks the upstream release and may be older than this
+fork.
+
 ### From source
 
 The installation prefix defaults to `/usr/local` and can be altered using the
-`PREFIX` environment variable when invoking `configure`:
+`PREFIX` environment variable when invoking `configure`, or on the
+`make install` command line:
 
 ```sh
 $ ./configure
@@ -76,6 +87,6 @@ $ make install
 
 ## License
 
-Copyright (c) 2021-2026 Anton Lindqvist.
+Copyright (c) 2021-2026 Anton Lindqvist <anton@basename.se>.
 Copyright (c) 2026 David Uhden Collado <daviduhden@gmail.com>
 Distributed under the ISC license.

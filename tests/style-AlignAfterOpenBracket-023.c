@@ -11,8 +11,7 @@ main(void)
 		status = hidpp10_battery_status_map_status(report->rawbytes[2]);
 		break;
 	case HIDPP_REG_BATTERY_MILEAGE:
-		status =
-		    hidpp10_battery_mileage_map_status(report->rawbytes[3]);
+		status = hidpp10_battery_mileage_map_status(report->rawbytes[3]);
 		break;
 	}
 }

@@ -150,7 +150,8 @@ out:
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: knfmt [-Ddis] [file ...]\n");
+	fprintf(stderr, "usage: knfmt [-dis] [-c file] [-t flags] [file ...]\n");
+	fprintf(stderr, "       knfmt -D [-dis] [-c file] [-t flags]\n");
 	exit(1);
 }
 

@@ -2,24 +2,30 @@
  * AFL, incorrect return value conditionals in parser func declaration routine.
  */
 
-int
-main(vinh(
+int main(
+vinh(
 
-    pf(
+
+
+pf(
 
 #if 0
 	tf(
 #else
 #endif
-	ma;)
+		ma;
+	)
 
 #endif
 
-	) in(voyd)
+) in(voyd)
 
-	int mYY
+int
+mYY
 
-	    b())
+b()
+)
+
 }
 
 void
@@ -32,4 +38,4 @@ otus_cmd_rxeof(void)
 	}
 
 	) wakeup(cmd);
-	}
+}

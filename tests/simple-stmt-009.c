@@ -9,8 +9,8 @@ main(void)
 		if (1) {
 			if (2) {
 				TOKEN_RANGE_FOREACH(ident, &dv->dv_ident, tmp)
-				after =
-				    lexer_move_after(sd->sd_lx, after, ident);
+					after = lexer_move_after(sd->sd_lx,
+					    after, ident);
 			}
 		}
 	}

@@ -9,8 +9,8 @@ set -e
 
 [ -z "${VALGRINDRC:-}" ] || export "VALGRIND_OPTS=$(xargs <"${VALGRINDRC}")"
 
-_wrkdir="$(mktemp -dt knfmt.XXXXXX)"
-trap 'rm -r $_wrkdir' EXIT
+_wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
+trap 'rm -rf "${_wrkdir}"' EXIT
 
 # run <file>: format in place, then format the result again and require the
 # same bytes.

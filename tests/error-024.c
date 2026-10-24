@@ -10,6 +10,7 @@ FOO
 #endif
 
 #ifdef KMEMSTATS
-KMEMSTATS();
+	KMEMSTATS();
 #endif
+
 }

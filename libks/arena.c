@@ -35,7 +35,7 @@
 #define HAVE_ASAN 1 /* clang */
 #endif
 #elif defined(__SANITIZE_ADDRESS__)
-#define HAVE_ASAN 1 / *gcc * /
+#define HAVE_ASAN 1 /* gcc */
 #endif
 #if defined(HAVE_ASAN)
 #include <sanitizer/asan_interface.h>
@@ -440,6 +440,10 @@ arena_free(struct arena *a)
 		/* Scope(s) still alive. */
 		arena_rele(a);
 	} else {
+		if (a->trace.fd != -1) {
+			close(a->trace.fd);
+			a->trace.fd = -1;
+		}
 		arena_scope_leave(&(struct arena_scope){.arena = a});
 	}
 }
@@ -610,8 +614,8 @@ arena_realloc_fast(
 	}
 
 	/* Check if this is the last allocated object. */
-	old_addr.s8 = ptr;
-	old_addr.u64 += old_size;
+	if (KS_size_add_overflow((size_t)ptr, old_size, &old_addr.size))
+		return 0;
 	old_addr = align_address(a, old_addr);
 	if (old_addr.s8 != &a->frame->ptr[a->frame->len])
 		return 0;

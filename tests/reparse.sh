@@ -26,8 +26,8 @@ n=0
 na=0
 for f in ${files}; do
 	for opts in "" "-s"; do
-		out=$(mktemp)
-		out2=$(mktemp)
+		out=$(mktemp "${TMPDIR:-/tmp}/knfmt.XXXXXX")
+		out2=$(mktemp "${TMPDIR:-/tmp}/knfmt.XXXXXX")
 		if fmt "${opts}" "${f}" "${out}"; then
 			n=$((n + 1))
 			if ! fmt "${opts}" "${out}" "${out2}" ||

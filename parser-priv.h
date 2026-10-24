@@ -1,3 +1,5 @@
+#include <stddef.h> /* size_t */
+
 #include "arenas.h"
 #include "trace.h"
 
@@ -50,8 +52,10 @@ struct parser {
 		unsigned int depth;
 	} pr_stmt;
 
-	/* General parser recursion guard. */
+	/* Declarator-scan recursion guard. */
 	unsigned int pr_depth;
+	/* Statement/declaration nesting guard. */
+	unsigned int pr_nest_depth;
 
 	/*
 	 * Set when parser_extern() declines an extern block whose closing
@@ -83,9 +87,9 @@ struct parser {
 	 * start within the scanned range, so repeated annotated declarations
 	 * do not rescan the suffix.
 	 */
-	unsigned int pr_decl_scan_beg;
-	unsigned int pr_decl_scan_end;
-	int	     pr_decl_scan_nolbrace;
+	size_t pr_decl_scan_beg;
+	size_t pr_decl_scan_end;
+	int    pr_decl_scan_nolbrace;
 };
 
 struct parser_arena_scope_cookie {
@@ -100,6 +104,21 @@ int parser_none(const struct parser *);
 int parser_fail_impl(struct parser *, const char *, int);
 
 void parser_reset(struct parser *);
+
+#define PARSER_MAX_DEPTH 8000
+
+struct parser_depth_guard {
+	struct parser *pd_pr;
+};
+
+int  parser_depth_enter(struct parser *);
+void parser_depth_leave(struct parser_depth_guard *);
+
+#define parser_depth_guard(a)                                                  \
+	__attribute__((cleanup(                                                \
+	    parser_depth_leave))) struct parser_depth_guard pd_guard = {       \
+	    .pd_pr = (a),                                                      \
+	}
 
 #define parser_doc_token(a, b, c)                                              \
 	parser_doc_token_impl((a), (b), (c), __func__, __LINE__)

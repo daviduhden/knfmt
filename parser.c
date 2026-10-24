@@ -395,6 +395,22 @@ parser_reset(struct parser *pr)
 	}
 }
 
+int
+parser_depth_enter(struct parser *pr)
+{
+	if (pr->pr_nest_depth >= PARSER_MAX_DEPTH)
+		return 0;
+	pr->pr_nest_depth++;
+	return 1;
+}
+
+void
+parser_depth_leave(struct parser_depth_guard *guard)
+{
+	if (guard->pd_pr != nullptr)
+		guard->pd_pr->pr_nest_depth--;
+}
+
 struct doc *
 parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
     const char *fun, int lno)

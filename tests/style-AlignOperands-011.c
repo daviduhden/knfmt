@@ -7,6 +7,6 @@ int
 main(void)
 {
 	MACRO(2,
-	    "one"
-	    "two");
+	      "one"
+	      "two");
 }

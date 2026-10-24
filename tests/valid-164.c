@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	task_set(&crp->crp_task, (void(*))crypto_invoke, crp);
+	task_set(&crp->crp_task, (void (*))crypto_invoke, crp);
 }

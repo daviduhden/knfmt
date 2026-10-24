@@ -3,5 +3,5 @@
  */
 
 static int x;
-const int  y = 2;
-auto	   z = 3;
+const int y = 2;
+auto z = 3;

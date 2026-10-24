@@ -2,7 +2,9 @@
  * AFL, limit cpp alignment to define tokens.
  */
 
-#if 0 vvvvvvvvvvvvvvvvvvvv 0
+#if 0 \
+vvvvvvvvvvvvvvvvvvvv\
+	 0
 
 #Beoo i({
 	;
@@ -17,6 +19,6 @@ i({}) N;
 
 dtrucff m;
 
-#endif /*                                                                      \
-	* missing simplm disable during 000000000.                             \
-	*/
+#endif /*
+ * missing simplm disable during 000000000.
+ */

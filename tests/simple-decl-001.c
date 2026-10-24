@@ -14,7 +14,7 @@ int y;
 int
 main(void)
 {
-	struct token *tk, *pv;
+	struct token	*tk, *pv;
 
 	int x, a;
 	int z = 1, y;
@@ -23,8 +23,8 @@ main(void)
 	int comment /* comment */, c1;
 	int comment /* comment */, c2, comment /* comment */;
 
-	struct x *f;
-	struct x  a;
+	struct x	*f;
+	struct x	 a;
 
 	int c, i, rflags = REG_EXTENDED;
 
@@ -32,9 +32,9 @@ main(void)
 	int b = 2;
 	int c;
 
-	int  a = 1;
+	int a = 1;
 	char b;
-	int  b;
+	int b;
 
 	unsigned int u1 = 0;
 	unsigned int u2;
@@ -47,10 +47,10 @@ main(void)
 		int y;
 	};
 
-	int	       ret = 0;
-	int	       i, j, k, m, n, again, bufsize;
+	int ret = 0;
+	int i, j,k, m,n, again, bufsize;
 	unsigned char *s = NULL, *sp;
 	unsigned char *bufp;
-	int	       first = 1;
-	size_t	       num = 0, slen = 0;
+	int first = 1;
+	size_t num = 0, slen = 0;
 }

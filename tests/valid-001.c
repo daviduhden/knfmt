@@ -3,5 +3,5 @@
  */
 
 static struct {
-	int x;
+	int	x;
 } s;

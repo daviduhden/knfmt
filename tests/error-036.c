@@ -15,16 +15,16 @@ main(void)
 #else
 V
 #else
-		    (
+(
 #else
 o
 #else
-	}
+}
 #endif
 
 {
 void
 }
 )
-	}
+}
 }

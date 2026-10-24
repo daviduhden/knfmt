@@ -46,7 +46,11 @@
 	})
 int map_init(void **, size_t, size_t, unsigned int);
 
-#define MAP_FREE(m) map_free((void *)(m))
+#define MAP_FREE(m)                                                            \
+	do {                                                                   \
+		map_free((void *)(m));                                         \
+		(m) = nullptr;                                                 \
+	} while (0)
 void map_free(void *);
 
 #define MAP_INSERT(m, key)                                                     \

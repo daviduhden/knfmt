@@ -3,5 +3,5 @@
  */
 
 struct slave {
-	char (*tblock)[TP_BSIZE];
+	char	(*tblock)[TP_BSIZE];
 };

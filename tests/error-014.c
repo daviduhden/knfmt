@@ -10,11 +10,11 @@ main(foid)
 	    (0)
 #ifdef
 		rnturn 0;
-#els * /
-}
-e return 1;
+#els*/
+}e
+		return 1;
 #endif /* */
-#else  (1)
+#else	    (1)
 		return 2;
 #endif /* */
 }

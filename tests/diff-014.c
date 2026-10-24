@@ -16,40 +16,42 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "bpfilter.h"
+
 #include <sys/param.h>
-#include <sys/ioctl.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/pool.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
+#include <sys/ioctl.h>
 #include <sys/timeout.h>
+#include <sys/pool.h>
 #include <sys/tree.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/if_var.h>
 #include <net/rtable.h>
 #include <net/toeplitz.h>
-#include <netinet/if_ether.h>
-#include <netinet/in.h>
 
-#include "bpfilter.h"
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 /* for bridge stuff */
 #include <net/if_bridge.h>
+
 #include <net/if_etherbridge.h>
 
-static inline void ebe_rele(struct eb_entry *);
-static void	   ebe_free(void *);
+static inline void	ebe_rele(struct eb_entry *);
+static void		ebe_free(void *);
 
-static void etherbridge_age(void *);
+static void		etherbridge_age(void *);
 
 RBT_PROTOTYPE(eb_tree, eb_entry, ebe_tentry, ebt_cmp);
 
-static struct pool eb_entry_pool;
+static struct pool	eb_entry_pool;
 
 static inline int
 eb_port_eq(struct etherbridge *eb, void *a, void *b)
@@ -72,8 +74,8 @@ eb_port_rele(struct etherbridge *eb, void *port)
 static inline size_t
 eb_port_ifname(struct etherbridge *eb, char *dst, size_t len, void *port)
 {
-	return (
-	    (*eb->eb_ops->eb_op_port_ifname)(eb->eb_cookie, dst, len, port));
+	return ((*eb->eb_ops->eb_op_port_ifname)(eb->eb_cookie, dst, len,
+	    port));
 }
 
 static inline void
@@ -89,12 +91,12 @@ etherbridge_init(struct etherbridge *eb, const char *name,
 	size_t i;
 
 	if (eb_entry_pool.pr_size == 0) {
-		pool_init(&eb_entry_pool, sizeof(struct eb_entry), 0,
-		    IPL_SOFTNET, 0, "ebepl", NULL);
+		pool_init(&eb_entry_pool, sizeof(struct eb_entry),
+		    0, IPL_SOFTNET, 0, "ebepl", NULL);
 	}
 
 	eb->eb_table = mallocarray(ETHERBRIDGE_TABLE_SIZE,
-	    sizeof(*eb->eb_table), M_DEVBUF, M_WAITOK | M_CANFAIL);
+	    sizeof(*eb->eb_table), M_DEVBUF, M_WAITOK|M_CANFAIL);
 	if (eb->eb_table == NULL)
 		return (ENOMEM);
 
@@ -146,8 +148,7 @@ etherbridge_destroy(struct etherbridge *eb)
 	free(eb->eb_table, M_DEVBUF,
 	    ETHERBRIDGE_TABLE_SIZE * sizeof(*eb->eb_table));
 
-	RBT_FOREACH_SAFE(ebe, eb_tree, &eb->eb_tree, nebe)
-	{
+	RBT_FOREACH_SAFE(ebe, eb_tree, &eb->eb_tree, nebe) {
 		RBT_REMOVE(eb_tree, &eb->eb_tree, ebe);
 		ebe_free(ebe);
 	}
@@ -168,8 +169,7 @@ ebl_find(struct eb_list *ebl, uint64_t eba)
 {
 	struct eb_entry *ebe;
 
-	SMR_TAILQ_FOREACH(ebe, ebl, ebe_lentry)
-	{
+	SMR_TAILQ_FOREACH(ebe, ebl, ebe_lentry) {
 		if (ebe->ebe_addr == eba)
 			return (ebe);
 	}
@@ -214,15 +214,15 @@ ebt_find(struct etherbridge *eb, const struct eb_entry *ebe)
 }
 
 static inline void
-ebt_replace(
-    struct etherbridge *eb, struct eb_entry *oebe, struct eb_entry *nebe)
+ebt_replace(struct etherbridge *eb, struct eb_entry *oebe,
+    struct eb_entry *nebe)
 {
 	struct eb_entry *rvebe;
 
 	RBT_REMOVE(eb_tree, &eb->eb_tree, oebe);
 	rvebe = RBT_INSERT(eb_tree, &eb->eb_tree, nebe);
-	KASSERTMSG(rvebe == NULL, "ebt_replace eb %p nebe %p rvebe %p", eb,
-	    nebe, rvebe);
+	KASSERTMSG(rvebe == NULL, "ebt_replace eb %p nebe %p rvebe %p",
+	    eb, nebe, rvebe);
 }
 
 static inline void
@@ -240,7 +240,7 @@ ebe_rele(struct eb_entry *ebe)
 static void
 ebe_free(void *arg)
 {
-	struct eb_entry	   *ebe = arg;
+	struct eb_entry *ebe = arg;
 	struct etherbridge *eb = ebe->ebe_etherbridge;
 
 	eb_port_rele(eb, ebe->ebe_port);
@@ -248,7 +248,8 @@ ebe_free(void *arg)
 }
 
 void *
-etherbridge_resolve_ea(struct etherbridge *eb, const struct ether_addr *ea)
+etherbridge_resolve_ea(struct etherbridge *eb,
+    const struct ether_addr *ea)
 {
 	return (etherbridge_resolve(eb, ether_addr_to_e64(ea)));
 }
@@ -256,7 +257,7 @@ etherbridge_resolve_ea(struct etherbridge *eb, const struct ether_addr *ea)
 void *
 etherbridge_resolve(struct etherbridge *eb, uint64_t eba)
 {
-	struct eb_list	*ebl = etherbridge_list(eb, eba);
+	struct eb_list *ebl = etherbridge_list(eb, eba);
 	struct eb_entry *ebe;
 
 	SMR_ASSERT_CRITICAL();
@@ -276,8 +277,8 @@ etherbridge_resolve(struct etherbridge *eb, uint64_t eba)
 }
 
 void
-etherbridge_map_ea(
-    struct etherbridge *eb, void *port, const struct ether_addr *ea)
+etherbridge_map_ea(struct etherbridge *eb, void *port,
+    const struct ether_addr *ea)
 {
 	etherbridge_map(eb, port, ether_addr_to_e64(ea));
 }
@@ -285,12 +286,12 @@ etherbridge_map_ea(
 void
 etherbridge_map(struct etherbridge *eb, void *port, uint64_t eba)
 {
-	struct eb_list	*ebl;
+	struct eb_list *ebl;
 	struct eb_entry *oebe, *nebe;
-	unsigned int	 num;
-	void		*nport;
-	int		 new = 0;
-	time_t		 now;
+	unsigned int num;
+	void *nport;
+	int new = 0;
+	time_t now;
 
 	if (ETH64_IS_MULTICAST(eba) || ETH64_IS_ANYADDR(eba))
 		return;
@@ -351,8 +352,8 @@ etherbridge_map(struct etherbridge *eb, void *port, uint64_t eba)
 
 			oebe = ebt_insert(eb, nebe);
 			if (oebe != NULL) {
-				panic(
-				    "etherbridge %p changed while locked", eb);
+				panic("etherbridge %p changed while locked",
+				    eb);
 			}
 
 			/* great success */
@@ -395,12 +396,12 @@ int
 etherbridge_add_addr(struct etherbridge *eb, void *port,
     const struct ether_addr *ea, unsigned int type)
 {
-	uint64_t	 eba = ether_addr_to_e64(ea);
-	struct eb_list	*ebl;
+	uint64_t eba = ether_addr_to_e64(ea);
+	struct eb_list *ebl;
 	struct eb_entry *nebe;
-	unsigned int	 num;
-	void		*nport;
-	int		 error = 0;
+	unsigned int num;
+	void *nport;
+	int error = 0;
 
 	if (ETH64_IS_MULTICAST(eba) || ETH64_IS_ANYADDR(eba))
 		return (EADDRNOTAVAIL);
@@ -451,11 +452,11 @@ etherbridge_add_addr(struct etherbridge *eb, void *port,
 int
 etherbridge_del_addr(struct etherbridge *eb, const struct ether_addr *ea)
 {
-	uint64_t	      eba = ether_addr_to_e64(ea);
-	struct eb_list	     *ebl;
-	struct eb_entry	     *oebe;
+	uint64_t eba = ether_addr_to_e64(ea);
+	struct eb_list *ebl;
+	struct eb_entry *oebe;
 	const struct eb_entry key = {
-	    .ebe_addr = eba,
+		.ebe_addr = eba,
 	};
 	int error = 0;
 
@@ -484,11 +485,11 @@ static void
 etherbridge_age(void *arg)
 {
 	struct etherbridge *eb = arg;
-	struct eb_entry	   *ebe, *nebe;
-	struct eb_queue	    ebq = TAILQ_HEAD_INITIALIZER(ebq);
-	int		    diff;
-	unsigned int	    now = getuptime();
-	size_t		    i;
+	struct eb_entry *ebe, *nebe;
+	struct eb_queue ebq = TAILQ_HEAD_INITIALIZER(ebq);
+	int diff;
+	unsigned int now = getuptime();
+	size_t i;
 
 	timeout_add_sec(&eb->eb_tmo_age, 100);
 
@@ -500,8 +501,7 @@ etherbridge_age(void *arg)
 #endif
 
 		mtx_enter(&eb->eb_lock); /* don't block map too much */
-		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe)
-		{
+		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe) {
 			if (ebe->ebe_type != EBE_DYNAMIC)
 				continue;
 
@@ -520,8 +520,7 @@ etherbridge_age(void *arg)
 		mtx_leave(&eb->eb_lock);
 	}
 
-	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe)
-	{
+	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe) {
 		TAILQ_REMOVE(&ebq, ebe, ebe_qentry);
 		ebe_rele(ebe);
 	}
@@ -531,15 +530,14 @@ void
 etherbridge_detach_port(struct etherbridge *eb, void *port)
 {
 	struct eb_entry *ebe, *nebe;
-	struct eb_queue	 ebq = TAILQ_HEAD_INITIALIZER(ebq);
-	size_t		 i;
+	struct eb_queue ebq = TAILQ_HEAD_INITIALIZER(ebq);
+	size_t i;
 
 	for (i = 0; i < ETHERBRIDGE_TABLE_SIZE; i++) {
 		struct eb_list *ebl = &eb->eb_table[i];
 
 		mtx_enter(&eb->eb_lock); /* don't block map too much */
-		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe)
-		{
+		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe) {
 			if (!eb_port_eq(eb, ebe->ebe_port, port))
 				continue;
 
@@ -563,8 +561,7 @@ etherbridge_detach_port(struct etherbridge *eb, void *port)
 	 */
 	smr_barrier();
 
-	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe)
-	{
+	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe) {
 		TAILQ_REMOVE(&ebq, ebe, ebe_qentry);
 		ebe_free(ebe);
 	}
@@ -574,15 +571,14 @@ void
 etherbridge_flush(struct etherbridge *eb, uint32_t flags)
 {
 	struct eb_entry *ebe, *nebe;
-	struct eb_queue	 ebq = TAILQ_HEAD_INITIALIZER(ebq);
-	size_t		 i;
+	struct eb_queue ebq = TAILQ_HEAD_INITIALIZER(ebq);
+	size_t i;
 
 	for (i = 0; i < ETHERBRIDGE_TABLE_SIZE; i++) {
 		struct eb_list *ebl = &eb->eb_table[i];
 
 		mtx_enter(&eb->eb_lock); /* don't block map too much */
-		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe)
-		{
+		SMR_TAILQ_FOREACH_SAFE_LOCKED(ebe, ebl, ebe_lentry, nebe) {
 			if (flags == IFBF_FLUSHDYN &&
 			    ebe->ebe_type != EBE_DYNAMIC)
 				continue;
@@ -607,8 +603,7 @@ etherbridge_flush(struct etherbridge *eb, uint32_t flags)
 	 */
 	smr_barrier();
 
-	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe)
-	{
+	TAILQ_FOREACH_SAFE(ebe, &ebq, ebe_qentry, nebe) {
 		TAILQ_REMOVE(&ebq, ebe, ebe_qentry);
 		ebe_free(ebe);
 	}
@@ -618,11 +613,11 @@ int
 etherbridge_rtfind(struct etherbridge *eb, struct ifbaconf *baconf)
 {
 	struct eb_entry *ebe;
-	struct ifbareq	 bareq;
-	caddr_t		 buf;
-	size_t		 len, nlen;
-	time_t		 age, now = getuptime();
-	int		 error;
+	struct ifbareq bareq;
+	caddr_t buf;
+	size_t len, nlen;
+	time_t age, now = getuptime();
+	int error;
 
 	if (baconf->ifbac_len == 0) {
 		/* single read is atomic */
@@ -630,21 +625,22 @@ etherbridge_rtfind(struct etherbridge *eb, struct ifbaconf *baconf)
 		return (0);
 	}
 
-	buf = malloc(baconf->ifbac_len, M_TEMP, M_WAITOK | M_CANFAIL);
+	buf = malloc(baconf->ifbac_len, M_TEMP, M_WAITOK|M_CANFAIL);
 	if (buf == NULL)
 		return (ENOMEM);
 	len = 0;
 
 	mtx_enter(&eb->eb_lock);
-	RBT_FOREACH(ebe, eb_tree, &eb->eb_tree)
-	{
+	RBT_FOREACH(ebe, eb_tree, &eb->eb_tree) {
 		nlen = len + sizeof(bareq);
 		if (nlen > baconf->ifbac_len)
 			break;
 
-		strlcpy(bareq.ifba_name, eb->eb_name, sizeof(bareq.ifba_name));
-		eb_port_ifname(eb, bareq.ifba_ifsname,
-		    sizeof(bareq.ifba_ifsname), ebe->ebe_port);
+		strlcpy(bareq.ifba_name, eb->eb_name,
+		    sizeof(bareq.ifba_name));
+		eb_port_ifname(eb,
+		    bareq.ifba_ifsname, sizeof(bareq.ifba_ifsname),
+		    ebe->ebe_port);
 		ether_e64_to_addr(&bareq.ifba_dst, ebe->ebe_addr);
 
 		memset(&bareq.ifba_dstsa, 0, sizeof(bareq.ifba_dstsa));
@@ -678,7 +674,8 @@ etherbridge_rtfind(struct etherbridge *eb, struct ifbaconf *baconf)
 int
 etherbridge_set_max(struct etherbridge *eb, struct ifbrparam *bparam)
 {
-	if (bparam->ifbrp_csize < 1 || bparam->ifbrp_csize > 4096) /* XXX */
+	if (bparam->ifbrp_csize < 1 ||
+	    bparam->ifbrp_csize > 4096) /* XXX */
 		return (EINVAL);
 
 	/* commit */
@@ -698,7 +695,8 @@ etherbridge_get_max(struct etherbridge *eb, struct ifbrparam *bparam)
 int
 etherbridge_set_tmo(struct etherbridge *eb, struct ifbrparam *bparam)
 {
-	if (bparam->ifbrp_ctime < 8 || bparam->ifbrp_ctime > 3600)
+	if (bparam->ifbrp_ctime < 8 ||
+	    bparam->ifbrp_ctime > 3600)
 		return (EINVAL);
 
 	/* commit */

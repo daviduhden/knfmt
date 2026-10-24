@@ -5,7 +5,7 @@
 int
 main(void)
 {
-	size_t	x;
+	size_t x;
 	ssize_t linelen;
-	size_t	len;
+	size_t len;
 }

@@ -3,5 +3,4 @@
  */
 
 void
-test_do_while({
-	.d; }
+test_do_while({ .d ; }

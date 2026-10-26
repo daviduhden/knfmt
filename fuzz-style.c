@@ -37,6 +37,11 @@ teardown(void *userdata)
 }
 FUZZER_TEARDOWN(teardown);
 
+/*
+ * Fuzz target: parse arbitrary bytes as a .clang-format file in a temporary
+ * scope.  The parser must reject malformed input without crashing or leaking
+ * allocations into the eternal arena.
+ */
 static void
 target(const struct buffer *bf, void *userdata)
 {

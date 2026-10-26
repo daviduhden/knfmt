@@ -23,6 +23,11 @@ struct test_context {
 	struct arena_scope eternal_scope;
 };
 
+/*
+ * Initialize the per-process fuzz context.  The eternal arena owns the style,
+ * simplifier and parser state for the whole fuzz run; teardown() leaves its
+ * scope before freeing the arena.
+ */
 static void *
 init(int UNUSED(argc), char **UNUSED(argv))
 {
@@ -60,6 +65,11 @@ teardown(void *userdata)
 }
 FUZZER_TEARDOWN(teardown);
 
+/*
+ * Format one buffer in a fresh parse scope.  The caller owns the destination
+ * buffer and the scope; all parser, lexer and clang objects are allocated from
+ * that scope and released when the caller leaves it.
+ */
 static int
 format_once(struct test_context *c, const struct buffer *bf,
     struct arena_scope *scope, struct buffer *dst)
@@ -96,6 +106,11 @@ format_once(struct test_context *c, const struct buffer *bf,
 	return parser_exec(pr, nullptr, dst) == 0;
 }
 
+/*
+ * Fuzz target: format the input three times and require the second and third
+ * passes to agree.  A non-idempotent result is treated as a crash so the fuzzer
+ * reports it with the offending input.
+ */
 static void
 target(const struct buffer *bf, void *userdata)
 {

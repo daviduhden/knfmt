@@ -1,3 +1,12 @@
+/*
+ * Unit and integration tests for the parser, lexer, token model, document
+ * renderer, style handling, arithmetic helpers and simplifier entry points.
+ *
+ * The tests are compiled into the normal test binary and run by `make test`.
+ * Each test allocates parse-lifetime objects from the shared arenas, so the
+ * context helpers below must be paired exactly as shown in main().
+ */
+
 #include <string.h>
 
 #include "arenas.h"
@@ -135,6 +144,11 @@ static const char *token_serialize_position(
 		}                                                              \
 	} while (0)
 
+/*
+ * Exercise the checked arithmetic helpers against their overflow-free
+ * reference forms over boundary-heavy values.  The CHECK_ARITH macro compares
+ * both the overflow flag and the stored result for every operand pair.
+ */
 static void
 test_arithmetic(void)
 {
@@ -180,6 +194,11 @@ test_arithmetic(void)
 	CHECK_ARITH(size, size_t, size_t, mul);
 }
 
+/*
+ * Test entry point.  Global lexer/parser/style tables are initialized once,
+ * then individual tests create fresh per-case contexts from the arena.  Every
+ * resource allocated here is released before returning.
+ */
 int
 main(void)
 {
@@ -561,6 +580,12 @@ main(void)
 	return 0;
 }
 
+/*
+ * Parse one expression into a document tree, render it, and compare the
+ * result with the expected textual form.  The caller supplies the source and
+ * expected string through the test_parser_expr macro, which also records the
+ * source line for failure diagnostics.
+ */
 static void
 test_parser_expr_impl(
     struct context *ctx, const char *src, const char *exp, int lno)
@@ -599,6 +624,11 @@ test_parser_expr_impl(
 	KS_expect_str(exp, act);
 }
 
+/*
+ * Parse a type name, optionally with parser flags, and compare the consumed
+ * token range with the expected text.  A failed peek is a valid test outcome
+ * when the macro expects parser rejection.
+ */
 static void
 test_parser_type_impl(struct context *ctx, const char *src, const char *exp,
     unsigned int flags, int peek, int lno)
@@ -625,6 +655,11 @@ test_parser_type_impl(struct context *ctx, const char *src, const char *exp,
 	KS_expect_str(exp, act);
 }
 
+/*
+ * Exercise the attribute peek parser and compare the nested token range.  The
+ * flags parameter controls GNU/C23 attribute handling without changing the
+ * test harness itself.
+ */
 static void
 test_parser_attributes_peek_impl(struct context *ctx, const char *src,
     const char *exp, int peek, unsigned int flags, int lno)
@@ -650,6 +685,11 @@ test_parser_attributes_peek_impl(struct context *ctx, const char *src,
 	KS_expect_str(exp, act);
 }
 
+/*
+ * Tokenize a source string and compare the space-separated serialization with
+ * the expected token stream.  The loop stops on LEXER_EOF and does not emit the
+ * sentinel token.
+ */
 static void
 test_lexer_read_impl(
     struct context *ctx, const char *src, const char *exp, int lno)
@@ -681,6 +721,11 @@ test_lexer_read_impl(
 	KS_expect_str(exp, act);
 }
 
+/*
+ * Move one token after another in the lexer's dangling-token lists and verify
+ * the resulting order.  This exercises the pointer surgery that must preserve
+ * prefixes, suffixes and the token chain.
+ */
 static void
 test_token_position_after_impl(
     struct context *ctx, struct test_token_move *arg, int lno)
@@ -704,6 +749,10 @@ test_token_position_after_impl(
 	assert_token_move(ctx, arg->want);
 }
 
+/*
+ * Locate the first token of the requested type without consuming the lexer
+ * state permanently.  The peek scope is left on every path.
+ */
 static int
 find_token(struct lexer *lx, int type, struct token **tk)
 {
@@ -906,6 +955,10 @@ test_clang_token_serialize(struct context *ctx)
 	KS_expect_str("IDENT<1:1,ERR>(\"err\")", act);
 }
 
+/*
+ * Create the arena set used by one test context.  The lexer, parser and style
+ * objects are allocated later, when context_init() knows the source text.
+ */
 static void
 context_alloc(struct context *ctx)
 {
@@ -913,6 +966,10 @@ context_alloc(struct context *ctx)
 	ctx->bf = nullptr;
 }
 
+/*
+ * Release the arena set.  Parse-lifetime objects allocated from the arenas are
+ * released together; the function tolerates a null context for cleanup paths.
+ */
 static void
 context_free(struct context *ctx)
 {
@@ -922,6 +979,11 @@ context_free(struct context *ctx)
 	arenas_free(&ctx->arena);
 }
 
+/*
+ * Initialize a fresh lexer/parser context over the supplied source.  Both the
+ * source buffer and every parse object live in the caller-provided eternal
+ * scope, so no per-case teardown is needed beyond leaving that scope.
+ */
 static void
 context_init(
     struct context *ctx, const char *src, struct arena_scope *eternal_scope)
@@ -960,6 +1022,11 @@ context_init(
 	    eternal_scope);
 }
 
+/*
+ * Walk the token chain in order and compare every ordinary token as well as
+ * dangling prefixes and suffixes with the expected sequence.  A null expected
+ * entry marks the end; extra observed tokens are a test failure.
+ */
 static void
 assert_token_move(struct context *ctx, const char **want)
 {
@@ -1013,6 +1080,11 @@ assert_token_move(struct context *ctx, const char **want)
 	KS_expect_true(want[i] == nullptr);
 }
 
+/*
+ * Serialize a token range with one serializer and join the results with single
+ * spaces.  The range is inclusive of both endpoints; a broken chain stops the
+ * walk and lets the caller diagnose a null result.
+ */
 static const char *
 tokens_concat(
     const char *(*serialize)(struct arena_scope *, const struct token *),

@@ -10,6 +10,11 @@
 
 [[noreturn]] static void usage(void);
 
+/*
+ * Emit a fuzzing dictionary for one language.  Only the style language is
+ * currently defined; the output is written to stdout so it can be redirected to
+ * a dictionary file by the build or fuzzing script.
+ */
 int
 main(int argc, const char *argv[])
 {
@@ -37,6 +42,7 @@ main(int argc, const char *argv[])
 	return 0;
 }
 
+/* Print the required argument form and exit with a failure status. */
 static void
 usage(void)
 {

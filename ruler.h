@@ -1,3 +1,10 @@
+/*
+ * Alignment ruler. The parser calls ruler_insert() while emitting lines, then
+ * ruler_exec() once the whole aligned block has been parsed. ruler_indent()
+ * returns a document that aligns continuation lines under the previous line.
+ * The ruler does not own the returned documents; it only records alignment
+ * requests and fills them in.
+ */
 struct arena_scope;
 struct doc;
 struct token;

@@ -1,5 +1,9 @@
-/* Ensure storage keywords such as extern and static comes first as part of a
- * type declaration. */
+/*
+ * Move a storage keyword that appears after other type specifiers to the front
+ * of the declaration for -s, e.g. `const static int x` to `static const int x`.
+ * Only static and extern are handled, and only when the token is movable. The
+ * returned end token is adjusted when the moved token was the last one.
+ */
 
 #include "config.h"
 #include "lexer.h"

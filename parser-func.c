@@ -46,6 +46,18 @@ static int parser_annotation_macros(struct parser *, struct doc *);
 
 static int want_line_after_func_impl(struct parser *);
 
+/*
+ * Function declaration and definition parsing.
+ *
+ * parser_func_peek1() classifies the construct before anything is emitted,
+ * including parenthesized declarators, functions returning function pointers,
+ * C23 trailing attributes, annotation macros and C89/C90 implicit-int and K&R
+ * forms. parser_func_proto() then emits the declarator and parameter list, and
+ * parser_func_impl1() appends the body. Argument formatting starts every
+ * argument with a soft line so an overlong argument list breaks between
+ * arguments rather than inside one.
+ */
+
 enum parser_func_peek
 parser_func_peek(struct parser *pr)
 {
@@ -155,6 +167,16 @@ peek_func_ptr_pattern(struct parser *pr)
 	return peek;
 }
 
+/*
+ * Classify the current construct as a function declaration, a function
+ * definition, or neither, without consuming input. The type is parsed first;
+ * depending on what follows its identifier the declarator may be an ordinary
+ * identifier, a parenthesized identifier, a function returning a function
+ * pointer, or a parenthesized declarator with return-type suffixes. Function
+ * bodies are recognized by a left brace or by a K&R declaration list followed by
+ * one. Annotation macros may trail the parameter list before the terminator. If
+ * no type is present, an implicit-int form is classified separately.
+ */
 static enum parser_func_peek
 parser_func_peek1(struct parser *pr, struct parser_type *type)
 {
@@ -275,6 +297,11 @@ out:
 	return peek;
 }
 
+/*
+ * Parse a function declaration (prototype) if the current construct is one.
+ * The prototype simplification pass runs before the committed parse, matching
+ * the declaration pass structure.
+ */
 int
 parser_func_decl(struct parser *pr, struct doc *dc, struct ruler *rl)
 {
@@ -345,6 +372,11 @@ parser_simple_decl_proto_enter(struct parser *pr, struct parser_type *type)
 	return parser_good(pr);
 }
 
+/*
+ * Parse a function definition if the current construct is one. A ruler with
+ * fixed alignment is used for the prototype, and the body is parsed by
+ * parser_stmt_block().
+ */
 int
 parser_func_impl(struct parser *pr, struct doc *dc)
 {
@@ -364,6 +396,13 @@ parser_func_impl(struct parser *pr, struct doc *dc)
 	return error;
 }
 
+/*
+ * Parse one function parameter. The argument starts in its own group with a
+ * soft line, then the type is emitted and, unless the parameter is unnamed, a
+ * line separates it from the identifier. Trailing attributes and C23 standard
+ * attributes are accepted, and tokens that would merge are explicitly
+ * separated. The argument ends at a comma, which is emitted, or at rparen.
+ */
 int
 parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
     const struct token *rparen)
@@ -462,6 +501,11 @@ parser_func_arg(struct parser *pr, struct doc *dc, struct doc **out,
 	return parser_good(pr);
 }
 
+/*
+ * Emit a function definition after its prototype: optionally break before the
+ * body, parse the block, then emit one or two hard lines depending on whether
+ * the following construct is an annotation macro that belongs to this function.
+ */
 static int
 parser_func_impl1(struct parser *pr, struct doc *dc, struct ruler *rl,
     struct parser_type *type)
@@ -511,6 +555,14 @@ has_many_args(struct parser *pr, struct token *rparen)
  * Parse a function prototype, i.e. return type, identifier, arguments and
  * optional attributes. The caller is expected to already have parsed the
  * return type.
+ *
+ * Three declarator shapes are handled: a function returning a function pointer,
+ * a parenthesized identifier, and an ordinary identifier. For the latter the
+ * parameter list is wrapped in a group so it breaks as a unit, and arguments are
+ * parsed until the matching right parenthesis. A K&R declaration list and
+ * trailing annotation macros are accepted only for definitions. Attributes and
+ * annotation macros may appear before the identifier, between the identifier and
+ * the parameter list, and after the parameter list.
  */
 static int
 parser_func_proto(
@@ -736,6 +788,11 @@ parser_func_proto(
 	return parser_good(pr);
 }
 
+/*
+ * Check whether a function argument starts at the cursor. Optional attributes
+ * may precede the type; the type itself is recognized with the argument context
+ * so unnamed and abstract declarators are accepted.
+ */
 static int
 parser_func_arg_peek(struct parser *pr, struct parser_type *type)
 {
@@ -754,7 +811,10 @@ parser_func_arg_peek(struct parser *pr, struct parser_type *type)
 
 /*
  * Returns non-zero if the right brace of a function implementation can be
- * followed by a hard line.
+ * followed by a hard line. Annotation macros such as __THROW are kept on the
+ * line after the brace, so the blank line is suppressed when the next construct
+ * is such an annotation attached to this definition. A following preprocessor
+ * directive is treated as separate when at least one line intervenes.
  */
 static int
 want_line_after_func_impl(struct parser *pr)

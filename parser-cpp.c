@@ -15,6 +15,16 @@
 #include "ruler.h"
 #include "token.h"
 
+/*
+ * Recognize declarations hidden behind cpp macros.
+ *
+ * Macros can stand in for types (STACK_OF(X509)), whole declarations
+ * (LIST_ENTRY), loop constructs and attributes. This file provides the peeks
+ * used by the declaration and statement parsers to classify those shapes
+ * without consuming input; the actual formatting is then performed by the
+ * ordinary declaration/expression code. The heuristics intentionally err on the
+ * side of the surrounding syntax, not on guessing macro semantics.
+ */
 static int
 iscdefs(const char *str, size_t len)
 {
@@ -61,6 +71,12 @@ cpp_type_in_parens(struct lexer *lx)
 		lexer_if_flags(lx, TOKEN_FLAG_TYPE, nullptr));
 }
 
+/*
+ * Recognize a type hidden behind a cpp macro. The forms are NAME(type) followed
+ * by a declarator, LIST_ENTRY(list, struct s), and NAME(args) after typedef
+ * followed by a declarator. This lets declarations whose type is supplied by an
+ * external macro be parsed instead of treated as expressions.
+ */
 int
 parser_cpp_peek_type(struct parser *pr, struct token **rparen)
 {
@@ -114,6 +130,13 @@ parser_cpp_peek_type(struct parser *pr, struct token **rparen)
  * Detect usage of preprocessor directives such as the ones provided by
  * queue(3).
  */
+/*
+ * Recognize a declaration whose type is a macro invocation, e.g.
+ * `SPLAY_HEAD(name, type) head;`. Qualifiers and storage classes may precede
+ * the macro; the declaration continues with an initializer, a root-level
+ * semicolon, or a declarator and a semicolon. On success type->beg and type->end
+ * delimit the macro invocation.
+ */
 int
 parser_cpp_peek_decl(
     struct parser *pr, struct parser_type *type, unsigned int flags)
@@ -163,6 +186,14 @@ parser_cpp_peek_decl(
  * but is not followed by a semicolon nor comma if being part of an initializer.
  * One example are the macros provided by RBT_PROTOTYPE(9).
  */
+/*
+ * Detect an X macro: a function-call-like construct that is not followed by a
+ * semicolon or comma, which would be the case for an expression in an
+ * initializer. The previous token must not share the identifier's line, and the
+ * next token must be on a later line at the same or smaller indentation. This
+ * distinguishes RBT_PROTOTYPE-style declarations from loop macros hidden behind
+ * cpp. On success *tk receives the closing parenthesis.
+ */
 int
 parser_cpp_peek_x(struct parser *pr, struct token **tk)
 {
@@ -202,6 +233,12 @@ parser_cpp_peek_x(struct parser *pr, struct token **tk)
 	return peek;
 }
 
+/*
+ * Emit a run of X macro invocations. Each invocation is its own group, with
+ * leading storage keywords separated by lines and the argument list aligned by
+ * the ruler. A blank line between invocations is preserved. Parsing stops when
+ * parser_cpp_peek_x() no longer recognizes an invocation.
+ */
 int
 parser_cpp_x(struct parser *pr, struct doc *dc)
 {
@@ -249,6 +286,11 @@ parser_cpp_x(struct parser *pr, struct doc *dc)
 /*
  * Parse usage of macros from cdefs.h, such as __BEGIN_HIDDEN_DECLS.
  */
+/*
+ * Recognize a cdefs.h-style declaration macro such as __BEGIN_DECLS or
+ * __END_DECLS occupying its own line. The macro must be followed by a token on a
+ * later line, so it is not confused with part of a larger declaration.
+ */
 int
 parser_cpp_cdefs(struct parser *pr, struct doc *dc)
 {
@@ -270,6 +312,10 @@ parser_cpp_cdefs(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Recognize a bare identifier followed by a semicolon at root level, a common
+ * cpp-generated declaration with no visible type. Emitted as is.
+ */
 int
 parser_cpp_decl_root(struct parser *pr, struct doc *dc)
 {

@@ -4,6 +4,12 @@
 #include "simple-implicit-int.h"
 #include "token.h"
 
+/*
+ * Make an implicit int explicit for -s: a declaration consisting only of
+ * `signed` or `unsigned` gains an `int` keyword. A leading static is allowed and
+ * does not prevent the rewrite. Movable tokens are required so comments and
+ * directives are not separated from the declaration.
+ */
 static int
 is_implicit_int(
     const struct token *beg, const struct token *end, int token_type)

@@ -14,6 +14,18 @@
 #include "simple-stmt.h"
 #include "token.h"
 
+/*
+ * Brace insertion and removal for -s.
+ *
+ * The pass records each braced or unbraced statement as it is parsed, then
+ * decides at leave time whether the whole run should be braced. A statement
+ * needs braces when it spans more than one line, when it is empty (a lone
+ * semicolon is kept braced to satisfy -Wempty-body), or when a brace cannot be
+ * moved. Otherwise braces are removed. The decision is made by rendering the
+ * statement into a throwaway buffer, so it uses the same layout as the final
+ * output. At most SIMPLE_STMT_MAX statements are tracked; exceeding the limit
+ * simply leaves the remaining statements unmodified.
+ */
 #define SIMPLE_STMT_MAX 32
 
 struct stmt {
@@ -151,6 +163,11 @@ simple_stmt_no_braces_leave(
 	st->rbrace = rbrace;
 }
 
+/*
+ * Allocate a statement record and its document wrapper. The vector is reserved
+ * up front and refuses to grow past SIMPLE_STMT_MAX because document pointers
+ * into the arena would otherwise dangle when the vector reallocates.
+ */
 static struct stmt *
 simple_stmt_alloc(struct simple_stmt *ss, struct doc *dc, unsigned int indent,
     unsigned int flags)
@@ -194,6 +211,12 @@ is_stmt_empty(const struct simple_stmt *ss, const struct stmt *st)
 	return nx == rbrace && lbrace->tk_type != TOKEN_SEMI;
 }
 
+/*
+ * Decide whether one recorded statement needs braces. Empty statements are
+ * always braced. Otherwise the statement is rendered and trimmed; a one-line
+ * result can lose its braces only if the right brace is movable, while a
+ * multi-line result always needs them.
+ */
 static int
 simple_stmt_need_braces(
     struct simple_stmt *ss, const struct stmt *st, struct buffer *bf)

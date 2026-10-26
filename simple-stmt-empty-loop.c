@@ -4,6 +4,12 @@
 #include "simple-stmt-empty-loop.h"
 #include "token.h"
 
+/*
+ * Give an empty loop body an explicit continue for -s. Both `while (...) { }`
+ * and `while (...);` are rewritten to contain `continue;`, which avoids empty
+ * bodies without changing loop behavior. Only truly empty bodies composed of
+ * movable tokens are touched.
+ */
 static int
 sense_empty_loop_braces(const struct token *lbrace, const struct token *rbrace)
 {

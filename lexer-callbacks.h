@@ -1,6 +1,13 @@
 #ifndef LEXER_CALLBACKS_H
 #define LEXER_CALLBACKS_H
 
+/*
+ * Backend hooks used by lexer.c. The C-specific implementation lives in
+ * clang.c, while style.c supplies a YAML tokenizer and libks uses a simpler
+ * backend. allocate must return tokens from the given arena and honor the
+ * requested private size; tokenize signals end of input with LEXER_EOF and
+ * errors with nullptr.
+ */
 struct arena_scope;
 struct lexer;
 

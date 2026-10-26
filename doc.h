@@ -1,5 +1,12 @@
 #include <stddef.h> /* size_t */
 
+/*
+ * Document tree API. A document represents layout, not syntax. Nodes are arena
+ * allocated in the scope of the root and form a tree; CONCAT nodes hold an
+ * ordered child list and every other node holds at most one child. The renderer
+ * is iterative and may be asked for a flat width without emitting a final
+ * layout. See doc.c and docs/ARCHITECTURE.md for the node semantics.
+ */
 struct arena_scope;
 struct doc;
 struct token;

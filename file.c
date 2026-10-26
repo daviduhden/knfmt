@@ -9,6 +9,12 @@
 #include "libks/buffer.h"
 #include "libks/vector.h"
 
+/*
+ * Append a file entry to the list. The path is copied into the eternal scope so
+ * that it remains valid for the whole run; the entry owns its diff-chunk
+ * vector and, once file_read() succeeds, an open file descriptor. Allocation
+ * failure is fatal.
+ */
 struct file *
 files_alloc(
     struct files *files, const char *path, struct arena_scope *eternal_scope)
@@ -25,6 +31,10 @@ files_alloc(
 	return fe;
 }
 
+/*
+ * Close and release every file entry, including the vector itself. Descriptors
+ * are closed through file_close() so an already closed entry is harmless.
+ */
 void
 files_free(struct files *files)
 {
@@ -38,6 +48,11 @@ files_free(struct files *files)
 	VECTOR_FREE(files->fs_vc);
 }
 
+/*
+ * Read the whole file into bf and remember the descriptor for later closing.
+ * On failure the caller's buffer is not assumed to hold usable data and the
+ * descriptor is closed immediately; the path is included in the warning.
+ */
 int
 file_read(struct file *fe, struct buffer *bf)
 {
@@ -58,6 +73,10 @@ err:
 	return 1;
 }
 
+/*
+ * Close the file descriptor if one is still open. Idempotent; the entry keeps
+ * its path and diff chunks.
+ */
 void
 file_close(struct file *fe)
 {

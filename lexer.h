@@ -2,6 +2,15 @@
 
 #include "lexer-callbacks.h"
 
+/*
+ * Lexer interface. A lexer owns the token list for one input. The parser moves
+ * a cursor over it with lexer_pop(); *_peek_* routines inspect without
+ * consuming, and *_if/*_expect routines consume only on a match. Comment and
+ * directive text is attached to tokens as dangling prefixes/suffixes by the
+ * backend, so ordinary cursor operations see only C vocabulary. The state
+ * struct is opaque by convention and may be saved and restored with
+ * lexer_get_state()/lexer_set_state().
+ */
 #define LEXER_EOF 0x7fffffff
 
 struct lexer;

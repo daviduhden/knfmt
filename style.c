@@ -26,6 +26,22 @@
 #include "trace-types.h"
 #include "trace.h"
 
+/*
+ * clang-format configuration support.
+ *
+ * knfmt understands a subset of clang-format's YAML configuration. The file is
+ * tokenized by the normal lexer with a dedicated YAML tokenizer (so YAML
+ * scalars, sequences and comments do not need a separate parser), and options
+ * are dispatched through a keyword table to small parse functions. Only the
+ * nearest .clang-format found by searching upward from the working directory is
+ * used; there is no merge with parent files. BasedOnStyle other than OpenBSD is
+ * resolved by running clang-format -dump-config, which is why pledge(2) is
+ * delayed in main().
+ *
+ * Malformed configuration is non-fatal: parse errors are recorded as style
+ * diagnostics and whatever was understood is kept. Unimplemented but accepted
+ * options are still stored so tracing shows the effective configuration.
+ */
 #define style_trace(st, fmt, ...)                                              \
 	trace_no_func(TRACE_STYLE, (st)->op, (fmt), __VA_ARGS__)
 
@@ -164,6 +180,12 @@ static const char *yaml_type_str(enum yaml_type);
 
 static struct style_option *keywords[256];
 
+/*
+ * Build the process-wide keyword table. Entries are bucketed by the first byte
+ * of the key to keep lookup small; each entry records its allowed scope, value
+ * type and, for options that have arguments, a parse function and the set of
+ * accepted enum values. The table is initialized once and then read-only.
+ */
 void
 style_init(void)
 {
@@ -369,6 +391,12 @@ style_dump_keywords(struct buffer *bf)
 	}
 }
 
+/*
+ * Load a style from path, or discover .clang-format upward from the current
+ * directory when path is nullptr. An explicit file that cannot be read is an
+ * error; a missing discovered file yields the built-in defaults. The style lives
+ * in the eternal scope and is shared by all input files.
+ */
 struct style *
 style_parse(const char *path, struct arena_scope *eternal_scope,
     struct arena *scratch, const struct options *op)
@@ -400,6 +428,11 @@ style_parse(const char *path, struct arena_scope *eternal_scope,
 	return st;
 }
 
+/*
+ * Parse a style from an in-memory buffer. With no buffer the OpenBSD style is
+ * applied explicitly; with a buffer the defaults are parsed first and the YAML
+ * document overrides them. Parse errors are deliberately not fatal.
+ */
 struct style *
 style_parse_buffer(const struct buffer *bf, const char *path,
     struct arena_scope *eternal_scope, struct arena *scratch,
@@ -452,6 +485,10 @@ style_free(void *arg)
 	VECTOR_FREE(st->include_guards);
 }
 
+/*
+ * Return the effective value of an option. Defaults are installed by
+ * style_defaults() and CLI-independent; callers must pass an option below Last.
+ */
 unsigned int
 style(const struct style *st, int option)
 {
@@ -459,6 +496,11 @@ style(const struct style *st, int option)
 	return st->options[option].val;
 }
 
+/*
+ * Return whether new lines are wanted before the given brace kind. The value
+ * normally comes from BraceWrapping, but the Linux brace style implies a break
+ * before a function body's brace.
+ */
 int
 style_brace_wrapping(const struct style *st, int option)
 {
@@ -486,6 +528,11 @@ priority_cmp(const int *aa, const int *bb)
 	return 0;
 }
 
+/*
+ * Return the number of trailing path components to use for the include guard
+ * name if path matches an IncludeGuards pattern, or zero when include guards are
+ * disabled or path does not match. Patterns are tested in configuration order.
+ */
 unsigned int
 style_include_guards(const struct style *st, const char *path)
 {
@@ -502,6 +549,11 @@ style_include_guards(const struct style *st, const char *path)
 	return 0;
 }
 
+/*
+ * Return a sorted, caller-owned vector of the distinct include priority groups.
+ * Zero and INT_MAX are always present as the fallback boundaries, so every
+ * include lands in some group even without IncludeCategories.
+ */
 int *
 style_include_priorities(const struct style *st)
 {
@@ -535,6 +587,11 @@ style_include_priorities(const struct style *st)
 	return priorities;
 }
 
+/*
+ * Classify an include path against IncludeCategories. The first matching regex
+ * wins; an unmatched include gets the last group and sort priority so it sorts
+ * after explicitly categorized includes.
+ */
 struct include_priority
 style_include_priority(const struct style *st, const char *include_path)
 {
@@ -553,6 +610,11 @@ style_include_priority(const struct style *st, const char *include_path)
 	return (struct include_priority){.group = INT_MAX, .sort = INT_MAX};
 }
 
+/*
+ * Install the built-in defaults. These values are the knfmt baseline; a YAML
+ * document may override any of them, and with no configuration file OpenBSD is
+ * selected as the base style.
+ */
 static void
 style_defaults(struct style *st)
 {
@@ -589,6 +651,12 @@ style_set(struct style *st, int option, int type, unsigned int val)
 	st->options[option].val = val;
 }
 
+/*
+ * Tokenize a YAML buffer with the dedicated callbacks and parse its documents.
+ * The style's own arena is used so tokens and strings live as long as the style.
+ * Returns non-zero when the buffer could not be tokenized; option-level errors
+ * are reported through the lexer's diagnostic buffer instead.
+ */
 static int
 style_parse_yaml(struct style *st, const char *path, const struct buffer *bf)
 {
@@ -684,6 +752,15 @@ is_in_scope(const struct style *st, const struct style_option *so, int nested)
 	return 0;
 }
 
+/*
+ * Parse a sequence of YAML documents. Top-level documents whose Language is
+ * neither absent nor Cpp are skipped because only C/C++ configuration applies.
+ * Each recognized key is dispatched to its parse function, which emits
+ * GOOD/SKIP/FAIL/NONE. Unknown keys are diagnosed and skipped on a best-effort
+ * basis, including their sequence values, so one bad option does not discard the
+ * rest of the file. Nested documents have no language header and inherit the
+ * current option scope.
+ */
 static int
 style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 {
@@ -834,6 +911,13 @@ style_dump_IncludeGuards(const struct style *st)
 	}
 }
 
+/*
+ * YAML lexer callback. It recognizes integers, comments, quoted and unquoted
+ * scalars, document markers, colons and sequence dashes. A scalar that matches a
+ * known style keyword is emitted with that option's value type; anything else is
+ * emitted as Unknown so option parsing can report it. Quoted strings are matched
+ * against the keyword table first and fall back to a String token.
+ */
 static struct token *
 yaml_read(struct lexer *lx, void *UNUSED(arg))
 {
@@ -912,6 +996,11 @@ eof:
 	return lexer_emit(lx, &s, LEXER_EOF);
 }
 
+/*
+ * Recognize an optionally signed decimal integer, with or without single quotes.
+ * Overflow is detected with checked arithmetic and reported without rejecting
+ * the token, so the surrounding configuration can still be parsed.
+ */
 static struct token *
 yaml_read_integer(struct lexer *lx)
 {
@@ -1145,6 +1234,11 @@ parse_string(
 	return GOOD;
 }
 
+/*
+ * Parse a nested option block, e.g. BraceWrapping. The option becomes the active
+ * scope so only its children are accepted; the previous scope is restored even
+ * when a child fails, because parsing is best effort.
+ */
 static int
 parse_nested(struct style *st, struct lexer *lx, const struct style_option *so)
 {
@@ -1161,6 +1255,11 @@ parse_nested(struct style *st, struct lexer *lx, const struct style_option *so)
 	return GOOD;
 }
 
+/*
+ * AlignOperands accepts both the enum spellings (Align/DontAlign/
+ * AlignAfterOperator) and the boolean aliases. Normalize the boolean aliases to
+ * the enum values used by the layout code.
+ */
 static int
 parse_AlignOperands(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1179,6 +1278,12 @@ parse_AlignOperands(
 	return error;
 }
 
+/*
+ * Run clang-format -dump-config for a base style and return its output. The
+ * child's stdout and stderr are both captured through a pipe; a non-zero exit is
+ * traced and yields nullptr so the option is skipped. This is an external
+ * dependency only for non-OpenBSD base styles.
+ */
 static struct buffer *
 clang_format_dump_style(
     struct style *st, enum style_keyword based_on_style, struct arena_scope *s)
@@ -1230,6 +1335,12 @@ clang_format_dump_style(
 	return bf;
 }
 
+/*
+ * Resolve BasedOnStyle. OpenBSD is the built-in baseline and
+ * InheritParentConfig is treated as no-op because knfmt does not merge parent
+ * configurations. Any other known style is expanded by clang-format and parsed
+ * as a nested document; a nested BasedOnStyle is ignored.
+ */
 static int
 parse_BasedOnStyle(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1267,6 +1378,10 @@ parse_BasedOnStyle(
 	return error ? FAIL : GOOD;
 }
 
+/*
+ * Parse ColumnLimit. clang-format uses zero to mean "no limit"; translate that
+ * to UINT_MAX because knfmt compares columns against the value directly.
+ */
 static int
 parse_ColumnLimit(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1279,6 +1394,12 @@ parse_ColumnLimit(
 	return error;
 }
 
+/*
+ * Parse the IncludeCategories sequence. Each sequence item starts a nested
+ * option scope and fills a new include_category; Regex and Priority are stored
+ * in that entry. Categories are compiled after all items have been read so a
+ * CaseSensitive option can affect the final regular expressions.
+ */
 static int
 parse_IncludeCategories(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1338,6 +1459,11 @@ include_categories_recompile(struct style *st)
 	}
 }
 
+/*
+ * Parse the knfmt-specific IncludeGuards sequence. Each item creates a guard
+ * rule with a default PathComponents of one; a valid sequence enables guard
+ * generation. A failing item still leaves the previous items usable.
+ */
 static int
 parse_IncludeGuards(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1368,6 +1494,11 @@ parse_IncludeGuards(
 	return GOOD;
 }
 
+/*
+ * Parse PathComponents inside an IncludeGuards entry. Zero or negative values
+ * disable include guards and are reported as errors; otherwise the value is
+ * stored on the most recently created guard rule.
+ */
 static int
 parse_PathComponents(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1394,6 +1525,11 @@ parse_PathComponents(
 	return GOOD;
 }
 
+/*
+ * Parse Priority or SortPriority inside an IncludeCategories entry. Priority
+ * sets both the group and the sort priority; SortPriority overrides only the
+ * latter, allowing different ordering within one group.
+ */
 static int
 parse_Priority(
     struct style *st, struct lexer *lx, const struct style_option *so)
@@ -1421,6 +1557,13 @@ parse_Priority(
 	return GOOD;
 }
 
+/*
+ * Parse and compile a Regex. Patterns are compiled case-insensitively first;
+ * include_categories_recompile() can recompile them when CaseSensitive is set.
+ * A pattern may be redefined, replacing the previous compiled expression, and a
+ * malformed expression is diagnosed and fails the entry. The pattern text is
+ * copied into the eternal arena so regfree() always has a stable owner.
+ */
 static int
 parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 {

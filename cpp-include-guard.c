@@ -14,6 +14,17 @@
 #include "token.h"
 #include "util.h"
 
+/*
+ * Include guard insertion and removal (the IncludeGuards extension).
+ *
+ * The lexer calls cpp_include_guard() after tokenization. Existing guards are
+ * looked up as the #ifndef/#define/#endif chain around the first and last tokens;
+ * when the style selects guards for this path, a missing or differently named
+ * guard is rewritten, and when guards are disabled for the path an existing guard
+ * is removed. The guard name is derived from the resolved path with the
+ * configured number of trailing components, with non-identifier characters
+ * replaced by underscores.
+ */
 struct include_guard_context {
 	struct {
 		struct token *parent;
@@ -45,6 +56,12 @@ is_guard_define(const struct token *tk)
 	return nwords == threshold;
 }
 
+/*
+ * Build a guard identifier from the resolved absolute path. Only the last
+ * ncomponents components are used; '.', '/', and '-' become underscores and all
+ * other characters are uppercased. Returns nullptr if the path cannot be
+ * resolved, which leaves the file unchanged.
+ */
 static const char *
 path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 {
@@ -69,6 +86,14 @@ path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 	return buffer_str(bf);
 }
 
+/*
+ * Locate the include guard around the file, if any. A guard consists of an
+ * #ifndef, a matching #define with exactly two words, and an #endif whose branch
+ * parent is the EOF token. The context records each directive and the token that
+ * carries it, which is needed when removing or replacing the guard. Returns 1 if
+ * a guard with the expected spelling exists, 0 if not, and -1 if the token list
+ * cannot be inspected.
+ */
 static int
 sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
     const char *cpp_define, const char *cpp_endif,
@@ -233,6 +258,14 @@ remove_include_guards(struct include_guard_context *c)
 	remove_branch_token(c->endif.tk, c->endif.parent);
 }
 
+/*
+ * Apply the IncludeGuards policy for one file. The expected directives are
+ * synthesized from the resolved path and compared with any existing guard: a
+ * matching guard is removed when the policy disables guards, a missing or
+ * mismatching one is inserted or rewritten, and comments preceding the guard are
+ * kept inside it. Inserted directives are synthetic tokens; no branch is created
+ * because a failed guard recovery would not change the output.
+ */
 void
 cpp_include_guard(
     const struct style *st, struct lexer *lx, struct arena *scratch)

@@ -19,6 +19,23 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Expression parser and expression document builder.
+ *
+ * Parsing is Pratt-style: expr_exec2() parses a prefix (unary) construct, then
+ * repeatedly consumes binary operators whose precedence is stronger than the
+ * caller's. The precedence table in rules[] is also indexed by token type for
+ * constant-time lookup. Constructs that need type or statement knowledge are
+ * handed back to the parser through the recover callbacks: types, brace
+ * initializers, _Generic selections and malformed input whose recovery depends
+ * on surrounding syntax.
+ *
+ * Documents are built from the expression tree afterwards. Flat left-associative
+ * binary chains are laid out iteratively, and the whole construction is guarded
+ * by an explicit stack budget so pathological input is rejected instead of
+ * overflowing the process stack. The -s expression passes are invoked from the
+ * document builder, so simplification decisions see the same parse as output.
+ */
 enum expr_mode {
 	EXPR_MODE_EXEC,
 	EXPR_MODE_PEEK,
@@ -313,6 +330,12 @@ expr_shutdown(void)
 {
 }
 
+/*
+ * Parse and lay out one expression. The expression is wrapped in a scope, a
+ * group and an optional region so leading line requests and alignment can be
+ * emitted before it. If the stack budget is exceeded while building documents,
+ * nullptr is returned and the caller treats the expression as unparsable.
+ */
 struct doc *
 expr_exec(const struct expr_exec_arg *ea)
 {
@@ -356,6 +379,11 @@ expr_exec(const struct expr_exec_arg *ea)
 	return expr;
 }
 
+/*
+ * Test whether an expression starts at the cursor without consuming input or
+ * building a document. On success *tk receives the last token of the
+ * expression, allowing the caller to inspect what was recognized.
+ */
 int
 expr_peek(const struct expr_exec_arg *ea, struct token **tk)
 {
@@ -439,6 +467,15 @@ expr_exec1(struct expr_state *es, enum expr_pc pc)
 	return ex;
 }
 
+/*
+ * Pratt parser core. A unary-compatible rule is selected for the first token,
+ * with the recovery callback tried first when the token could also begin a type,
+ * a brace initializer or a starred macro argument. The resulting expression is
+ * then extended by binary operators in increasing precedence while their
+ * precedence is stronger than pc; right-associative operators recurse with pc-1
+ * so they bind to themselves. The loop is iterative, which keeps a flat chain
+ * such as a + b + c from consuming process stack.
+ */
 static struct expr *
 expr_exec2(struct expr_state *es, enum expr_pc pc)
 {
@@ -501,6 +538,11 @@ expr_exec2(struct expr_state *es, enum expr_pc pc)
 	return ex;
 }
 
+/*
+ * Ask the enclosing parser to recognize constructs that the expression grammar
+ * cannot know about on its own. The callback returns a document it has already
+ * formatted, or nullptr when the token is not one of its constructs.
+ */
 static struct expr *
 expr_exec_recover(struct expr_state *es)
 {
@@ -531,6 +573,14 @@ expr_exec_recover_cast(struct expr_state *es)
 	return ex;
 }
 
+/*
+ * Parse the right-hand side of a binary operator or comma. Empty macro
+ * arguments are folded: a run of commas is represented by the last comma while
+ * all of them are emitted. A right-hand side that cannot be parsed after an
+ * assignment is retried as a recovery construct when the requested stop token is
+ * a left brace, which preserves recovered brace initializers such as
+ * `x[0] = { ... }`.
+ */
 static struct expr *
 expr_exec_binary(struct expr_state *es, struct expr *lhs)
 {
@@ -569,6 +619,12 @@ expr_exec_binary(struct expr_state *es, struct expr *lhs)
 	return ex;
 }
 
+/*
+ * Parse a juxtaposition, i.e. adjacent string literals or other tokens that the C
+ * preprocessor concatenates. The left operand is extended in place when it is
+ * already a concat expression, keeping the representation flat. The vector is
+ * registered for cleanup in the scratch scope.
+ */
 static struct expr *
 expr_exec_concat(struct expr_state *es, struct expr *lhs)
 {
@@ -630,6 +686,13 @@ expr_exec_call(struct expr_state *es, struct expr *ex)
 		simple_expr_printf(es->es_lx, ex->ex_lhs->ex_tk);
 }
 
+/*
+ * Parse a parenthesized construct. Without a left operand it is either a cast
+ * (the parser recognizes a type and the closing parenthesis) or a grouping; with
+ * a left operand it is a function call. The opening and closing tokens are kept
+ * even when the closing one is missing after a branch, so the document builder
+ * can emit whatever syntax was committed.
+ */
 static struct expr *
 expr_exec_parens(struct expr_state *es, struct expr *lhs)
 {
@@ -682,6 +745,11 @@ expr_exec_prepost(struct expr_state *es, struct expr *lhs)
 	return ex;
 }
 
+/*
+ * Parse sizeof or alignof. The operand is either a parenthesized type or
+ * expression, or an ordinary unary expression. The parenthesis tokens are stored
+ * separately so the -s pass can decide whether to add or remove them.
+ */
 static struct expr *
 expr_exec_sizeof(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 {
@@ -803,6 +871,12 @@ expr_alloc(enum expr_type type, const struct expr_state *es)
 	return ex;
 }
 
+/*
+ * Build the document for one expression node. Every node is wrapped in a group
+ * so the renderer can decide independently whether it fits; the node type is
+ * recorded as an annotation for document tracing. The stack budget is checked
+ * here because this is where a deep recovered tree would otherwise recurse.
+ */
 static struct doc *
 expr_doc(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1065,6 +1139,14 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 	return lhs;
 }
 
+/*
+ * Lay out a binary expression. Assignment operators never break after the
+ * operator at the outermost level and use a soft line between nested
+ * assignments. When BreakBeforeBinaryOperators requests it, the operator is moved
+ * to the next line and emitted before its right operand. All other binary
+ * operators use the break-after-operator policy implemented iteratively by
+ * expr_doc_binary_chain().
+ */
 static struct doc *
 expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1258,6 +1340,14 @@ expr_doc_field(struct expr *ex, struct expr_state *es, struct doc *dc)
 	return dc;
 }
 
+/*
+ * Lay out a function call. Nested calls are separated by a soft line unless the
+ * callee is a concatenation. The closing parenthesis is normally folded onto the
+ * last argument; when that is not possible (for example because the preceding
+ * token has a C99 comment) it is dedented onto its own line. AlignAfterOpenBracket
+ * chooses between aligning with the opening parenthesis and a plain continuation
+ * indent.
+ */
 static struct doc *
 expr_doc_call(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1331,6 +1421,13 @@ comma_has_spaces(const struct token *comma)
 	    comment->tk_str[0] == ' ';
 }
 
+/*
+ * Lay out a comma-separated argument. All commas folded by expr_exec_binary()
+ * are emitted before the argument. In aligning mode the argument is registered
+ * with the ruler so subsequent arguments line up; otherwise a soft break is
+ * offered unless the source already separated the comma with a comment or two
+ * new lines.
+ */
 static struct doc *
 expr_doc_arg(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1385,6 +1482,12 @@ expr_doc_sizeof(struct expr *ex, struct expr_state *es, struct doc *dc)
 	return dc;
 }
 
+/*
+ * Lay out juxtaposed operands. Each boundary gets a space unless dropping it
+ * would merge the adjacent tokens into a different preprocessing token, and
+ * unless the source already has a blank line there. The first operand becomes
+ * the parent of the rest so later operands are nested under the same group.
+ */
 static struct doc *
 expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1506,6 +1609,11 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 	}
 }
 
+/*
+ * Attach a document produced by the parser recovery callback. Ownership of the
+ * recover document moves to the enclosing concat, so the expression no longer
+ * releases it. A recovered left brace is aligned relative to the current line.
+ */
 static struct doc *
 expr_doc_recover(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
@@ -1602,6 +1710,10 @@ expr_doc_has_spaces(const struct expr *ex)
 	return token_has_spaces(pv) || token_has_suffix(pv, TOKEN_COMMENT);
 }
 
+/*
+ * Return the flat width of an expression document for ruler alignment. A
+ * throwaway buffer in the dedicated buffer arena receives the munged output.
+ */
 static unsigned int
 expr_doc_width(struct expr_state *es, const struct doc *dc)
 {
@@ -1620,7 +1732,10 @@ expr_doc_width(struct expr_state *es, const struct doc *dc)
 
 /*
  * Insert a soft line before the given expression, unless a more suitable one is
- * nested under the same expression.
+ * nested under the same expression. Candidates are weighted; a nested candidate
+ * with at least the current weight replaces it, favoring the deepest break and
+ * therefore better column utilization. EXPR_EXEC_NOSOFT suppresses the soft line
+ * entirely for callers that manage breaks themselves.
  */
 static struct doc *
 expr_doc_soft_impl(struct expr *ex, struct expr_state *es, struct doc *dc,
@@ -1648,6 +1763,12 @@ expr_doc_soft_impl(struct expr *ex, struct expr_state *es, struct doc *dc,
 	return concat;
 }
 
+/*
+ * Initialize parser state for one expression. The consistency checks encode the
+ * callers' contract: executing needs a simplifier and an output document, and
+ * aligning needs a ruler. The scratch scope owns every expression node built by
+ * this invocation.
+ */
 static void
 expr_state_init(struct expr_state *es, const struct expr_exec_arg *ea,
     enum expr_mode mode, struct arena_scope *scratch_scope)

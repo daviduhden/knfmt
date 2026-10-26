@@ -9,6 +9,18 @@
 #include "simple-decl-forward.h"
 #include "token.h"
 
+/*
+ * Sort consecutive struct forward declarations for -s, e.g.
+ *
+ *	struct b;
+ *	struct a;
+ *
+ * becomes alphabetical. Only root-level declarations of the exact shapes handled
+ * by is_forward_decl() participate. Prefixes and suffixes of the first and last
+ * declarations are preserved while the declarations themselves are moved, so
+ * comments stay with the block rather than the declaration they happened to
+ * precede.
+ */
 struct simple_decl_forward {
 	VECTOR(struct decl_forward) decls;
 	const struct options *op;
@@ -69,6 +81,14 @@ last_token(struct simple_decl_forward *sd)
 	return df != nullptr ? df->semi : &fallback;
 }
 
+/*
+ * Sort and rewrite the collected forward declarations. A block of fewer than two
+ * declarations is left alone. The original first and last declarations are
+ * recorded before sorting; afterwards their dangling text is moved to the new
+ * first and last declarations so comments and blank lines at the block
+ * boundaries survive. The declarations are then moved after the recorded
+ * insertion point in sorted order.
+ */
 void
 simple_decl_forward_leave(struct simple_decl_forward *sd)
 {
@@ -118,6 +138,11 @@ simple_decl_forward_free(struct simple_decl_forward *sd)
 	VECTOR_FREE(sd->decls);
 }
 
+/*
+ * Recognize the two forms of a struct forward declaration:
+ * `typedef struct tag name;` and `struct tag;`. The token sequence must match
+ * exactly from beg through end.
+ */
 static int
 is_forward_decl(const struct token *beg, const struct token *end)
 {
@@ -169,6 +194,12 @@ is_covered_by_diff(struct token *beg, struct token *end)
 	return 1;
 }
 
+/*
+ * Add one declaration to the block, or flush the block when the declaration is
+ * not a forward declaration. In -D mode a declaration is only added when every
+ * token in its range belongs to a diff chunk; otherwise it is left in place and
+ * the current block is flushed.
+ */
 void
 simple_decl_forward(
     struct simple_decl_forward *sd, struct token *beg, struct token *semi)

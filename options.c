@@ -7,12 +7,23 @@
 
 static int ctotrace(char c);
 
+/*
+ * Reset all options to their defaults: no mode is selected and every trace
+ * class is disabled. The bitfields are therefore false and the trace array is
+ * zeroed.
+ */
 void
 options_init(struct options *op)
 {
 	memset(op, 0, sizeof(*op));
 }
 
+/*
+ * Parse a string of trace flag characters, as accepted by -t. Each character
+ * enables one trace class and may be repeated to increase its verbosity. The
+ * special 'a' flag (TRACE_ALL, index zero) enables every class at maximum
+ * verbosity. An unknown character is diagnosed and makes the caller exit.
+ */
 int
 options_trace_parse(struct options *op, const char *flags)
 {
@@ -35,6 +46,10 @@ options_trace_parse(struct options *op, const char *flags)
 	return 0;
 }
 
+/*
+ * Map a trace flag character to a trace class index. Returns -1 for an unknown
+ * character; zero denotes TRACE_ALL and is handled specially by the caller.
+ */
 static int
 ctotrace(char c)
 {

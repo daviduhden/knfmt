@@ -39,6 +39,11 @@ static struct token *lbrace_cache_lookup(
     struct parser *, struct lbrace_cache *, struct token *);
 static void insert_trailing_comma(struct parser *, struct token *);
 
+/*
+ * Parse a brace initializer, enum body, or compound literal. Each invocation
+ * owns a ruler for its own rows and may nest; the outer ruler is passed through
+ * so columns stay aligned with the enclosing construct.
+ */
 int
 parser_braces(struct parser *pr, struct doc *parent, struct doc *dc,
     unsigned int indent, unsigned int flags)
@@ -67,7 +72,8 @@ is_first_token_on_line(const struct token *tk)
 
 /*
  * Returns non-zero if the first element inside the braces is aligned with the
- * first one on the subsequent line.
+ * first one on the subsequent line. Used to preserve hand-aligned initializer
+ * rows instead of reindenting them with the configured indent width.
  */
 static int
 is_row_aligned(const struct token *lbrace, const struct token *rbrace)
@@ -86,6 +92,16 @@ is_row_aligned(const struct token *lbrace, const struct token *rbrace)
 	return 0;
 }
 
+/*
+ * Emit a brace body. The indentation policy depends on the source layout: a
+ * newline after the opening brace uses the configured indent, rows that are
+ * aligned in the source keep their column (minus the enclosing brace depth),
+ * and an opening brace in the middle of a line uses a continuation indent. Each
+ * field is emitted in its own group. Designated fields, nested braces and
+ * expressions are distinguished, and commas drive ruler alignment; a blank line
+ * inside the body flushes the current alignment run so rows on either side are
+ * not aligned together.
+ */
 static int
 parser_braces_with_ruler(struct parser *pr, struct doc *parent, struct doc *dc,
     struct ruler *rl, unsigned int indent_width, unsigned int flags)
@@ -309,6 +325,12 @@ out:
 	return parser_good(pr);
 }
 
+/*
+ * Parse a run of adjacent designator fields, e.g. `.a.b = 1` or `[0].x`, then an
+ * optional '=' and initializer. A nested brace initializer is parsed directly
+ * rather than through expression recovery. The field's alignment column is
+ * recorded before the '=' so sibling designators line up.
+ */
 static int
 parser_braces_field(struct parser *pr, struct braces_field_arg *arg)
 {
@@ -443,6 +465,13 @@ parser_braces_field1(struct parser *pr, struct braces_field_arg *arg)
 	return parser_none(pr);
 }
 
+/*
+ * Choose the token that ends the current field expression. A cpp macro call
+ * that spans lines takes precedence and stops after its closing parenthesis;
+ * otherwise the next nested left brace bounds the scan and the field ends at the
+ * next comma or at the enclosing right brace. The left brace position is cached
+ * because finding it requires a token-stream scan.
+ */
 static struct token *
 peek_expr_stop(
     struct parser *pr, struct lbrace_cache *cache, struct token *rbrace)

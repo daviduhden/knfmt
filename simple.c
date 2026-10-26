@@ -4,6 +4,16 @@
 #include "options.h"
 #include "simple.h"
 
+/*
+ * State for the -s simplification passes.
+ *
+ * A pass is entered around a speculative parse and leaves behind the token
+ * rewrite it decided on. Passes are mutually exclusive by default so their token
+ * edits cannot overlap; a handful of intentionally composable combinations are
+ * listed in is_pass_mutually_exclusive(). The cookie restores the previous state
+ * when the pass is left, and a disabled or ignored pass simply returns zero so
+ * the caller proceeds without simplifying.
+ */
 enum simple_state {
 	SIMPLE_STATE_NOP = -1,
 	SIMPLE_STATE_DISABLE = 0,
@@ -21,6 +31,11 @@ struct simple {
 
 static int is_pass_mutually_exclusive(const struct simple *, enum simple_pass);
 
+/*
+ * Allocate pass state. Simplification is enabled only when -s was given; a pass
+ * may still force itself on for behavior such as include sorting that is also
+ * driven by the style.
+ */
 struct simple *
 simple_alloc(struct arena_scope *eternal_scope, const struct options *op)
 {
@@ -31,6 +46,12 @@ simple_alloc(struct arena_scope *eternal_scope, const struct options *op)
 	return si;
 }
 
+/*
+ * Try to enter a pass. Returns non-zero only when the pass may run. The cookie
+ * is filled first so every caller can use the cleanup macro, even on refusal.
+ * A disabled global -s, an explicit SIMPLE_IGNORE, a conflicting active pass, or
+ * a re-entry into the same pass all suppress execution.
+ */
 int
 simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
     struct simple_cookie *cookie)
@@ -69,6 +90,10 @@ simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
 	return 1;
 }
 
+/*
+ * Leave a pass and restore the state that was active before simple_enter(). The
+ * cookie is cleared so leaving twice is harmless.
+ */
 void
 simple_leave(struct simple_cookie *cookie)
 {
@@ -85,6 +110,10 @@ simple_leave(struct simple_cookie *cookie)
 	si->passes[pass].state = state;
 }
 
+/*
+ * Return whether a pass is currently active. Global -s or a per-pass force flag
+ * must be present, and the pass itself must have been successfully entered.
+ */
 int
 is_simple_enabled(const struct simple *si, enum simple_pass pass)
 {
@@ -92,6 +121,10 @@ is_simple_enabled(const struct simple *si, enum simple_pass pass)
 	    si->passes[pass].state == SIMPLE_STATE_ENABLE;
 }
 
+/*
+ * Temporarily disable all simplification, used while peeking. Returns the
+ * previous setting so simple_enable() can restore it.
+ */
 int
 simple_disable(struct simple *si)
 {
@@ -110,6 +143,11 @@ simple_enable(struct simple *si, int restore)
 /*
  * All passes are mutually exclusive by default. However, some combinations are
  * explicitly allowed as they do not interfere with each other.
+ */
+/*
+ * Return non-zero if entering pass would conflict with an already active pass.
+ * All pairs are exclusive unless explicitly whitelisted; the table documents the
+ * combinations whose edits are known not to interfere.
  */
 static int
 is_pass_mutually_exclusive(const struct simple *si, enum simple_pass pass)

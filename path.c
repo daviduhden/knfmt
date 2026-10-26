@@ -12,6 +12,11 @@
  * traverse upwards. Returns a file descriptor to the file if found, -1
  * otherwise. The optional nlevels argument reflects the number of directories
  * traversed upwards.
+ *
+ * The upward walk stops at the file system root, which is detected by the
+ * device and inode pair repeating: ".." of the root is the root itself. The
+ * descriptor is opened with O_CLOEXEC so it cannot leak into a helper process
+ * such as diff(1); on failure no descriptor is returned.
  */
 int
 searchpath(const char *filename, int *nlevels)

@@ -17,6 +17,15 @@
 #include "trace.h"
 #include "util.h"
 
+/*
+ * Format multiline preprocessor directives, currently macro definitions whose
+ * continuations can be aligned. The original physical spelling is analyzed to
+ * infer the existing alignment style unless the configuration overrides it, and
+ * the result is rebuilt as a document so the ruler can align every continuation
+ * exactly. Macros whose continuations fall inside literals or split a
+ * preprocessing token are left untouched because padding would change the
+ * program.
+ */
 #define cpp_trace(op, fmt, ...) trace(TRACE_CPP, (op), (fmt), __VA_ARGS__)
 
 enum indent_type {
@@ -33,6 +42,13 @@ struct alignment {
 	unsigned int	   tabs:1, skip_first_line:1;
 };
 
+/*
+ * Trim trailing whitespace from the last line of a directive while preserving at
+ * most two trailing new lines. A line consisting only of whitespace becomes at
+ * most one separator new line, so the number of blank lines after a directive is
+ * stable across passes. Bytes are copied explicitly because the text may contain
+ * NUL; the returned length is written to lenp.
+ */
 static const char *
 trim_line(const char *str, size_t len, struct arena_scope *s, size_t *lenp)
 {
@@ -189,6 +205,10 @@ splice_inside_literal(const char *str, size_t len)
 	return 0;
 }
 
+/*
+ * Classify the first byte of a continuation line as tab, space, or no
+ * indentation. Only the first byte matters for choosing an alignment style.
+ */
 static enum indent_type
 classify_indent(const char *str)
 {
@@ -201,6 +221,9 @@ classify_indent(const char *str)
 
 /*
  * Returns a pointer to the end of current line assuming it's a line
+ * continuation. Trailing spaces before the backslash are included in the
+ * returned end pointer, which is used as the alignment point. nx is set to the
+ * first byte after the newline. Returns nullptr when the line does not end in a
  * continuation.
  */
 static const char *
@@ -280,6 +303,14 @@ all_tabs(const struct alignment *a, unsigned int len)
 	return 1;
 }
 
+/*
+ * Infer the continuation alignment used by the source. Up to three lines are
+ * inspected; all-unindented continuations mean DontAlign. If the lines after the
+ * first share one indentation type and width, Right alignment is chosen with the
+ * smallest observed width, preserving the existing column. Otherwise the source
+ * is considered unaligned and the configured default is kept. A line exceeding
+ * the column limit aborts sensing.
+ */
 static int
 sense_alignment(const char *str, size_t len, const struct style *st,
     struct alignment *alignment)
@@ -344,6 +375,14 @@ max_width(const struct style *st)
 
 /*
  * Align line continuations.
+ */
+/*
+ * Format a multiline directive. Returns nullptr when no realignment is needed or
+ * possible, in which case the token keeps its source spelling. Otherwise the
+ * function builds a document with one literal per logical line, registers each
+ * line's width with the ruler, and renders the aligned result into the lexer's
+ * arena. A single-line directive is only rewritten when trailing whitespace was
+ * trimmed; lenp receives the returned length.
  */
 const char *
 cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,

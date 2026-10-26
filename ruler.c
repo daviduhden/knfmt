@@ -11,6 +11,17 @@
 #include "token.h"
 #include "util.h"
 
+/*
+ * Two-phase alignment for declarations, prototypes and macro continuations.
+ *
+ * While parsing, ruler_insert() records a datum for each line and column that
+ * should line up: the document to align, the token it follows, its width and the
+ * number of pointer stars or other separator spaces. Once every line has been
+ * emitted, ruler_exec() computes the target width per column and fills the
+ * corresponding DOC_ALIGN documents. Columns are indexed from one; the vector is
+ * extended on demand. A ruler is single-use: ruler_exec() resets it on completion
+ * so the same object can align the next block.
+ */
 struct ruler_column {
 	VECTOR(struct ruler_datum) rc_datums;
 	size_t rc_len;
@@ -54,6 +65,11 @@ ruler_cleanup(void *arg)
 	ruler_reset(rl);
 }
 
+/*
+ * Initialize a ruler. align is the fixed or maximum target width depending on
+ * the flags, and s supplies the arena and registers the reset cleanup. The
+ * column vector is allocated lazily by ruler_insert().
+ */
 void
 ruler_init(struct ruler *rl, unsigned int align, unsigned int flags,
     struct arena_scope *s)
@@ -71,7 +87,10 @@ ruler_init(struct ruler *rl, unsigned int align, unsigned int flags,
  * token with any preceding or subsequent line(s).
  *
  * The caller is expected to call ruler_exec() once all datums have been emitted
- * in order to insert the alignment in the document.
+ * in order to insert the alignment in the document. Columns are 1-based and may
+ * be created out of order; intermediate empty columns are allocated so later
+ * indices stay valid. The ruler takes a reference to the token and an alignment
+ * document is created under dc.
  */
 void
 ruler_insert_impl(struct ruler *rl, struct token *tk, struct doc *dc,
@@ -145,6 +164,11 @@ err:
 	return doc_alloc_impl(DOC_CONCAT, dc, 0, fun, lno);
 }
 
+/*
+ * Remove the most recently created indent request. Used when a declaration
+ * turned out to have no initializer, so the alignment indent should not affect
+ * the following block.
+ */
 void
 ruler_indent_remove(struct ruler *rl, const struct ruler_indent *ri)
 {
@@ -153,6 +177,13 @@ ruler_indent_remove(struct ruler *rl, const struct ruler_indent *ri)
 	VECTOR_POP(rl->rl_indent);
 }
 
+/*
+ * Compute alignment for every column. ruler_column_length() decides the target
+ * width; each datum whose own width exceeds it is left unaligned under the MAX
+ * policy or clamped to zero. Otherwise the datum receives the difference as
+ * indentation plus the column's surplus separator spaces. Pending indent
+ * requests are resolved afterwards and the ruler is reset for reuse.
+ */
 void
 ruler_exec(struct ruler *rl)
 {
@@ -199,6 +230,13 @@ ruler_get_column_count(const struct ruler *rl)
 	return VECTOR_LENGTH(rl->rl_columns);
 }
 
+/*
+ * Resolve ruler_indent() requests against the first column. The indent equals
+ * the column width plus the datum's separator surplus, or one past the datum's
+ * own width when the column could not be aligned. Tab-aligned columns round the
+ * width up to an eight-column boundary. Indent requests are either added to or
+ * subtracted from the current indentation as requested by their sign.
+ */
 static void
 ruler_exec_indent(struct ruler *rl)
 {
@@ -231,6 +269,10 @@ ruler_exec_indent(struct ruler *rl)
 	}
 }
 
+/*
+ * Release every datum's token reference and clear the indent requests. The
+ * vectors themselves stay allocated for reuse until the arena scope ends.
+ */
 static void
 ruler_reset(struct ruler *rl)
 {
@@ -250,6 +292,10 @@ ruler_reset(struct ruler *rl)
  * Redundant spaces can be present after removing a pointer type from
  * declarations. Such spaces are considered harmless, otherwise needless
  * formatting churn would be introduced.
+ *
+ * Only datums that actually use tabs are inspected; a datum with no space
+ * suffix contributes nothing. The maximum trailing-space count wins, so the
+ * source layout is preserved rather than normalized on every pass.
  */
 static unsigned int
 sense_column_spaces(const struct ruler_column *rc)
@@ -279,6 +325,14 @@ sense_column_spaces(const struct ruler_column *rc)
 	return nspaces;
 }
 
+/*
+ * Return the source alignment width of one datum, or zero if it cannot be
+ * sensed. Datums ending in a comment, followed by a token on another line, or
+ * consisting of a type specifier followed by '=' (malformed declarations) are
+ * excluded. The alignment width is the next token's column adjusted for a
+ * difference in separator spaces, and must be strictly greater than the datum
+ * itself.
+ */
 static unsigned int
 sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 {
@@ -337,6 +391,14 @@ sense_column_longest_datum(const struct ruler_column *rc)
 	return rd;
 }
 
+/*
+ * Derive a column width from the existing source alignment. Every datum must
+ * sense to the same width, otherwise the column is considered unaligned and
+ * zero is returned. The longest datum determines the base width, and the
+ * remaining alignment width is added to it so the result reproduces the source
+ * layout. On success the sensed separator-space count is committed to the
+ * column.
+ */
 static unsigned int
 sense_column_length(struct ruler_column *rc)
 {
@@ -386,6 +448,13 @@ sense_column_length(struct ruler_column *rc)
 	return len;
 }
 
+/*
+ * Select the target width for a column according to the ruler flags. MIN uses
+ * the longest datum plus one; MAX and FIXED use the configured alignment; SENSE
+ * derives it from the source, falling back to tab alignment when the column
+ * cannot be sensed but uses tabs; TABS rounds the longest datum to a tab stop.
+ * Returns non-zero when the column must be left unaligned.
+ */
 static int
 ruler_column_length(
     const struct ruler *rl, struct ruler_column *rc, struct ruler_length *len)
@@ -431,6 +500,12 @@ count_trailing_spaces(const char *str, size_t len)
 	return nspaces;
 }
 
+/*
+ * Decide whether tab alignment can avoid an extra column. It is possible when at
+ * least two datums exist, the column has separator spaces, and the longest datum
+ * already ends on an eight-column boundary; in that case the longest datum can
+ * be placed at the tab stop without shifting the others.
+ */
 static int
 minimize(const struct ruler_column *rc)
 {

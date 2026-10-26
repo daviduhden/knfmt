@@ -19,6 +19,10 @@ trace_type_str(enum trace_type type)
 	return '-';
 }
 
+/*
+ * Emit one trace line prefixed with the trace class and, when known, the
+ * calling function. Tracing is diagnostic only and writes to standard error.
+ */
 void
 trace_impl(enum trace_type type, const char *fun, const char *fmt, ...)
 {

@@ -38,6 +38,11 @@ static regex_t rechunk, repath;
  */
 static int git_ndirs;
 
+/*
+ * Compile the regular expressions used to scan a unified diff and determine how
+ * many directories above the working directory contain a Git repository. The
+ * latter lets -D resolve the repository-relative paths emitted by git diff.
+ */
 void
 diff_init(void)
 {
@@ -76,6 +81,14 @@ diff_shutdown(void)
 	regfree(&repath);
 }
 
+/*
+ * Build the file list from a unified diff on standard input. A "+++" header
+ * introduces a file; each "@@" header describes the range of lines in the new
+ * file that the hunk touches. Added lines ("+") start or extend a chunk, context
+ * lines close it, and removed lines do not advance the new-file line number.
+ * Only the new-file line numbers are used, and the diff is trusted to be
+ * consistent with the source.
+ */
 int
 diff_parse(struct files *files, struct arena_scope *eternal_scope,
     struct arena *scratch, const struct options *op)
@@ -140,6 +153,11 @@ out:
 	return error;
 }
 
+/*
+ * Return the chunk containing the given 1-based line number, or nullptr if the
+ * line is not part of any changed region. Chunks are searched linearly; the
+ * vector is small and only consulted while rendering in -D mode.
+ */
 const struct diffchunk *
 diff_get_chunk(const struct diffchunk *chunks, unsigned int lno)
 {
@@ -154,6 +172,11 @@ diff_get_chunk(const struct diffchunk *chunks, unsigned int lno)
 	return nullptr;
 }
 
+/*
+ * Finish the most recently created chunk by recording its last line. Chunks
+ * are created with du_end == 0 and closed here; an already closed chunk is left
+ * untouched.
+ */
 static void
 diff_end(struct diffchunk *chunks, unsigned int lno)
 {
@@ -164,6 +187,12 @@ diff_end(struct diffchunk *chunks, unsigned int lno)
 		du->du_end = lno;
 }
 
+/*
+ * Extract the new-file path from a "+++" header. Git's "b/" prefix is trimmed,
+ * and if the resulting path does not exist the leading components are dropped
+ * one at a time to compensate for running knfmt below the repository root.
+ * The returned string is allocated in the caller's scratch scope.
+ */
 static int
 matchpath(const char *str, const char **out, struct arena_scope *s)
 {
@@ -209,6 +238,11 @@ strtou(const char *str)
 	return (unsigned int)n;
 }
 
+/*
+ * Decode an "@@" hunk header into the first and last new-file line it covers.
+ * A missing line count denotes a single line. Returns zero for malformed or
+ * overflowing ranges.
+ */
 static int
 matchchunk(const char *str, unsigned int *sl, unsigned int *el)
 {
@@ -237,6 +271,12 @@ matchchunk(const char *str, unsigned int *sl, unsigned int *el)
 	return 1;
 }
 
+/*
+ * Account for one line inside a hunk. Added lines start a chunk when the
+ * current one is closed; context lines close it, and removed lines neither
+ * start nor close a chunk. Returns non-zero if the line advances the new-file
+ * line number; removed lines do not.
+ */
 static int
 matchline(const char *str, unsigned int lno, struct file *fe)
 {
@@ -259,6 +299,11 @@ matchline(const char *str, unsigned int lno, struct file *fe)
 	return 1;
 }
 
+/*
+ * Drop the first path component from the length-delimited string. Returns the
+ * original pointer when there is no separator, otherwise the remainder after
+ * the first slash and the adjusted length.
+ */
 static const char *
 trimprefix(const char *str, size_t *len)
 {

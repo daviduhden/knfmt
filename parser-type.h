@@ -2,8 +2,11 @@ struct doc;
 struct parser;
 struct ruler;
 
+/* Scanning a type name in a cast, e.g. (T)expr. */
 #define PARSER_TYPE_CAST 0x00000001U
+/* Scanning a function parameter type, where the name is optional. */
 #define PARSER_TYPE_ARG 0x00000002U
+/* Scanning a type name in expression position, e.g. sizeof(T). */
 #define PARSER_TYPE_EXPR 0x00000004U
 
 struct parser_type {

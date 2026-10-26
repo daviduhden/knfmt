@@ -13,6 +13,17 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Include sorting and regrouping.
+ *
+ * The lexer reports every include directive as it is read. A run of adjacent
+ * includes is collected and, when the run ends, reordered by rewriting the
+ * prefix token list rather than the source text. Sorting is enabled by -s or by
+ * SortIncludes, and IncludeBlocks controls whether only ordering, grouping, or
+ * merging with a trailing blank line is performed. Grouping is derived from
+ * IncludeCategories; in -D mode a run that is not fully covered by a diff chunk
+ * is left alone.
+ */
 struct cpp_include {
 	VECTOR(struct include) includes;
 	MAP(int, , struct include_group) groups;
@@ -48,6 +59,12 @@ static const char *findpath(const char *, size_t, struct arena_scope *);
 
 static void token_trim_verbatim_line(struct token *);
 
+/*
+ * Allocate include state and create one empty group per configured priority.
+ * The priorities are sorted and de-duplicated because several categories may
+ * share a group. The sort-includes pass is entered for the whole file and left
+ * by cpp_include_done().
+ */
 struct cpp_include *
 cpp_include_alloc(const struct style *st, struct simple *si,
     struct token_list *prefixes, struct arena *scratch,
@@ -118,6 +135,11 @@ cpp_include_done(struct cpp_include *ci)
 	simple_leave(&ci->cookie);
 }
 
+/*
+ * Finish the current run of includes. Called by the lexer when a non-include
+ * prefix is encountered; it rewrites the run only when sorting is enabled and
+ * then resets the collection state.
+ */
 void
 cpp_include_leave(struct cpp_include *ci, struct lexer *lx)
 {
@@ -128,6 +150,12 @@ cpp_include_leave(struct cpp_include *ci, struct lexer *lx)
 	cpp_include_reset(ci);
 }
 
+/*
+ * Record an include directive. A run continues only while directives are
+ * adjacent; a blank line after an include ends the run unless regrouping is
+ * enabled, in which case the run continues across existing groups. The first
+ * include remembers its predecessor, which becomes the insertion point.
+ */
 void
 cpp_include_add(struct cpp_include *ci, struct lexer *lx, struct token *tk)
 {
@@ -239,6 +267,17 @@ has_trailing_comment(const struct token *tk)
 	    (nx->tk_lno - tk->tk_lno) == 1;
 }
 
+/*
+ * Sort and regroup the collected includes. When regrouping, each include is
+ * classified by IncludeCategories and appended to its priority group. Without
+ * regrouping, a run mixing angle-bracket, quoted, and slash-containing includes
+ * is left alone, and only the main include may receive a leading sort priority.
+ * Groups are emitted in priority order, sorted within the group by sort priority
+ * and token text, while the prefix list is rebuilt in place. Blank separator
+ * lines are inserted according to IncludeBlocks, except in merge mode where
+ * groups are not separated. An unclassifiable run aborts the rewrite so the
+ * source is preserved.
+ */
 static void
 cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 {
@@ -366,6 +405,10 @@ add_line(struct cpp_include *ci, struct lexer *lx, struct token *after)
 	return tk;
 }
 
+/*
+ * Extract the bracketed or quoted include path from directive text, including
+ * its delimiters. Returns nullptr when the text is not a well-formed include.
+ */
 static const char *
 findpath(const char *str, size_t len, struct arena_scope *s)
 {
@@ -385,6 +428,11 @@ findpath(const char *str, size_t len, struct arena_scope *s)
 	return arena_strndup(s, so, (size_t)(eo - so) + 1);
 }
 
+/*
+ * Drop one trailing new line from an include token that has two, so reordering
+ * does not accumulate blank lines. The length is reduced by one byte, which is
+ * safe because the newline is the last byte.
+ */
 static void
 token_trim_verbatim_line(struct token *tk)
 {

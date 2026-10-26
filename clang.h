@@ -1,5 +1,11 @@
 #include "lexer-callbacks.h"
 
+/*
+ * C vocabulary and preprocessor branch state, not LLVM Clang. clang_alloc()
+ * supplies the lexer callbacks for keywords, literals, comments and directives;
+ * clang_stamp(), clang_branch() and clang_recover() implement the one-branch-at-a-
+ * time conditional model described in doc.c and docs/ARCHITECTURE.md.
+ */
 struct arena_scope;
 struct arenas;
 struct diffchunk;

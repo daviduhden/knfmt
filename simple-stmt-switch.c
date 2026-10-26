@@ -4,6 +4,10 @@
 #include "simple-stmt-switch.h"
 #include "token.h"
 
+/*
+ * Add an explicit break to a bare `default: ;` for -s. The break is inserted
+ * after the colon and moved to the next line so it is not joined to the label.
+ */
 static void
 token_move_to_next_line(struct token *tk)
 {

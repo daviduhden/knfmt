@@ -25,6 +25,21 @@
 #include "trace-types.h"
 #include "trace.h"
 
+/*
+ * C vocabulary and preprocessor state. This is not LLVM Clang: it supplies the
+ * lexer callbacks that recognize C keywords, literals, comments and directives,
+ * and it tracks conditional directive groups across the token stream.
+ *
+ * A conditional group is linked as a chain of directive tokens (#if, #elif,
+ * #else, #endif), each carrying the ordinary token that follows it as its
+ * parent. Only one branch can be present in the token list at a time. When the
+ * parser reaches a branch boundary, clang_branch() removes the tokens of the
+ * branch just parsed and rewinds the cursor to a previously stamped position so
+ * the same construct is parsed again with the next branch. The tokens of a
+ * crossed branch are removed as part of the crossing, so recovery can only
+ * reparse content that is still present; clang_recover() reports when that is
+ * impossible.
+ */
 #define clang_trace(cl, fmt, ...)                                              \
 	trace(TRACE_CLANG, (cl)->op, (fmt), __VA_ARGS__)
 
@@ -128,6 +143,11 @@ static MAP(const char, *, int) cpp_token_types;
 static MAP(const char, *, enum clang_token_type) clang_identifiers;
 static const struct token *token_types[TOKEN_NONE + 1];
 
+/*
+ * Build the process-wide keyword and identifier lookup tables. Token aliases
+ * inherit the flags of their canonical token, and token_types maps an ordinary
+ * token type back to the shared immutable token definition used as a template.
+ */
 void
 clang_init(void)
 {
@@ -209,6 +229,12 @@ clang_shutdown(void)
 	MAP_FREE(clang_identifiers);
 }
 
+/*
+ * Allocate the per-file clang state. It shares the process-wide style,
+ * simplifier, arenas and options, and owns the branch/stamp vectors plus the
+ * include-sorting and include-guard helpers that are driven from the lexer
+ * callbacks. The object lives in the file's eternal scope.
+ */
 struct clang *
 clang_alloc(const struct style *st, struct simple *si, struct arenas *arena,
     const struct diffchunk *diff, const struct options *op,
@@ -263,7 +289,10 @@ clang_lexer_callbacks(struct clang *cl)
 
 /*
  * Take note of the last consumed token, later used while branching and
- * recovering.
+ * recovering. The number of top-level documents that exist at this point is
+ * recorded with the token so a recovery can remove exactly the documents built
+ * after the stamp. A stamp holds a reference to its token, making a removed
+ * token detectable through token_is_dangling().
  */
 void
 clang_stamp(struct clang *cl, struct lexer *lx, unsigned int ndocs)
@@ -288,7 +317,15 @@ clang_stamp(struct clang *cl, struct lexer *lx, unsigned int ndocs)
 }
 
 /*
- * Returns non-zero if the lexer took the next branch.
+ * Cross to the next branch of the conditional group that ends at the last
+ * consumed token. Returns non-zero if the lexer took the next branch.
+ *
+ * Crossing removes every ordinary token between the two branch directives,
+ * starting at the next token of the current branch. The destination token is
+ * stored in *unmute so the parser emits a DOC_MUTE(-1) at the point where the
+ * repeated prefix ends. The cursor then rewinds to the most recent surviving
+ * stamp; when none survives, it rewinds to the first token and records that the
+ * crossed content is now unrecoverable (cl->lossy).
  */
 int
 clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
@@ -370,6 +407,13 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
  * cur_docs is the current number of top-level documents. Each stamp records
  * the number of documents that existed when it was taken, so rolling back to
  * a stamp is exact and does not depend on the number of branch iterations.
+ *
+ * The branch nearest to the failure is folded into a single prefix token. If
+ * the stamp to rewind to precedes the most recent crossing, the crossed
+ * branch's tokens are already gone and *verbatim is set: the caller must emit
+ * the whole source instead of reparsing. When no stamp precedes the branch and
+ * an earlier crossing already lost content, *deferred is set so a successful
+ * parse can be replaced by verbatim output; a failed parse still fails.
  */
 int
 clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
@@ -503,6 +547,13 @@ clang_token_branch_parent(struct token *tk)
 	return token_priv(tk, struct clang_token)->branch.parent;
 }
 
+/*
+ * Detach a conditional directive from its branch chain while keeping the
+ * remaining chain consistent. The token type is demoted to plain TOKEN_CPP and
+ * its branch links are exhausted. Removing an #if promotes a following #else to
+ * #if or exhausts a following #endif; removing an #else relinks its predecessor
+ * and successor; removing an #endif relinks or exhausts its predecessor.
+ */
 void
 clang_token_branch_unlink(struct token *tk)
 {
@@ -608,6 +659,14 @@ clang_find_identifier(const char *str, size_t len)
 	return *type;
 }
 
+/*
+ * Lexer callback: produce the next ordinary token. All preceding comments and
+ * directives are first collected as dangling prefixes, then the token itself is
+ * recognized (keyword, literal prefix, identifier, number, string, or a lone
+ * punctuation byte). Trailing comments and at most one line break become
+ * suffixes. Finally, #if/#else/#endif prefixes are linked into the branch
+ * chain so that the parser can later cross between alternatives.
+ */
 static struct token *
 clang_read(struct lexer *lx, void *arg)
 {
@@ -928,7 +987,11 @@ clang_recover_find_branch(
 }
 
 /*
- * Fold tokens covered by the branch into a prefix.
+ * Fold tokens covered by the branch into a prefix. The directive text and all
+ * tokens up to the next branch become a synthetic TOKEN_CPP prefix, which keeps
+ * the conditional content visible to the formatter while allowing the parser to
+ * continue after the branch. Prefixes not covered by the fold are moved to the
+ * destination, and the destination is reported for unmuting.
  */
 static void
 clang_branch_fold(struct clang *cl, struct lexer *lx, struct token *cpp_src,
@@ -1042,6 +1105,10 @@ remove_token(struct lexer *lx, struct token *tk)
 	lexer_remove(lx, tk);
 }
 
+/*
+ * Start a conditional group. The directive becomes the current innermost
+ * branch and the ordinary token following it is recorded as its parent.
+ */
 static void
 clang_branch_enter(
     struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
@@ -1056,6 +1123,11 @@ clang_branch_enter(
 	*br = cpp;
 }
 
+/*
+ * Link a new branch directive to the most recent one. A missing predecessor
+ * means the directive is unmatched; it is silently demoted to a plain directive
+ * so a malformed conditional does not abort the parse.
+ */
 static void
 clang_branch_link(
     struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
@@ -1079,6 +1151,11 @@ clang_branch_link(
 	*last = cpp;
 }
 
+/*
+ * Close a conditional group. The directive is linked as usual, then the whole
+ * chain is walked to refresh the TOKEN_FLAG_BRANCH marker on each parent token
+ * before the innermost group is popped.
+ */
 static void
 clang_branch_leave(
     struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
@@ -1228,6 +1305,14 @@ sense_clang_format_comment(const struct token *tk)
 	return 0;
 }
 
+/*
+ * Recognize a block or C99 comment. In block mode (used for prefixes) leading
+ * empty lines and indentation are consumed as part of the comment; otherwise
+ * only spaces before an interleaved suffix comment are consumed. Consecutive
+ * C99 comments at the same indentation are merged into one token. The text is
+ * optionally trimmed according to the style, and a comment can mark a
+ * clang-format off/on region.
+ */
 static struct token *
 clang_read_comment(struct clang *cl, struct lexer *lx, int block)
 {
@@ -1307,6 +1392,14 @@ again:
 	return tk;
 }
 
+/*
+ * Recognize a preprocessor directive. The leading '#' may also be spelled as
+ * the %: digraph or the ??= trigraph. The directive extends to the end of the
+ * physical line, skipping newlines escaped by a backslash and ignoring those
+ * inside block comments. The token keeps its physical spelling (including
+ * continuations); #define directives are additionally realigned by
+ * cpp_format(). Up to two trailing empty lines remain part of the directive.
+ */
 static struct token *
 clang_read_cpp(struct clang *cl, struct lexer *lx)
 {
@@ -1422,6 +1515,12 @@ clang_find_cpp(const char *str, size_t len)
 	return *token_type;
 }
 
+/*
+ * Try to recognize the longest keyword or punctuator at the cursor. Ambiguous
+ * tokens such as '.' are disambiguated against the following byte (a digit
+ * starts a number) and ".." is only accepted when it forms an ellipsis.
+ * Returns nullptr without consuming input when no keyword matches.
+ */
 static struct token *
 clang_keyword(const struct clang *cl, struct lexer *lx)
 {
@@ -1738,6 +1837,13 @@ token_branch_exhaust(struct token *tk)
 	ct->branch.parent = nullptr;
 }
 
+/*
+ * Return the directive that starts the branch ending at tk. The function looks
+ * for an #else prefix on tk and returns that else's predecessor, i.e. the #if or
+ * #elif whose tokens are covered by tk. A branch hanging off the same token as
+ * its predecessor is skipped. Unlinked directives are skipped because this is
+ * also called while the lexer is still building the chain.
+ */
 struct token *
 token_branch_find(struct token *tk)
 {
@@ -1791,6 +1897,10 @@ token_branch_parent_update_flags(struct token *parent)
 		parent->tk_flags &= ~TOKEN_FLAG_BRANCH;
 }
 
+/*
+ * Undo the branch links of a directive and demote it to a plain directive. Used
+ * for unmatched branches when tokenization completes.
+ */
 static void
 token_branch_revert(struct token *tk)
 {

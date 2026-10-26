@@ -25,6 +25,27 @@
 #include "token.h"
 #include "util.h"
 
+/*
+ * Document tree construction, inspection and rendering.
+ *
+ * A document describes layout, not syntax. CONCAT is an n-ary list; GROUP is a
+ * region that should fit on one line if possible; LINE and SOFTLINE choose
+ * between a break and a space (or nothing); INDENT/ALIGN/MINIMIZE influence
+ * indentation; LITERAL and VERBATIM carry text. Rendering is a two-mode process:
+ * BREAK allows line breaks, MUNGE forbids them while a group is being tested for
+ * fit. Fitting is decided by walking a copy of the renderer state; the actual
+ * output is produced only in BREAK mode.
+ *
+ * Before rendering, doc_summarize() computes a context-independent flat width
+ * and purity flag for every node. Pure subtrees can be accepted or rejected as
+ * a whole during fitting, which keeps fitting near-linear in flat documents.
+ * Both summarization and rendering use explicit stacks so document length does
+ * not consume process stack; only genuinely nested nodes recurse.
+ *
+ * The diff renderer (-D) is embedded in the same walk: unchanged groups are
+ * muted while changed groups are emitted normally, and text outside changed
+ * regions is copied from the source verbatim.
+ */
 #define IS_DOC_INDENT_PARENS(indent)                                           \
 	((indent) > 0 && ((indent) & DOC_INDENT_PARENS))
 #define IS_DOC_INDENT_FORCE(indent)                                            \
@@ -414,6 +435,10 @@ static const char *statestr(
 
 static unsigned int count_verbatim_lines(const char *, size_t, unsigned int);
 
+/*
+ * Add two widths, saturating instead of wrapping at DOC_WIDTH_INF. Saturation is
+ * what makes a too-wide subtree a stable, context-independent property.
+ */
 static unsigned int
 doc_width_add(unsigned int a, unsigned int b)
 {
@@ -570,6 +595,11 @@ doc_summarize(struct doc *root, struct arena *scratch)
 		doc_sum_one(order[i - 1]);
 }
 
+/*
+ * Render the document into the caller's buffer. The tree is summarized first,
+ * then rendered in BREAK mode. DOC_EXEC_TRIM removes redundant trailing blank
+ * lines, and doc_diff_exit() flushes any diff bookkeeping left by -D.
+ */
 void
 doc_exec(struct doc_exec_arg *arg)
 {
@@ -585,6 +615,11 @@ doc_exec(struct doc_exec_arg *arg)
 	doc_trace(dc, &st, "%s: nfits %u", __func__, st.st_stats.nfits);
 }
 
+/*
+ * Return the flat width of the document by rendering it in MUNGE mode, where
+ * lines become spaces and no line breaks are emitted. The caller's buffer
+ * receives the text, so pass a throwaway buffer when only the width is wanted.
+ */
 unsigned int
 doc_width(struct doc_exec_arg *arg)
 {
@@ -603,6 +638,11 @@ doc_remove(struct doc *dc, struct doc *parent)
 	LIST_REMOVE(&parent->dc_list, dc);
 }
 
+/*
+ * Unlink the last child of parent. Documents are arena allocated, so removal
+ * only detaches the node; any cleanup callback registered for it remains valid
+ * until the scope ends. Returns zero when the parent has no children.
+ */
 int
 doc_remove_tail(struct doc *parent)
 {
@@ -616,12 +656,20 @@ doc_remove_tail(struct doc *parent)
 	return 1;
 }
 
+/*
+ * Store a positive indentation amount on an INDENT node. The value is interpreted
+ * when the node is executed and may contain one of the DOC_INDENT_* sentinels.
+ */
 void
 doc_set_indent(struct doc *dc, unsigned int indent)
 {
 	dc->dc_int = (int)indent;
 }
 
+/*
+ * Store a negative indentation amount. The renderer subtracts it from the
+ * current indentation and clamps at zero.
+ */
 void
 doc_set_dedent(struct doc *dc, unsigned int indent)
 {
@@ -634,6 +682,10 @@ doc_set_align(struct doc *dc, const struct doc_align *align)
 	dc->dc_align = *align;
 }
 
+/*
+ * Attach a child to its parent. A CONCAT parent appends to its list; any other
+ * parent accepts exactly one child and must not already have one.
+ */
 void
 doc_append(struct doc *dc, struct doc *parent)
 {
@@ -836,6 +888,17 @@ struct doc_exec_frame {
 	int	     has_mode;
 };
 
+/*
+ * Iterative renderer. The explicit frame stack keeps process-stack use
+ * independent of document length: CONCAT children are visited through a
+ * DOC_EXEC_CONCAT frame, and a GROUP pushes a DOC_EXEC_GROUP frame so its mode
+ * and diff state are restored after its child. Only nested nodes (indentation,
+ * optional regions, scopes, minimizers) recurse, bounded by nesting depth.
+ *
+ * A GROUP in BREAK mode is refitted: doc_fits() decides whether its child can
+ * be munged onto the current line, unless a preceding refit already invalidated
+ * the decision. Hard lines force the next group to refit.
+ */
 static void
 doc_exec1(const struct doc *root, struct doc_state *st)
 {
@@ -1053,6 +1116,19 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 	free(stack);
 }
 
+/*
+ * Apply one INDENT node and render its child. A sentinel changes a different
+ * piece of state instead of a plain amount:
+ *
+ * - DOC_INDENT_PARENS enters a parenthesis-alignment level, so following lines
+ *   line up one column past the opening parenthesis.
+ * - DOC_INDENT_FORCE emits the current indentation immediately.
+ * - DOC_INDENT_NEWLINE only indents if a hard line was already emitted in this
+ *   scope.
+ * - DOC_INDENT_WIDTH captures the current column as the indentation.
+ *
+ * The previous indentation (and parenthesis level) is restored afterwards.
+ */
 static void
 doc_exec_indent(const struct doc *dc, struct doc_state *st, int indent)
 {
@@ -1090,6 +1166,12 @@ doc_exec_indent(const struct doc *dc, struct doc_state *st, int indent)
 	}
 }
 
+/*
+ * Emit the padding recorded by the ruler for an ALIGN node. With tabalign set,
+ * the alignment is produced with tabs in eight-column steps followed by spaces,
+ * so it matches the tab stops used for indentation. Otherwise the requested
+ * amount is emitted as spaces only.
+ */
 static void
 doc_exec_align(const struct doc *dc, struct doc_state *st)
 {
@@ -1109,6 +1191,14 @@ doc_exec_align(const struct doc *dc, struct doc_state *st)
 	}
 }
 
+/*
+ * Emit a verbatim document, used for comments, directives and copied diff
+ * regions. Verbatim text is never indented: leading spaces are trimmed first.
+ * A block ending in a newline is forced to start on a new line, and after the
+ * block the indentation is restored either from the current level (when the
+ * trimmed line was not empty) or from the last emitted level (when it was).
+ * In -D mode the node may be the boundary of the muted unchanged region.
+ */
 static void
 doc_exec_verbatim(const struct doc *dc, struct doc_state *st)
 {
@@ -1177,6 +1267,15 @@ doc_exec_minimize(const struct doc *dc, struct doc_state *st)
 	}
 }
 
+/*
+ * Choose the best of several candidate indentations by trial rendering. Each
+ * candidate is rendered into a snapshot of the current output, and its penalty
+ * is the average of the normalized number of new lines and the normalized
+ * number of columns exceeding the column limit. A candidate flagged
+ * DOC_MINIMIZE_FORCE wins immediately; otherwise the lowest penalty wins.
+ * The winning candidate is selected for this node and recorded in
+ * st_minimize.idx so nested invocations reuse the same choice.
+ */
 static void
 doc_exec_minimize_indent(const struct doc *cdc, struct doc_state *st)
 {
@@ -1276,6 +1375,13 @@ doc_exec_minimize_indent1(struct doc *dc, struct doc_state *st, int idx)
 	doc_exec_indent(dc, st, (int)minimizers[idx].indent);
 }
 
+/*
+ * Adjust the mute nesting level. A positive value starts muting and asks the
+ * diff renderer to remember whether a line was missed. Muting suppresses output
+ * but hard lines still update line state. Returning to level zero ends muting;
+ * DOC_MUTE then schedules one new line for the next print so the line structure
+ * survives a suppressed region, while DOC_UNMUTE deliberately does not.
+ */
 static void
 doc_exec_mute(const struct doc *dc, struct doc_state *st)
 {
@@ -1321,6 +1427,13 @@ doc_exec_maxlines(const struct doc *dc, struct doc_state *st)
 	st->st_maxlines = restore;
 }
 
+/*
+ * Traverse the document tree with an explicit work queue, invoking cb in
+ * pre-order. A callback may stop the walk, skip a subtree, or request that the
+ * walker state captured before descending (currently the indentation) is
+ * restored after the subtree. Children are pushed in reverse so they are
+ * visited in document order.
+ */
 static void
 doc_walk(const struct doc *dc, struct doc_state *st,
     unsigned int (*cb)(const struct doc *, struct doc_state *, void *),
@@ -1402,6 +1515,12 @@ doc_leads_with_break(const struct doc *dc)
 	}
 }
 
+/*
+ * Decide whether the group's child can be rendered on the current line in
+ * MUNGE mode without exceeding the column limit. The test runs on a copy of the
+ * renderer state and prints nothing. A pending new line ends the test
+ * immediately; a forced optional line likewise makes the group not fit.
+ */
 static int
 doc_fits(const struct doc *dc, struct doc_state *st)
 {
@@ -1426,6 +1545,13 @@ doc_fits(const struct doc *dc, struct doc_state *st)
 	return fits.fits;
 }
 
+/*
+ * Walk callback for doc_fits(). It tracks the munged column and rejects as soon
+ * as the column limit is exceeded. A pure subtree is added or rejected as a
+ * whole through its cached summary rather than traversed. Hard lines consume a
+ * pending optional line just like doc_print() does, so an optional line after a
+ * hard line cannot make an overlong group appear to fit.
+ */
 static unsigned int
 doc_fits1(const struct doc *dc, struct doc_state *st, void *arg)
 {
@@ -1566,6 +1692,15 @@ doc_print_indent1(const struct doc *UNUSED(dc), struct doc_state *st,
 	return st->st_col - oldcol;
 }
 
+/*
+ * Emit text and update the renderer state. A pending new line is emitted first
+ * (unless the next text is a space, which would be redundant). New lines are
+ * capped by st_maxlines and trim trailing spaces; a non-new-line resets the
+ * consecutive line count. Muted output is not written, but the column and line
+ * state are still updated and a suppressed new line is remembered. DOC_PRINT_FORCE
+ * bypasses muting and leaves the line statistics untouched, which is required
+ * when copying diff regions.
+ */
 static int
 doc_print(const struct doc *dc, struct doc_state *st, const char *str,
     size_t len, unsigned int flags)
@@ -1646,6 +1781,11 @@ doc_walk_state_restore(const struct doc_walk_state *ws, struct doc_state *st)
 	st->st_indent = ws->indent;
 }
 
+/*
+ * Remove trailing spaces and tabs from the output and roll the column back
+ * accordingly. Tabs are accounted for as advancing to the next eight-column
+ * stop, matching strwidth().
+ */
 static void
 doc_trim_spaces(const struct doc *dc, struct doc_state *st)
 {
@@ -1671,9 +1811,10 @@ doc_trim_spaces(const struct doc *dc, struct doc_state *st)
 }
 
 /*
- * Trim trailing consequtive new line(s) from the rendered document.
+ * Trim trailing consecutive new line(s) from the rendered document.
  * Necessary if a verbatim document is at the end which may include up to two
- * new lines.
+ * new lines. At least one new line is always kept, and the loop stops at the
+ * first non-new-line character.
  */
 static void
 doc_trim_lines(const struct doc *dc, struct doc_state *st)
@@ -1707,6 +1848,15 @@ doc_diff_find_chunk(const struct doc_state *st, const struct token *tk)
 	return nullptr;
 }
 
+/*
+ * Enter diff handling for a group. Only the outermost group is considered,
+ * unless nested groups are being re-evaluated after a group covered more than
+ * one chunk. A group spanning a hard line is ignored so a nested single-line
+ * group can be found. A group not covered by any chunk is recorded so all of
+ * its children can be muted; a covered group seeds the changed line range and
+ * mutes any preceding verbatim text inside the same group. Returns non-zero if
+ * the caller must pair this with doc_diff_group_leave().
+ */
 static int
 doc_diff_group_enter(const struct doc *dc, struct doc_state *st, int nested)
 {
@@ -1929,6 +2079,12 @@ doc_diff_literal(const struct doc *dc, struct doc_state *st)
 	}
 }
 
+/*
+ * Track a verbatim node in -D mode. Outside a changed region this is a no-op.
+ * If the node starts past the changed range the region is left. If it spans
+ * beyond the range, return the number of extra lines so the caller can postpone
+ * leaving the region until the node has been emitted.
+ */
 static unsigned int
 doc_diff_verbatim(const struct doc *dc, struct doc_state *st)
 {
@@ -2008,7 +2164,10 @@ doc_diff_emit(const struct doc *dc, struct doc_state *st, unsigned int beg,
 
 /*
  * Returns non-zero if any document covers a token which is part of a diff
- * chunk.
+ * chunk. While walking, the first token covered by a chunk is remembered; a
+ * hard line before one is found marks the group as spanning multiple lines.
+ * Verbatim tokens not themselves covered by a chunk are tracked so the renderer
+ * can keep them verbatim until the changed region starts.
  */
 static unsigned int
 doc_diff_covers(const struct doc *dc, struct doc_state *UNUSED(st), void *arg)
@@ -2061,6 +2220,13 @@ doc_diff_is_mute(const struct doc_state *st)
 	    (st->st_diff.end == 0 || st->st_diff.verbatim != nullptr);
 }
 
+/*
+ * Leave the current changed region. The next region begins after the recorded
+ * end plus the caller's adjustment, and any diff-induced mute is restored. A
+ * pending new line is emitted immediately because it would otherwise be lost
+ * while muted. If the group covered several chunks, re-enter it to find the
+ * next one.
+ */
 static void
 doc_diff_leave_impl(const struct doc *dc, struct doc_state *st,
     unsigned int end, const char *fun)
@@ -2170,6 +2336,11 @@ doc_max1(const struct doc *dc, struct doc_state *UNUSED(st), void *arg)
 	return DOC_WALK_CONTINUE;
 }
 
+/*
+ * Initialize renderer state. The maximum number of consecutive new lines
+ * defaults to two; the diff start line is one because source lines are 1-based.
+ * The consistency checks document which arguments must accompany DOC_EXEC_DIFF.
+ */
 static void
 doc_state_init(
     struct doc_state *st, struct doc_exec_arg *arg, enum doc_mode mode)
@@ -2202,6 +2373,11 @@ doc_state_reset_lines(struct doc_state *st)
 	st->st_muteline = 0;
 }
 
+/*
+ * Save the complete renderer state and a copy of the output produced so far.
+ * Used to try alternative layouts without disturbing the real buffer; the copy
+ * is allocated in the given scratch scope.
+ */
 static void
 doc_state_snapshot(struct doc_state_snapshot *sn, const struct doc_state *st,
     struct arena_scope *s)

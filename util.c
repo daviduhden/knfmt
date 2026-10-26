@@ -7,6 +7,12 @@
 #include "libks/vector.h"
 #include "util.h"
 
+/*
+ * Return the 1-based column reached after processing len bytes starting at the
+ * given column. Tabs advance to the next multiple of eight and a new line resets
+ * the column to one. The byte scan is split so that the common case (no tab and
+ * no new line) is handled by the vectorized string matcher.
+ */
 unsigned int
 colwidth(const char *str, size_t len, unsigned int cno)
 {
@@ -90,6 +96,11 @@ strwidth(const char *str, size_t len, size_t pos)
 	return pos;
 }
 
+/*
+ * Return the last ncomponents components of path, joined with slashes. If the
+ * path has fewer components than requested, the whole path is returned
+ * unchanged. The result is allocated in the given arena scope.
+ */
 const char *
 path_slice(const char *path, unsigned int ncomponents, struct arena_scope *s)
 {
@@ -116,6 +127,11 @@ path_slice(const char *path, unsigned int ncomponents, struct arena_scope *s)
 	return buffer_str(bf);
 }
 
+/*
+ * Append indentation to the buffer, using tabs while at least eight columns
+ * remain and spaces for the rest. pos is the current column and the returned
+ * value is the resulting column, so callers can track tab stops exactly.
+ */
 size_t
 strindent_buffer(struct buffer *bf, size_t indent, int usetabs, size_t pos)
 {

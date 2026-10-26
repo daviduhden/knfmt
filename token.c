@@ -13,9 +13,24 @@
 #include "token.h"
 #include "util.h"
 
+/*
+ * Token objects are the shared currency between the lexer, parser, documents
+ * and ruler. A token has a type, a length-delimited byte string that may point
+ * into the source or into arena memory, an optional source position, and two
+ * dangling lists: prefixes (comments and directives before the token) and
+ * suffixes (trailing comments and whitespace). Tokens are reference counted;
+ * the lexer owns the primary list, while documents and rulers take additional
+ * references. token_rele() releases the token's dangling tokens before the
+ * token itself is poisoned, so a dangling list never outlives its owner.
+ */
 static const char *token_flags_str(unsigned int, struct arena_scope *);
 static const char *token_type_str(int);
 
+/*
+ * Allocate a token with room for priv_size bytes of backend-private data. The
+ * definition supplies the initial type, string, length and flags; the
+ * reference count starts at one and the dangling lists are empty.
+ */
 struct token *
 token_alloc(
     struct arena_scope *s, unsigned int priv_size, const struct token *def)
@@ -31,12 +46,21 @@ token_alloc(
 	return tk;
 }
 
+/*
+ * Take an additional reference. The token must not be used after the matching
+ * token_rele() has dropped the count to zero.
+ */
 void
 token_ref(struct token *tk)
 {
 	tk->tk_refs++;
 }
 
+/*
+ * Drop a reference. On the final release, remove the token from its dangling
+ * lists (which releases those tokens in turn) and poison the storage so that a
+ * stale use is caught by the arena debug support.
+ */
 void
 token_rele(struct token *tk)
 {
@@ -57,6 +81,10 @@ token_rele(struct token *tk)
 /*
  * Remove all space suffixes from the given token. Returns the number of removed
  * suffixes.
+ *
+ * The suffixes are not unlinked: they are marked discarded, which makes the
+ * document emitter ignore them while keeping optional spaces intact. Optional
+ * spaces are never emitted directly and are therefore left untouched.
  */
 int
 token_trim(struct token *tk)
@@ -141,6 +169,12 @@ token_serialize_with_extra_flags(const struct token *tk, unsigned int flags,
 	return buffer_str(bf);
 }
 
+/*
+ * Give a newly inserted token the position immediately following after,
+ * accounting for after's suffixes. The token's own suffixes are then placed on
+ * the same line after it. If after ends its line, the column of the first
+ * token on the following line is used. Prefixes are deliberately not touched.
+ */
 void
 token_position_after(struct token *after, struct token *tk)
 {
@@ -176,6 +210,11 @@ token_position_after(struct token *after, struct token *tk)
 	}
 }
 
+/*
+ * Order two tokens by line number only. Columns are intentionally ignored; two
+ * tokens on the same line compare equal, which callers use to detect "same
+ * line" relationships.
+ */
 int
 token_cmp(const struct token *a, const struct token *b)
 {
@@ -224,6 +263,11 @@ token_has_cpp(const struct token *tk)
 	return 0;
 }
 
+/*
+ * Map a preprocessor token type to its canonical counterpart, for example a
+ * specific #if variant to TOKEN_CPP_IF. token_is_decl() and the branch logic
+ * compare normalized types so the exact directive spelling does not matter.
+ */
 int
 token_type_normalize(const struct token *tk)
 {
@@ -374,6 +418,12 @@ token_skip_attributes_backward(const struct token *tk)
 	return tk;
 }
 
+/*
+ * Return non-zero if tk is the last token before a left brace that starts a
+ * struct, union, or enum declaration of the given type. Trailing C23 attribute
+ * specifiers and the declared identifier are skipped, and a C23 enum with a
+ * fixed underlying type (enum E : type-name {) is recognized.
+ */
 int
 token_is_decl(const struct token *tk, int type)
 {
@@ -424,7 +474,9 @@ token_is_decl(const struct token *tk, int type)
 }
 
 /*
- * Returns non-zero if the given token can be moved.
+ * Returns non-zero if the given token can be moved. Tokens carrying comments or
+ * preprocessor directives as prefixes/suffixes are anchored to their source
+ * position, since moving them would move or orphan that dangling text.
  */
 int
 token_is_moveable(const struct token *tk)
@@ -462,7 +514,10 @@ token_set_str(struct token *tk, const char *str, size_t len)
 
 /*
  * Returns non-zero if the two given tokens must be separated by whitespace in
- * order to not merge into a single, different token.
+ * order to not merge into a single, different token. This is a lexical test,
+ * not a semantic one: it covers identifier/number boundaries, accidental
+ * comment openers, floating constants formed across a boundary, and
+ * punctuators that would combine into another operator.
  */
 int
 token_pair_needs_space(const struct token *a, const struct token *b)
@@ -506,6 +561,11 @@ token_pair_needs_space(const struct token *a, const struct token *b)
 	return 0;
 }
 
+/*
+ * Count the number of complete physical lines embedded in the token text. A
+ * trailing newline is not counted as an extra line. Used for multi-line
+ * directives and verbatim comments.
+ */
 unsigned int
 token_lines(const struct token *tk)
 {
@@ -555,6 +615,10 @@ token_list_remove(struct token_list *tl, struct token *tk)
 	token_rele(tk);
 }
 
+/*
+ * Exchange the contents of two token lists while preserving the relative order
+ * within each list. Used when moving a line break from one token to another.
+ */
 void
 token_list_swap(struct token_list *src, struct token_list *dst)
 {

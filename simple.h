@@ -1,3 +1,10 @@
+/*
+ * Simplification pass interface (-s). simple_enter() records the previous state
+ * in a cookie; the cleanup-attribute macro ensures simple_leave() runs on every
+ * return path. A pass is active only while entered and either global -s or a
+ * per-pass force flag is in effect. Independent passes are mutually exclusive
+ * unless explicitly allowlisted in simple.c.
+ */
 struct arena_scope;
 struct options;
 

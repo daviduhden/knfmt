@@ -7,6 +7,13 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * GNU inline assembly parsing. Both the statement form (asm ... ;) and the
+ * declaration form (asm (...)) are supported. The optional instruction string
+ * and the colon-separated input, output, clobber and goto-label lists are each
+ * kept in their own group so overlong assembly is broken between operands.
+ * A macro-provided operand list is accepted when it starts with an identifier.
+ */
 static int parser_asm(struct parser *, struct doc *, struct doc **);
 
 /*
@@ -149,6 +156,12 @@ parser_stmt_asm(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Parse an asm construct. Qualifiers (volatile, inline, goto) follow the keyword;
+ * colons separate the instruction string from inputs, outputs, clobbers and goto
+ * labels. Empty sections are still represented by their colon, and each list is
+ * indented by two columns for continuation lines.
+ */
 static int
 parser_asm(struct parser *pr, struct doc *dc, struct doc **out)
 {

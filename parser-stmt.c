@@ -19,6 +19,14 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Statement parsing. parser_stmt1() tries the alternatives in an order chosen
+ * to avoid common ambiguities: blocks before expressions (the expression parser
+ * can recover into blocks), expressions before declarations (a call can look
+ * like a declaration), and declarations before the remaining keywords so cpp
+ * loop macros are not mistaken for statements. The -s statement passes decide
+ * brace insertion/removal by rendering the affected statement speculatively.
+ */
 #define PARSER_STMT_EXPR_DOWHILE 0x00000001u
 #define PARSER_STMT_EXPR_ELSEIF 0x00000002u
 
@@ -48,6 +56,11 @@ static int  is_loop_stmt(const struct token *);
 static int  is_simple_stmt(const struct token *);
 static int  peek_simple_stmt(struct parser *);
 
+/*
+ * Check whether a statement starts at the cursor. Documents are built in a
+ * throwaway scope and simplification is disabled, so no token edits or output
+ * survive the peek.
+ */
 int
 parser_stmt_peek(struct parser *pr)
 {
@@ -79,6 +92,12 @@ parser_stmt(struct parser *pr, struct doc *dc)
 	return error;
 }
 
+/*
+ * Emit any C23 attributes and then one statement. The nesting guard is entered
+ * before dispatch and released by the cleanup attribute on every path. Each
+ * alternative reports NONE when it does not apply; the first GOOD result wins.
+ * A BRCH result propagates so the enclosing parse can cross the branch.
+ */
 static int
 parser_stmt1(struct parser *pr, struct doc *dc)
 {
@@ -154,6 +173,13 @@ is_case_on_same_line(struct parser *pr, const struct token *pv)
 
 /*
  * Parse a block statement wrapped in braces.
+ *
+ * A semicolon immediately after the right brace is removed before emission so
+ * the brace can carry the line break. Statements are indented one level, except
+ * for switch bodies where case labels control indentation. In -s mode the
+ * simple-statement pass may later remove the braces if every contained statement
+ * fits on one line. The right brace and a following else or semicolon are kept
+ * in one group so they can share a line.
  */
 int
 parser_stmt_block(struct parser *pr, struct parser_stmt_block_arg *arg)
@@ -301,6 +327,13 @@ has_line_before_comment(const struct token *tk)
 	return token_has_line(pv, 1) && (comment->tk_lno - pv->tk_lno) > 1;
 }
 
+/*
+ * Parse an if/else chain. Consecutive "else if" tokens on the same line are
+ * treated as part of the chain rather than as a nested block. Braced branches
+ * keep the else on the same line as the right brace; an unbraced branch is
+ * indented and parsed as a nested statement. A comment between a brace and the
+ * else forces a blank line so the comment stays attached to the else.
+ */
 static int
 parser_stmt_if(struct parser *pr, struct doc *dc)
 {
@@ -366,6 +399,12 @@ parser_stmt_if(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Parse a for statement. The initializer may be a declaration; the other two
+ * clauses are expressions. A line is offered after each semicolon so an overlong
+ * header breaks between clauses. Empty clauses are represented by the loop
+ * document itself. In -s mode an empty body is rewritten to contain continue.
+ */
 static int
 parser_stmt_for(struct parser *pr, struct doc *dc)
 {
@@ -465,6 +504,11 @@ parser_stmt_for(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Parse a do/while statement. A braced body keeps the trailing while on the same
+ * line as the right brace; an unbraced body is indented, and the while starts on
+ * a new line. The condition is parsed by the shared keyword-expression helper.
+ */
 static int
 parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 {
@@ -514,7 +558,11 @@ parser_stmt_dowhile(struct parser *pr, struct doc *dc)
 
 /*
  * Parse a statement consisting of a keyword, expression wrapped in parenthesis
- * and followed by additional nested statement(s).
+ * and followed by additional nested statement(s). Used by if, while, for-like
+ * cpp macros, switch and do/while. The keyword and its parenthesized condition
+ * share a group; the condition can break at the continuation indent or align
+ * with the opening parenthesis according to the style. An unbraced body is
+ * indented and may participate in the -s empty-loop and brace passes.
  */
 static int
 parser_stmt_kw_expr(
@@ -642,6 +690,12 @@ parser_stmt_kw_expr(
 	}
 }
 
+/*
+ * Parse a goto label. Labels are never indented at the document level; source
+ * indentation before the label is preserved by moving a single space before the
+ * identifier when needed, after any comment prefix. A statement on the same
+ * source line as the label is forced onto an indented continuation.
+ */
 static int
 parser_stmt_label(struct parser *pr, struct doc *dc)
 {
@@ -696,6 +750,13 @@ parser_stmt_label(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Parse a case or default label and the statements it controls. The label ends
+ * at its colon; a following brace is emitted on the same line. Statements are
+ * indented one level until the next case/default. Statements that were on the
+ * same source line as the label stay on that line. In -s mode a bare
+ * `default: ;` can gain a break.
+ */
 static int
 parser_stmt_case(struct parser *pr, struct doc *dc)
 {
@@ -873,6 +934,12 @@ parser_stmt_semi(struct parser *pr, struct doc *dc)
 	return parser_semi(pr, dc);
 }
 
+/*
+ * Recognize statements hidden behind a macro. A `NAME(...)` not followed by a
+ * semicolon is treated as a loop-like construct whose body follows, which keeps
+ * queue(3)-style macros formatable. A bare FALLTHROUGH identifier is accepted as
+ * a statement even without its semicolon.
+ */
 static int
 parser_stmt_cpp(struct parser *pr, struct doc *dc)
 {

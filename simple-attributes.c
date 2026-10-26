@@ -6,6 +6,11 @@
 #include "simple-attributes.h"
 #include "token.h"
 
+/*
+ * Rewrite attribute names from the reserved __name__ spelling to name for -s,
+ * e.g. __aligned__ to aligned. Only identifiers surrounded by double underscores
+ * are changed; the length check guarantees the two pairs do not overlap.
+ */
 static const char *
 remove_underscores(const char *str, size_t len, struct arena_scope *s)
 {

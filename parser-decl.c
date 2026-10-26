@@ -20,6 +20,18 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Declaration parsing. A declaration is classified by parser_type_peek() before
+ * any token is consumed, then emitted by parser_decl2(). The scanner handles
+ * multiple declarators, initializers, bitfields, struct/union/enum bodies and
+ * C11/C23 static assertions. Declaration alignment is two-phase: a ruler is
+ * filled while the declarator list is emitted and executed once the whole block
+ * has been recognized, so every line in the block can be aligned together.
+ *
+ * Function declarations and definitions are delegated to parser-func.c; only
+ * the ambiguous decisions (implicit int, K&R forms, preprocessor constructs)
+ * live here.
+ */
 struct parser_decl_init_arg {
 	struct doc   *dc;
 	struct ruler *rl;
@@ -48,6 +60,11 @@ static int parser_simple_decl_enter(
 static int parser_simple_decl_forward_enter(
     struct parser *, unsigned int, struct simple_cookie *);
 
+/*
+ * Check whether a declaration starts at the cursor without consuming input or
+ * committing documents. Simplification is disabled and all documents are built
+ * in a scratch scope, which is discarded when the peek ends.
+ */
 int
 parser_decl_peek(struct parser *pr)
 {
@@ -68,6 +85,12 @@ parser_decl_peek(struct parser *pr)
 	return error & GOOD;
 }
 
+/*
+ * Parse a declaration, invoking the -s declaration passes around a speculative
+ * parse when they are enabled. The pass-specific wrapper reruns parser_decl1()
+ * with simplification on, after which the pass has recorded its token edits and
+ * the normal parse is committed.
+ */
 int
 parser_decl(struct parser *pr, struct doc *dc, unsigned int flags)
 {
@@ -87,6 +110,13 @@ parser_decl(struct parser *pr, struct doc *dc, unsigned int flags)
 	return parser_decl1(pr, dc, flags);
 }
 
+/*
+ * Parse a run of declarations at the current nesting level. Each declaration
+ * after the first is preceded by a hard line; with PARSER_DECL_BREAK, a blank
+ * line or a following preprocessor directive ends the run. A failed declaration removes the line
+ * that was just emitted. Alignment is applied only if at least one declaration
+ * was recognized and no failure occurred.
+ */
 static int
 parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 {
@@ -151,6 +181,15 @@ parser_decl1(struct parser *pr, struct doc *dc, unsigned int flags)
 	return parser_good(pr);
 }
 
+/*
+ * Recognize and emit one declaration. The alternatives are tried in order:
+ * cdefs macros, root-level cpp declarations, static assertions, standalone
+ * attributes, then a type specifier followed by declarators. A trailing
+ * identifier without a type is treated as an implicit-int function declaration
+ * at file scope, or left to a cpp construct otherwise. The terminating
+ * semicolon is located before the initializer is parsed so the expression parser
+ * can stop there.
+ */
 static int
 parser_decl2(
     struct parser *pr, struct doc *dc, struct ruler *rl, unsigned int flags)
@@ -300,7 +339,15 @@ out:
 }
 
 /*
- * Parse any initialization as part of a declaration.
+ * Parse any initialization as part of a declaration, i.e. the comma-separated
+ * declarators before the terminating semicolon. A ruler indent makes wrapped
+ * declarators line up under the first one. Commas are emitted with a break
+ * opportunity, and malformed adjacent declarators keep a separating space when
+ * dropping it would merge their boundary tokens.
+ *
+ * If nothing was parsed, the ruler indent and the whole initializer document are
+ * removed. A consumed separator, however, is kept so a dangling comma in
+ * `int a,;` survives.
  */
 static int
 parser_decl_init(
@@ -387,6 +434,13 @@ parser_decl_peek_parens_or_squares(struct parser *pr, struct token **lhs)
 	return 0;
 }
 
+/*
+ * Parse one declarator component: trailing attributes, an identifier,
+ * parenthesized or array declarator, bitfield, qualifier/storage keyword, a
+ * pointer star, or an asm label. Each component hangs off the same concat so
+ * later components (for example `*` then `name`) share a group. NONE means no
+ * component matched.
+ */
 static int
 parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 {
@@ -456,6 +510,13 @@ parser_decl_init1(struct parser *pr, struct doc *dc, struct doc **out)
 	return parser_none(pr);
 }
 
+/*
+ * Parse an initializer introduced by '='. A left brace is delegated to the brace
+ * initializer parser with a dedented continuation; any other initializer is an
+ * expression that stops at the next comma or at the declaration's semicolon. A
+ * line break before '=' is moved after it, and a hard line after '=' is preserved
+ * inside the expression document so indentation is correct.
+ */
 static int
 parser_decl_init_assign(struct parser *pr, struct doc *dc, struct doc **out,
     struct parser_decl_init_arg *arg)
@@ -621,6 +682,12 @@ parser_decl_bitfield(struct parser *pr, struct doc *dc)
 	return parser_good(pr);
 }
 
+/*
+ * Parse the body of a struct, union, or enum declaration. Members are parsed as
+ * nested declarations; the closing brace is followed by a space unless a
+ * semicolon or attribute follows. break_before_braces controls whether the
+ * opening brace starts a new line.
+ */
 static int
 parser_decl_braces(struct parser *pr, struct doc *dc, int break_before_braces)
 {
@@ -656,6 +723,12 @@ parser_decl_braces(struct parser *pr, struct doc *dc, int break_before_braces)
 	return parser_good(pr);
 }
 
+/*
+ * Run the declaration simplification pass over a speculative parse. The pass is
+ * ignored unless PARSER_DECL_SIMPLE is set; on success it has rearranged the
+ * token stream, and the caller then parses the declaration normally in
+ * parser_decl1(). The temporary documents are discarded.
+ */
 static int
 parser_simple_decl_enter(
     struct parser *pr, unsigned int flags, struct simple_cookie *simple)
@@ -689,6 +762,12 @@ parser_simple_decl_enter(
 	return parser_good(pr);
 }
 
+/*
+ * Run the forward-declaration sorting pass over a speculative parse. It only
+ * applies at root level and only when PARSER_DECL_SIMPLE_FORWARD is set; the
+ * pass collects consecutive struct forward declarations and sorts them when the
+ * parse succeeds.
+ */
 static int
 parser_simple_decl_forward_enter(
     struct parser *pr, unsigned int flags, struct simple_cookie *simple)

@@ -28,6 +28,20 @@ struct token_range {
 	    (var) = (var) == (tr)->tr_end ? nullptr : (tvar),                  \
 	    (tvar) = (var) ? token_next((var)) : nullptr)
 
+/*
+ * Declaration regrouping for -s.
+ *
+ * Consecutive declarations are collected, grouped by their type text, and
+ * rewritten so variables of the same type share one declaration. Variables are
+ * sorted by name within a "slot" that separates pointers by level; a variable
+ * that cannot be moved (because of comments, cpp directives, arrays, or an
+ * initializer) forces its declaration to stay in place and splits the slots
+ * around it. Empty declarations left behind are removed, including their
+ * semicolons.
+ *
+ * The pass edits the token list; it does not build documents. It is deliberately
+ * conservative in -D mode: every token it moves must be covered by a diff chunk.
+ */
 static const char *token_range_str(
     const struct token_range *, struct arena_scope *);
 
@@ -128,6 +142,12 @@ simple_decl_enter(struct lexer *lx, struct arena_scope *eternal_scope,
 	return sd;
 }
 
+/*
+ * Finish the pass. Each type's variables are sorted and then moved after the
+ * semicolon associated with their slot, creating a fresh declaration per slot as
+ * needed. Line breaks follow the semicolon that now terminates the moved
+ * variables. Declarations that became empty are removed from the token stream.
+ */
 void
 simple_decl_leave(struct simple_decl *sd)
 {
@@ -233,6 +253,12 @@ is_type_valid(
 	return 1;
 }
 
+/*
+ * Record the type of the declaration that is about to be parsed. Types that
+ * contain cpp macros, parentheses, braces, or unmovable tokens are skipped.
+ * Pointers are deliberately excluded from the type text and belong to the
+ * variable, so `char *a, b` and `char *c` can be grouped correctly.
+ */
 void
 simple_decl_type(struct simple_decl *sd, struct token *beg, struct token *end)
 {
@@ -264,6 +290,12 @@ simple_decl_type(struct simple_decl *sd, struct token *beg, struct token *end)
 	dc->tr = tr;
 }
 
+/*
+ * Finish the last variable of a declaration. If no variable was registered, the
+ * declaration is left untouched. A declaration whose variables all moved becomes
+ * empty and is scheduled for removal through its semicolon; otherwise the empty
+ * marker is discarded and the declaration stays.
+ */
 void
 simple_decl_semi(struct simple_decl *sd, struct token *semi)
 {
@@ -289,6 +321,11 @@ simple_decl_semi(struct simple_decl *sd, struct token *semi)
 	sd->dt = nullptr;
 }
 
+/*
+ * Finish the variable before a comma and start the next one. The comma is kept
+ * with the preceding variable if the next variable can be moved; otherwise it is
+ * remembered on the new variable so it can be removed when that variable moves.
+ */
 void
 simple_decl_comma(struct simple_decl *sd, struct token *comma)
 {
@@ -456,6 +493,13 @@ simple_decl_var_init(struct simple_decl *sd)
 	return &sd->dv;
 }
 
+/*
+ * Finish the current variable. A variable is kept in place when it contains an
+ * array, an initializer, comments, or any token that cannot be moved; the slot
+ * is still allocated so later variables of the same type can be placed after the
+ * kept declaration. Otherwise the variable is appended to its slot and sorted by
+ * identifier. The delimiter is not part of the stored identifier range.
+ */
 static struct decl_var *
 simple_decl_var_end(struct simple_decl *sd, struct token *end)
 {
@@ -522,6 +566,13 @@ simple_decl_var_end(struct simple_decl *sd, struct token *end)
 	return dst;
 }
 
+/*
+ * Associate a semicolon with the slots that must be emitted after this
+ * declaration. A slot without its own kept semicolon inherits the next kept one,
+ * or this declaration's semicolon as a fallback. This lets moved variables attach
+ * to a declaration position that still exists after empty declarations are
+ * removed.
+ */
 static void
 associate_semi(struct decl *dc, struct decl_type *dt, struct token *semi)
 {
@@ -560,6 +611,12 @@ associate_semi(struct decl *dc, struct decl_type *dt, struct token *semi)
 	}
 }
 
+/*
+ * Classify a declarator into a pointer-depth slot. Only stars and identifiers
+ * before an assignment are considered; arrays are forced into slot four, the
+ * assumed practical maximum pointer depth. Returns non-zero when the declarator
+ * contains no disqualifying token and at least one identifier.
+ */
 static int
 classify(const struct token_range *tr, unsigned int *slot)
 {

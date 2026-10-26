@@ -18,6 +18,15 @@
 #include "token.h"
 #include "trace-types.h"
 
+/*
+ * Parser entry points and the top-level execution loop. The parser is a
+ * recursive-descent recognizer that emits documents while it parses; there is
+ * no separate abstract syntax tree. Each iteration of parser_exec() parses one
+ * top-level construct. A GOOD result commits it and takes a stamp; BRCH crosses
+ * to the next preprocessor branch and reparses; FAIL/NONE either rolls back to a
+ * stamp and retries or reports a diagnostic. If recovery would lose content
+ * that has already been removed, the whole source is emitted verbatim instead.
+ */
 static void
 clang_format_verbatim(struct parser *pr, struct doc *dc, unsigned int end)
 {
@@ -132,6 +141,15 @@ parser_alloc(const struct parser_arg *arg, struct arena_scope *s)
 	return pr;
 }
 
+/*
+ * Parse and render the whole input into bf. The loop is deliberately
+ * document-count based: a stamp records how many top-level documents existed
+ * when it was taken, so a recovery removes an exact number of them. A
+ * successful parse whose content was lossy is replaced by a verbatim copy, and
+ * an unbalanced clang-format mute is likewise canceled by verbatim output.
+ * Returns non-zero only when the input was rejected; no partial output is then
+ * considered valid.
+ */
 int
 parser_exec(
     struct parser *pr, const struct diffchunk *diff_chunks, struct buffer *bf)
@@ -265,6 +283,12 @@ parser_exec(
 	return 0;
 }
 
+/*
+ * Recognize one top-level construct: a declaration (which also covers function
+ * declarations and implicit-int forms), a function definition, an extern "C"
+ * block, or a top-level asm statement. The first alternative that reports GOOD
+ * wins; NONE means "not this construct".
+ */
 int
 parser_root(struct parser *pr, struct doc *dc)
 {
@@ -292,6 +316,12 @@ is_branch(const struct lexer *lx)
 	return lexer_back(lx, &back) && (back->tk_flags & TOKEN_FLAG_BRANCH);
 }
 
+/*
+ * Report a parse failure unless the failure is actually a branch boundary or a
+ * diagnostic was already recorded. The error is attributed to the last
+ * consumed token, or to the first token at the very beginning of the input. A
+ * synthetic token at line 1 supplies a position when the list is empty.
+ */
 int
 parser_fail_impl(struct parser *pr, const char *fun, int lno)
 {
@@ -345,7 +375,9 @@ parser_token_trim_after(const struct parser *UNUSED(pr), struct token *tk)
 }
 
 /*
- * Returns the width of the given document.
+ * Returns the width of the given document. The document is rendered in munge
+ * mode into a throwaway buffer, so line breaks are not taken into account; this
+ * is used for alignment decisions while parsing.
  */
 unsigned int
 parser_width(struct parser *pr, const struct doc *dc)
@@ -379,6 +411,12 @@ parser_none(const struct parser *pr)
 	return lexer_get_error(pr->pr_lx) ? FAIL : NONE;
 }
 
+/*
+ * Prepare for reparsing after a branch crossing or recovery. Pending lexer
+ * diagnostics are discarded. If the recorded clang-format off comment lies
+ * ahead of the new cursor, it belongs to the region being reparsed and its
+ * reference is dropped so the next parse observes it again.
+ */
 void
 parser_reset(struct parser *pr)
 {
@@ -395,6 +433,11 @@ parser_reset(struct parser *pr)
 	}
 }
 
+/*
+ * Enter one statement/declaration nesting level, up to PARSER_MAX_DEPTH.
+ * Returns zero when the limit is reached; callers turn that into a clean parse
+ * failure instead of risking process stack exhaustion.
+ */
 int
 parser_depth_enter(struct parser *pr)
 {
@@ -404,6 +447,10 @@ parser_depth_enter(struct parser *pr)
 	return 1;
 }
 
+/*
+ * Leave one nesting level. Invoked through the cleanup attribute, so every
+ * return path from a guarded parser routine decrements the depth exactly once.
+ */
 void
 parser_depth_leave(struct parser_depth_guard *guard)
 {
@@ -411,6 +458,15 @@ parser_depth_leave(struct parser_depth_guard *guard)
 		guard->pd_pr->pr_nest_depth--;
 }
 
+/*
+ * Emit a token and its dangling text into the document. Prefixes (directives
+ * and comments) are emitted first, in order, and may switch clang-format
+ * verbatim handling on or off. The token itself is a literal. Suffixes are then
+ * emitted; a mandatory line is forced after a C99 comment even when an optional
+ * line was discarded, because the comment otherwise swallows the next token.
+ * If the following token begins a preprocessor branch, a mute is started so the
+ * repeated prefix of the next branch parse is not printed twice.
+ */
 struct doc *
 parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
     const char *fun, int lno)
@@ -478,6 +534,12 @@ parser_doc_token_impl(struct parser *pr, struct token *tk, struct doc *dc,
 	return out;
 }
 
+/*
+ * Consume a required semicolon. Consecutive semicolons on the same source line
+ * are redundant; all but the last are removed from the token list so that the
+ * last one can carry the line break and any trailing comment. The semicolon is
+ * emitted and the parser returns GOOD, FAIL, or BRCH as appropriate.
+ */
 int
 parser_semi(struct parser *pr, struct doc *dc)
 {

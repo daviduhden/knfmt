@@ -11,6 +11,12 @@ struct error {
 	int	       er_flush;
 };
 
+/*
+ * Allocate a diagnostic buffer. Diagnostics are accumulated in the buffer and
+ * only written to standard error by error_flush() when flush is set or when a
+ * forced flush is requested. This lets the lexer discard errors produced while
+ * speculatively parsing a preprocessor branch that later turns out to be valid.
+ */
 struct error *
 error_alloc(int flush, struct arena_scope *s)
 {
@@ -22,6 +28,10 @@ error_alloc(int flush, struct arena_scope *s)
 	return er;
 }
 
+/*
+ * Return the buffer to append a diagnostic to. A subsequent error_end() makes
+ * the text visible according to the flush policy.
+ */
 struct buffer *
 error_begin(struct error *er)
 {
@@ -34,12 +44,20 @@ error_end(struct error *er)
 	error_flush(er, 0);
 }
 
+/*
+ * Discard all buffered diagnostics without printing them.
+ */
 void
 error_reset(struct error *er)
 {
 	buffer_reset(er->er_bf);
 }
 
+/*
+ * Emit the buffered diagnostics to standard error and reset the buffer. When
+ * force is zero, nothing happens unless the error object was created with
+ * flushing enabled.
+ */
 void
 error_flush(struct error *er, int force)
 {

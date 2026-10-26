@@ -1,3 +1,8 @@
+/*
+ * Trace macros. Each call site is compiled in unconditionally; the trace class
+ * is tested against the parsed -t options at run time. trace() includes the
+ * calling function name, trace_no_func() omits it, and output goes to stderr.
+ */
 #include "options.h" /* options_trace_level() */
 #include "trace-types.h"
 

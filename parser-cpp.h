@@ -3,6 +3,7 @@ struct parser;
 struct parser_type;
 struct token;
 
+/* The declaration is at file scope, where a bare macro followed by ';' is valid. */
 #define PARSER_CPP_DECL_ROOT 0x00000001u
 
 int parser_cpp_peek_type(struct parser *, struct token **);

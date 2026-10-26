@@ -6,6 +6,14 @@
 #include "parser-priv.h"
 #include "token.h"
 
+/*
+ * Parse an extern "C" block, used by headers to give C linkage to C++
+ * declarations. The closing brace is matched while peeking; if it is controlled
+ * by a conditional with an alternative branch, the block is declined and
+ * pr_verbatim is set so the top-level parser preserves the source instead of
+ * crossing the branch and dropping content. Declarations inside the block are
+ * parsed by parser_root() recursively.
+ */
 int
 parser_extern(struct parser *pr, struct doc *dc)
 {

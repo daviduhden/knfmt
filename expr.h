@@ -1,3 +1,10 @@
+/*
+ * Expression parser interface. The caller supplies the output document, the
+ * cursor, optional ruler alignment and small callbacks through which the parser
+ * can recover constructs that need type or statement knowledge. stop, when
+ * non-null, is the token at which the expression must end; nullptr lets the
+ * parser continue until it meets something it cannot recognize.
+ */
 struct expr_exec_arg {
 	const struct style *st;
 	struct simple	   *si;

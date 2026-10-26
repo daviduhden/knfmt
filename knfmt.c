@@ -22,6 +22,11 @@
 #include "style.h"
 #include "trace-types.h"
 
+/*
+ * Process-wide state shared by every input file. The arenas and the parsed
+ * style outlive all files; src and dst are reused for each file and reset
+ * between them. The simple object carries the state of the -s passes.
+ */
 struct main_context {
 	struct options options;
 	struct style  *style;
@@ -40,6 +45,14 @@ static int filediff(struct main_context *, const struct file *);
 static int filewrite(struct main_context *, const struct file *);
 static int fileprint(const struct buffer *);
 
+/*
+ * Command line entry point. Options are parsed and the shared keyword, style
+ * and expression tables are initialized before any input is read. Style parsing
+ * may execute a helper program, so pledge(2) is delayed until afterwards.
+ * Files are then formatted one at a time using the same buffers and arenas;
+ * a failure in one file does not prevent the remaining files from being
+ * processed, but makes the final exit status non-zero.
+ */
 int
 main(int argc, char *argv[])
 {
@@ -155,6 +168,11 @@ usage(void)
 	exit(1);
 }
 
+/*
+ * Populate the list of files to process. In -D mode the list is derived from
+ * the unified diff read from standard input; otherwise each command line
+ * argument is appended, or /dev/stdin when no arguments were given.
+ */
 static int
 filelist(int argc, char **argv, struct files *files,
     struct arena_scope *eternal_scope, struct arena *scratch,
@@ -174,6 +192,13 @@ filelist(int argc, char **argv, struct files *files,
 	return 0;
 }
 
+/*
+ * Format one buffer. A fresh clang, lexer and parser are created in the given
+ * scope because the lexer owns the token list for exactly one input; the style,
+ * options, simplifier and arenas are shared through main_context. The parser
+ * writes the rendered result to out and returns non-zero on a rejected input,
+ * in which case out must not be used.
+ */
 static int
 format_buffer(struct main_context *c, struct file *fe, const struct buffer *in,
     struct buffer *out, struct arena_scope *scope)
@@ -214,6 +239,11 @@ format_buffer(struct main_context *c, struct file *fe, const struct buffer *in,
 	return parser_exec(pr, fe->fe_diff, out);
 }
 
+/*
+ * Read, format and deliver one file. The input and output buffers are owned by
+ * main_context and are reset by the caller for the next file. -d, -i and plain
+ * output are mutually exclusive modes selected by the options.
+ */
 static int
 fileformat(struct main_context *c, struct file *fe)
 {
@@ -232,6 +262,11 @@ fileformat(struct main_context *c, struct file *fe)
 	return fileprint(c->dst);
 }
 
+/*
+ * Emit a unified diff between the source and the formatted result. An
+ * identical buffer produces no output and success. diff(1) is spawned through
+ * libks; a warning is printed if it cannot be executed.
+ */
 static int
 filediff(struct main_context *c, const struct file *fe)
 {
@@ -248,6 +283,11 @@ filediff(struct main_context *c, const struct file *fe)
 	return error;
 }
 
+/*
+ * Replace the input file with the formatted result. Nothing is written when
+ * the bytes are unchanged. KS_fs_replace() writes a sibling temporary file and
+ * renames it over the target, so a failed run leaves the original intact.
+ */
 static int
 filewrite(struct main_context *c, const struct file *fe)
 {
@@ -264,6 +304,10 @@ filewrite(struct main_context *c, const struct file *fe)
 	return 0;
 }
 
+/*
+ * Write the formatted buffer to standard output, retrying short writes. A
+ * write(2) failure is reported and makes the file fail.
+ */
 static int
 fileprint(const struct buffer *dst)
 {

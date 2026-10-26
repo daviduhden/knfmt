@@ -12,6 +12,16 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Glue between the expression parser and the recursive-descent parser.
+ *
+ * parser_expr() installs the callbacks through which expr.c can recover
+ * constructs that require type or statement knowledge. The recovery routines
+ * below emit a document for a recognized construct and leave the cursor after
+ * it; returning nullptr tells the expression parser to fail normally. All
+ * output parameters are initialized by the callers in parser_expr.c or by these
+ * routines, never left indeterminate.
+ */
 static struct doc *expr_recover(const struct expr_exec_arg *, void *);
 static struct doc *expr_recover_cast(const struct expr_exec_arg *, void *);
 static struct doc *expr_recover_generic(const struct expr_exec_arg *, void *);
@@ -59,6 +69,13 @@ parser_expr_peek(struct parser *pr, struct token **tk)
 	return peek;
 }
 
+/*
+ * Parse an expression into the requested destination. If the expression parser
+ * cannot recognize the construct it returns NONE; the caller may then try a
+ * different grammar production. On success *expr points at the document that
+ * received the expression, which may differ from arg->dc because recovery and
+ * grouping create nested documents.
+ */
 int
 parser_expr(struct parser *pr, struct doc **expr, struct parser_expr_arg *arg)
 {
@@ -100,6 +117,14 @@ parser_expr(struct parser *pr, struct doc **expr, struct parser_expr_arg *arg)
 	return parser_good(pr);
 }
 
+/*
+ * Recover a construct the expression grammar cannot recognize. Type names are
+ * accepted where a cast or sizeof operand is plausible; a binary operator in a
+ * unary position is kept when it is a macro-style argument; a left brace is
+ * tried as an initializer and then as a GNU statement expression; lone commas
+ * and stars are preserved as empty macro arguments. A branch interruption returns
+ * the document built so far so committed syntax is not lost.
+ */
 static struct doc *
 expr_recover(const struct expr_exec_arg *ea, void *arg)
 {
@@ -186,6 +211,12 @@ peek_binary_operator(struct lexer *lx, const struct token *rparen)
 	    (token_has_spaces(op) || token_has_line(op, 1));
 }
 
+/*
+ * Recover a cast type. The type must be followed by a closing parenthesis and a
+ * plausible operand; a closing parenthesis followed by another closing
+ * parenthesis, a comma, a binary operator, or the GNU `&~` idiom is not a cast.
+ * The check runs while peeking so a rejected candidate consumes nothing.
+ */
 static struct doc *
 expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 {
@@ -220,7 +251,11 @@ expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 
 /*
  * Parse a C11/C23 generic selection, i.e.
- * _Generic ( assignment-expression , generic-association-list ).
+ * _Generic ( assignment-expression , generic-association-list ). The controlling
+ * expression and each association's expression are parsed with the normal
+ * expression parser; each association's type is parsed by parser_type(). A branch
+ * interruption returns the committed prefix, while a genuine failure returns
+ * nullptr so the caller reports it.
  */
 static struct doc *
 expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)

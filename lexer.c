@@ -20,6 +20,19 @@
 #include "trace.h"
 #include "util.h"
 
+/*
+ * The lexer owns the token list for one input file and provides the cursor used
+ * by the parser. It is byte oriented and works on a logical copy of the input in
+ * which translation phase 2 splices have been removed; a map translates logical
+ * offsets back to the physical source so positions, line continuations and
+ * diagnostics stay faithful to the file.
+ *
+ * Comments and preprocessor directives are not tokens of their own in the
+ * cursor stream: the backend (clang.c) attaches them to the next ordinary token
+ * as prefixes or to the previous token as suffixes. Peeking is implemented by
+ * saving and restoring the complete cursor state; while peeking, a preprocessor
+ * branch is treated as taken instead of halting the parse.
+ */
 #define lexer_trace(lx, fmt, ...)                                              \
 	trace(TRACE_LEXER, (lx)->lx_op, (fmt), __VA_ARGS__)
 
@@ -77,6 +90,15 @@ static void lexer_copy_token_list(
 static const char *lexer_serialize_impl(
     struct lexer *, const struct token *, struct arena_scope *);
 
+/*
+ * Tokenize the whole input through the backend callback and return the lexer.
+ * The tokenizer may emit tokens flagged TOKEN_FLAG_DISCARD (whitespace and
+ * empty lines that are not attached to another token); those are collected and
+ * removed in reverse order after the stream is complete. Splice handling and
+ * the backend's after_tokenize hook run before the lexer is handed to the
+ * parser. Returns nullptr if tokenization failed; the after_tokenize hook is
+ * still invoked so the backend can release its state.
+ */
 struct lexer *
 lexer_tokenize(const struct lexer_arg *arg)
 {
@@ -136,6 +158,11 @@ err:
 	return nullptr;
 }
 
+/*
+ * Arena cleanup callback. The lexer owns exactly one reference to every token
+ * in its list, so each is released once here; any remaining document or ruler
+ * reference must already have been dropped.
+ */
 static void
 lexer_free(void *arg)
 {
@@ -188,6 +215,11 @@ lexer_get_arena_scope(const struct lexer *lx)
 	return lx->lx_arena.eternal_scope;
 }
 
+/*
+ * Read one logical byte. At end of input a NUL is returned once; a second read
+ * reports EOF, which lets token readers use an unexpected byte to terminate
+ * their loop without confusing it with a real NUL in the source.
+ */
 int
 lexer_getc(struct lexer *lx, unsigned char *ch)
 {
@@ -214,6 +246,10 @@ lexer_getc(struct lexer *lx, unsigned char *ch)
 	return 0;
 }
 
+/*
+ * Step back one logical byte. The end-of-input sentinel cannot be pushed back;
+ * callers must check lexer_eof() before relying on a following read.
+ */
 void
 lexer_ungetc(struct lexer *lx)
 {
@@ -235,6 +271,12 @@ lexer_emit(struct lexer *lx, const struct lexer_state *st, int token_type)
 	return lexer_emit_template(lx, st, &template);
 }
 
+/*
+ * Create a token covering the logical bytes consumed since st, using tk as the
+ * template. The backend allocator may already have supplied a string for a
+ * multi-part token (such as a literal prefix); otherwise the source slice is
+ * used. The token text is not NUL terminated.
+ */
 struct token *
 lexer_emit_template(
     struct lexer *lx, const struct lexer_state *st, const struct token *tk)
@@ -269,6 +311,12 @@ has_line(const char *str, size_t len)
 	return memchr(str, '\n', len) != nullptr;
 }
 
+/*
+ * Record a diagnostic for the token at ctx. The error flag is set even while
+ * peeking, but the message is suppressed in that case. The message includes the
+ * file and line, an optional location within knfmt itself when function tracing
+ * is enabled, and a best-effort source line with a caret highlighting the token.
+ */
 void
 lexer_error(struct lexer *lx, const struct token *ctx, const char *fun, int lno,
     const char *fmt, ...)
@@ -348,7 +396,9 @@ lexer_get_error(const struct lexer *lx)
 
 /*
  * Get the buffer contents for the lines [beg, end). If end is equal to 0, the
- * line number of the last line is used.
+ * line number of the last line is used. The range is expressed in physical
+ * lines and points into the original input, so verbatim output can include
+ * line continuations exactly as written.
  */
 int
 lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
@@ -376,6 +426,10 @@ lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
 	return 1;
 }
 
+/*
+ * Position the cursor so that the next pop returns tk. The cursor stores the
+ * previously consumed token, hence the step back by one.
+ */
 void
 lexer_seek(struct lexer *lx, struct token *tk)
 {
@@ -396,6 +450,12 @@ lexer_seek_after(struct lexer *lx, struct token *tk)
 	return 1;
 }
 
+/*
+ * Advance to the next token. A preprocessor branch boundary halts the pop
+ * unless peeking: while peeking the cursor jumps to the end of the branch so a
+ * speculative parse sees a coherent alternative. The EOF token is sticky and is
+ * returned repeatedly.
+ */
 int
 lexer_pop(struct lexer *lx, struct token **tk)
 {
@@ -608,7 +668,8 @@ lexer_peek_if(struct lexer *lx, int type, struct token **tk)
 
 /*
  * Consume the next token if it matches the given type. Returns non-zero if such
- * token was found.
+ * token was found. The cursor is restored on mismatch. Unlike lexer_peek(),
+ * this uses an unpeeked pop, so it stops at a branch instead of crossing it.
  */
 int
 lexer_if(struct lexer *lx, int type, struct token **tk)
@@ -699,7 +760,8 @@ lexer_peek_if_pair(struct lexer *lx, int lhs_type, int rhs_type,
 
 /*
  * Consume the next balanced pair of tokens such as parenthesis or squares.
- * Returns non-zero if such tokens was found.
+ * Returns non-zero if such tokens was found. The cursor is moved directly to
+ * the closing token; nested pairs of the same kind are counted.
  */
 int
 lexer_if_pair(struct lexer *lx, int lhs_type, int rhs_type, struct token **lhs,
@@ -878,6 +940,10 @@ lexer_dump(struct lexer *lx)
  * followed by none whitespace is found. The lexer will be positioned before the
  * first none whitespace character and the given state at the beginning of the
  * same line line, thus including the whitespace if present.
+ *
+ * The state is updated only when a line was consumed, so a caller that starts
+ * on a non-empty line keeps its original start position and therefore its
+ * indentation.
  */
 void
 lexer_eat_lines_and_spaces(struct lexer *lx, struct lexer_state *st)
@@ -899,6 +965,13 @@ lexer_eat_lines_and_spaces(struct lexer *lx, struct lexer_state *st)
 	}
 }
 
+/*
+ * Consume up to threshold consecutive new lines, including intervening spaces
+ * and carriage returns. A threshold of zero consumes all of them. The cursor is
+ * left just before the first non-white-space byte; if at least threshold lines
+ * were seen, a single TOKEN_SPACE newline token covering the consumed run is
+ * emitted. Returns the number of lines consumed.
+ */
 int
 lexer_eat_lines(struct lexer *lx, int threshold, struct token **tk)
 {
@@ -1004,6 +1077,12 @@ splice_len(const char *p, size_t len, size_t off)
  * backslash-newline splices) while recording the mapping back to the physical
  * source. The lexer operates on the logical buffer; preprocessor tokens are
  * later mapped back to their physical spelling to preserve line continuations.
+ *
+ * The physical line table is built first and maps each 1-based line to its byte
+ * offset. The logical buffer then drops each splice while filling map[] and
+ * pline[], so logical positions can report both physical offsets and physical
+ * line numbers. The map and line-number tables each have one extra trailing
+ * entry for the end of input. Sizes are checked for overflow before allocation.
  */
 static void
 lexer_input_init(struct lexer *lx, const struct buffer *bf)
@@ -1086,7 +1165,9 @@ logical_to_physical(const struct lexer *lx, size_t off)
 
 /*
  * Rewrite the given token to refer to its physical spelling. Used for
- * preprocessor directives so that line continuations are preserved.
+ * preprocessor directives so that line continuations are preserved. The token
+ * length is recomputed from the physical offsets, so it may differ from the
+ * logical length by the removed splices.
  */
 void
 lexer_token_physical(struct lexer *lx, struct token *tk)
@@ -1128,6 +1209,11 @@ physical_to_logical(const struct lexer *lx, size_t poff)
  * splice so the original line structure is honored, unless the splice falls in
  * the middle of a token (which is thereby joined) or within a preprocessor
  * directive (which preserves its own continuations).
+ *
+ * Splice offsets are logical; directive tokens have already been rewritten to
+ * physical offsets, so their range is translated back before comparison. The
+ * tokens are visited in source order and the scan resumes from the previous
+ * token, keeping the post-processing linear.
  */
 static void
 lexer_apply_splices(struct lexer *lx)
@@ -1177,6 +1263,10 @@ lexer_apply_splices(struct lexer *lx)
 	}
 }
 
+/*
+ * Return the 1-based display column of a logical offset, measured in the
+ * physical line containing it so tabs are expanded as they appear in the source.
+ */
 unsigned int
 lexer_column(const struct lexer *lx, const struct lexer_state *st)
 {

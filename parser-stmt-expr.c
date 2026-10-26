@@ -8,6 +8,15 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Expression statements and GNU statement expressions.
+ *
+ * An expression statement is only recognized when the whole expression is
+ * followed by a semicolon. The lookahead rejects a `NAME(...)` macro that is
+ * followed by another statement, since that is a loop-like construct from a
+ * preprocessor macro rather than an expression. A GNU statement expression is
+ * simply a braced block in expression position.
+ */
 static int
 is_loop_stmt(struct parser *pr, const struct token *semi)
 {
@@ -27,6 +36,12 @@ is_loop_stmt(struct parser *pr, const struct token *semi)
 	return peek;
 }
 
+/*
+ * Parse an expression statement. A type-like prefix is rejected because the
+ * declaration parser owns that shape. The expression must be immediately
+ * followed by a semicolon; otherwise NONE is returned so another statement
+ * alternative can try.
+ */
 int
 parser_stmt_expr(struct parser *pr, struct doc *dc)
 {

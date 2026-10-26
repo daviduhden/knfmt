@@ -10,6 +10,14 @@
 #include "token.h"
 #include "util.h"
 
+/*
+ * Comment reindentation and trailing-whitespace removal. Multi-line comments are
+ * rebuilt line by line: leading whitespace before a line's comment marker is
+ * replaced with indentation matching the configured tab policy, and trailing
+ * whitespace is removed. CRLF is preserved when the original comment used it.
+ * The function returns nullptr when the comment is unchanged, so the lexer can
+ * keep pointing at the original source bytes.
+ */
 static const char *nextline(const char *, size_t);
 static const char *skipws(const char *, size_t);
 static size_t	   rskipws(const char *, size_t);
@@ -26,6 +34,13 @@ is_comment_trimmed(const struct token *tk, const struct buffer *bf)
 	return memcmp(tk->tk_str, buffer_get_ptr(bf), bflen) != 0;
 }
 
+/*
+ * Return a reindented copy of a multi-line comment, or nullptr if no change is
+ * needed or the comment is single-line/empty. The returned length is explicit so
+ * embedded NUL bytes are preserved. The copy is allocated in s; intermediate
+ * work uses the scratch arena. A final line without a newline (as produced by
+ * merged C99 comments) is trimmed and emitted as well.
+ */
 const char *
 comment_trim(const struct token *tk, const struct style *st,
     struct arena *scratch, struct arena_scope *s, size_t *lenp)
@@ -96,6 +111,11 @@ nextline(const char *str, size_t len)
 	return &p[1];
 }
 
+/*
+ * Skip spaces and tabs. Returns nullptr when there is no leading whitespace or
+ * when the whole input is whitespace; the latter avoids returning a pointer one
+ * past the end.
+ */
 static const char *
 skipws(const char *str, size_t len)
 {
@@ -114,7 +134,8 @@ skipws(const char *str, size_t len)
 }
 
 /*
- * Returns the length of the given string disregarding trailing whitespace.
+ * Returns the length of the given string disregarding trailing whitespace. All
+ * bytes classified by isspace(3) in the C locale are removed, including newlines.
  */
 static size_t
 rskipws(const char *str, size_t len)

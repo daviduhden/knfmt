@@ -1,5 +1,10 @@
 #include <stddef.h> /* size_t */
 
+/*
+ * Small formatting helpers shared by the lexer, renderer and ruler. Columns are
+ * 1-based, tabs stop every eight columns, and all length parameters are explicit
+ * so NUL bytes in token text remain representable.
+ */
 struct arena_scope;
 struct buffer;
 

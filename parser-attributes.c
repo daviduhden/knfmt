@@ -10,6 +10,15 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Attribute parsing.
+ *
+ * Both GNU-style __attribute__((...)) and C23 [[...]] specifiers are preserved
+ * opaquely: knfmt does not interpret attribute semantics. The GNU form is also
+ * recognized in its macro-like spelling, where an identifier and argument list
+ * precede a function declarator (for example a lock annotation). Attribute
+ * argument expressions are formatted with the expression parser.
+ */
 int
 parser_attributes_peek(
     struct parser *pr, struct token **rparen, unsigned int flags)
@@ -90,6 +99,12 @@ parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
 	return parser_good(pr);
 }
 
+/*
+ * Emit one or more GNU-style attributes. Each attribute is emitted in its own
+ * group; a line is placed before the attribute list when requested or when more
+ * than one attribute follows. The arguments are parsed as expressions, and the
+ * closing parenthesis is placed in the output document chosen by the caller.
+ */
 int
 parser_attributes(
     struct parser *pr, struct doc *dc, struct doc **out, unsigned int flags)
@@ -199,7 +214,8 @@ peek_colon_colon(struct lexer *lx)
 /*
  * Parse a C23 standard attribute specifier, i.e. [ [ attribute-list ] ].
  * Standard attribute tokens are accepted without any semantic knowledge of the
- * attribute.
+ * attribute. Names may be scoped with :: and may carry an argument clause; the
+ * closing brackets are emitted as part of the declaration.
  */
 int
 parser_attributes_std(struct parser *pr, struct doc *dc)

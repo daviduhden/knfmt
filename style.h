@@ -1,3 +1,9 @@
+/*
+ * clang-format style configuration. style() returns the effective numeric value
+ * of an option; specialized accessors resolve derived policies such as brace
+ * wrapping, include guards and include priorities. Style objects are immutable
+ * after parsing and may be shared by every input file in a run.
+ */
 struct arena;
 struct arena_scope;
 struct buffer;

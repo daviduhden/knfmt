@@ -17,6 +17,22 @@
 #include "style.h"
 #include "token.h"
 
+/*
+ * Type specifier and declarator recognition.
+ *
+ * parser_type_peek() decides how far a declaration's type extends without
+ * emitting anything. The boundary is ambiguous in C: `T *p` can be a
+ * multiplication, `T (x)` can be a call, and function declarators can be
+ * parenthesized arbitrarily. The scanner therefore combines token-class checks
+ * with speculative declarator scans and C89-C23 special cases; it also records
+ * whether the declarator is a function or has return-type suffixes, which the
+ * function parser consumes.
+ *
+ * parser_type() then emits the tokens in [beg, end], inserting line breaks only
+ * between type components and registering the alignment point with the ruler.
+ * Declarator scans are recursive but bounded by SCAN_MAX_DEPTH and leave the
+ * lexer untouched on every path.
+ */
 typedef struct Parser_Type_Context {
 	/* Type of previously consumed token. */
 	int previous_token_type;
@@ -328,6 +344,13 @@ out:
 	return 1;
 }
 
+/*
+ * Find where declaration alignment should occur. Starting from the recorded
+ * alignment token (or the type's end), skip backwards over pointer stars; the
+ * first non-star token is the alignment point and the number of stars is
+ * reported. No alignment is wanted for a declaration with no declarator (the
+ * next token is a semicolon) or for a function pointer type.
+ */
 static const struct token *
 find_align_token(const struct parser_type *type, unsigned int *nspaces)
 {
@@ -362,6 +385,15 @@ find_align_token(const struct parser_type *type, unsigned int *nspaces)
 	return align;
 }
 
+/*
+ * Emit a previously recognized type range. Attributes are emitted inline;
+ * a parenthesized function parameter list is handed to parser_func_arg(), while a
+ * parenthesized non-declarator is rendered as an expression. The alignment point
+ * registers a ruler datum after the type, and a line opportunity is emitted
+ * between components unless the component is followed by punctuation that must
+ * stay attached. A failed parse leaves the caller responsible for rejecting the
+ * input.
+ */
 int
 parser_type(struct parser *pr, struct doc *dc, struct parser_type *type,
     struct ruler *rl)
@@ -714,6 +746,10 @@ scan_function_declarator1(struct parser *pr, struct lexer *lx,
  * declarator and nothing else. The lexer must be positioned immediately after
  * the opening parenthesis. Used to decide between declarator and expression
  * rendering.
+ *
+ * The plain declarator scan is tried first; if it does not reach a closing
+ * parenthesis, the function-declarator scan handles forms whose identifier is
+ * immediately followed by a parameter list.
  */
 static int
 is_declarator_paren(struct parser *pr, struct lexer *lx)
@@ -886,7 +922,10 @@ peek_param_content(struct lexer *lx)
 
 /*
  * Returns non-zero if the next tokens form a plausible function parameter list
- * or K&R identifier list, i.e. ( ... ). The lexer is left untouched.
+ * or K&R identifier list, i.e. ( ... ). The lexer is left untouched. Empty
+ * lists, a sole void, an ellipsis, a type-like prefix, or a parameter-like
+ * content sequence are accepted; this distinction keeps a function call from
+ * being treated as an implicit-int definition.
  */
 static int
 peek_param_list_valid(struct lexer *lx)
@@ -921,6 +960,11 @@ peek_param_list_valid(struct lexer *lx)
  * old-style function definition from a macro attribute followed by an ordinary
  * declaration, e.g. `f(a) int a; { }' versus `__aligned(x) int y;'. The lexer
  * is left untouched.
+ *
+ * A negative result is cached over the scanned token range. Declarations are
+ * only scanned at increasing offsets, so a range that contained no such list
+ * cannot contain one when scanning starts later inside it. This keeps a long run
+ * of annotated declarations from rescanning the suffix and becoming quadratic.
  */
 int
 parser_type_decl_list_then_lbrace(struct parser *pr)
@@ -1002,6 +1046,14 @@ out:
  * Classify the current token sequence as an implicit int declaration or
  * definition as standardized by C89/C90. is_func is set when the declarator is
  * a function declarator. Returns one of PARSER_IMPLICIT_*.
+ */
+/*
+ * Classify the tokens starting at the cursor as an implicit-int declaration or
+ * definition. A plain identifier is a declaration; an identifier followed by a
+ * valid parameter list is a declaration when terminated by a semicolon and a
+ * definition when followed by a brace or a K&R declaration list. A parenthesized
+ * declarator is accepted as a C23 inferred declaration. is_func reports a
+ * function declarator for the caller's bookkeeping.
  */
 static int
 classify_implicit_int(struct parser *pr, int *is_func)

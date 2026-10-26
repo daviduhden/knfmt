@@ -7,9 +7,15 @@ struct doc;
 struct token;
 
 /*
- * Return values for parser routines. Only one of the following may be returned
- * but disjoint values are favored allowing the caller to catch multiple return
- * values.
+ * Shared parser state and return codes.
+ *
+ * Parser routines use disjoint bit flags so a caller can test several outcomes
+ * at once (for example "FAIL | NONE" means "anything that is not progress").
+ * GOOD commits the construct and lets parser_exec() take a stamp. NONE means
+ * "this alternative did not match" and is not an error. FAIL records a
+ * diagnostic. BRCH means the cursor reached a preprocessor branch boundary and
+ * the construct must be parsed again on the next branch. HALT is the union of
+ * all non-progress results.
  */
 #define GOOD 0x00000001
 #define FAIL 0x00000002
@@ -100,6 +106,10 @@ struct parser_arena_scope_cookie {
 int parser_good(const struct parser *);
 int parser_none(const struct parser *);
 
+/*
+ * Report failure at the caller's source location, so diagnostics can point at
+ * the knfmt code that rejected the input when function tracing is enabled.
+ */
 #define parser_fail(a) parser_fail_impl((a), __func__, __LINE__)
 int parser_fail_impl(struct parser *, const char *, int);
 
@@ -120,6 +130,10 @@ void parser_depth_leave(struct parser_depth_guard *);
 	    .pd_pr = (a),                                                      \
 	}
 
+/*
+ * Emit a token and its dangling prefixes/suffixes. The macro records the call
+ * site for document tracing and for diagnostics.
+ */
 #define parser_doc_token(a, b, c)                                              \
 	parser_doc_token_impl((a), (b), (c), __func__, __LINE__)
 struct doc *parser_doc_token_impl(
@@ -134,6 +148,12 @@ unsigned int parser_width(struct parser *, const struct doc *);
 
 int parser_root(struct parser *, struct doc *);
 
+/*
+ * Temporarily replace the parser's document scope. Speculative parses allocate
+ * documents in a nested scope and restore the previous scope on every return
+ * path; this keeps rollback cheap and prevents speculative documents from
+ * being referenced after their arena scope has been left.
+ */
 #define parser_arena_scope(old_scope, new_scope, varname)                      \
 	__attribute__((cleanup(                                                \
 	    parser_arena_scope_leave))) struct parser_arena_scope_cookie       \

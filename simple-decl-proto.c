@@ -8,6 +8,13 @@
 #include "simple-decl-proto.h"
 #include "token.h"
 
+/*
+ * Strip parameter names from a prototype that mixes named and unnamed
+ * parameters for -s. Names are only removed when at least one parameter has no
+ * name and at least one does; an all-unnamed prototype is already consistent.
+ * If any parameter is not a recognizable type-plus-name form, the whole
+ * prototype is left untouched.
+ */
 struct simple_decl_proto {
 	VECTOR(struct argument) arguments;
 	struct lexer *lx;
@@ -32,6 +39,11 @@ simple_decl_proto_enter(struct lexer *lx, struct arena_scope *s)
 	return sp;
 }
 
+/*
+ * Decide whether to strip names. The pass is abandoned if any parameter was
+ * rejected as ambiguous. Otherwise every named parameter identifier is removed
+ * from the token stream.
+ */
 void
 simple_decl_proto_leave(struct simple_decl_proto *sp)
 {
@@ -89,6 +101,12 @@ is_qualifier(const struct token *tk)
 	return 1;
 }
 
+/*
+ * Record a parameter identifier. A parameter is only considered named when the
+ * identifier directly follows a pointer, a type keyword, or a qualifier;
+ * anything else (for example a parenthesized declarator or a macro) makes the
+ * pass ignore the whole prototype.
+ */
 void
 simple_decl_proto_arg_ident(struct simple_decl_proto *sp, struct token *tk)
 {

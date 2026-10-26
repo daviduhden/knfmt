@@ -207,6 +207,10 @@ struct arena_scope;
 #define TOKEN_SERIALIZE_ADDRESS 0x00000010U
 #define TOKEN_SERIALIZE_QUOTE 0x00000020U
 
+/*
+ * Return a pointer to the backend-private tail appended after the public token.
+ * The tail is allocated by token_alloc() using the backend's requested size.
+ */
 #define token_priv(tk, type)                                                   \
 	__extension__({                                                        \
 		typeof(tk) _nx = (tk) + 1;                                     \
@@ -221,6 +225,14 @@ enum {
 
 LIST(token_list, token);
 
+/*
+ * A token is a length-delimited, reference-counted piece of source vocabulary.
+ * tk_str may point into the physical source or into arena memory and is not
+ * guaranteed to be NUL terminated. tk_prefixes and tk_suffixes hold dangling
+ * comments and directives together with whitespace and line-break tokens; they
+ * are owned by the token and released with it. Token text and flags may be
+ * updated in place, but tokens never move once inserted into the lexer's list.
+ */
 struct token {
 	int	     tk_type;
 	int	     tk_refs;

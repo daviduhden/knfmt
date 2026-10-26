@@ -7,6 +7,14 @@
 #include "simple-expr-printf.h"
 #include "token.h"
 
+/*
+ * Remove a trailing newline from the format string of printf-family calls for
+ * -s. The pass knows the argument position of the format string for each
+ * supported function (err(3), warn(3), and their variants), skips preceding
+ * arguments, and only rewrites a string literal whose final character sequence is
+ * exactly `\n"`. The literal is replaced by a fresh arena string, never modified
+ * in place, because token text may point into the source buffer.
+ */
 enum format_argno {
 	FORMAT_ARGNO_0 = 0,
 	FORMAT_ARGNO_1 = 1,

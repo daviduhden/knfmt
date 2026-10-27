@@ -9,7 +9,9 @@ standard output:
 $ knfmt <knfmt.c
 ```
 
-It can perform an in place edit by writing back the formatted source code:
+It can perform an in place edit by writing back the formatted source code. The
+replacement synchronizes the temporary file and its parent directory; a parent
+directory sync error can be reported after the replacement is visible:
 
 ```sh
 $ knfmt -i knfmt.c

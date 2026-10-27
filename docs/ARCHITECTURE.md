@@ -212,6 +212,15 @@ per process, and `knfmt A B A`, `-s`, `-d`, and valid→malformed→valid
 sequences produce output identical to isolated runs. Thread safety is not
 established and is not claimed.
 
+## In-place replacement durability
+
+`-i` writes the formatted bytes to a sibling temporary file, copies the
+target's mode and ownership, synchronizes the temporary file, renames it over
+the target, and synchronizes the parent directory. A failure before `rename()`
+leaves the target unchanged. If the parent-directory `fsync()` fails after the
+rename, the replacement may already be visible even though the command reports
+an error; persistence across a crash is then uncertain.
+
 ## Recovered input stability
 
 - `token_move_prev_line()` moves a line break that precedes a binary

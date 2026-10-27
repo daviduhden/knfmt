@@ -83,9 +83,11 @@ with tests and measurements, preserve all of them:
    Never emit partial output and never turn a rejection into a success.
 5. **Memory and resources.** Arena and token ownership rules must hold.
    Every allocation failure must exit in a controlled way.
-6. **In-place safety.** A failed run must leave the target byte-identical.
-   `make fault` checks allocation faults and `tests/fault.sh` checks the
-   target.
+6. **In-place safety.** Failures before replacement leave the target
+   byte-identical. A failure syncing the parent directory can be reported after
+   the atomic rename has published the replacement, with crash durability
+   uncertain. `make fault` checks allocation faults and `tests/fault.sh`
+   checks pre-replacement failures.
 7. **Documented options.** Existing option names, combinations and exit
    statuses remain compatible. New behavior needs `knfmt.1` and tests.
 8. **Diff and partial formatting.** `-D` trusts the new-file line numbers in

@@ -281,7 +281,7 @@ that review finds an error that is then corrected.
 6. Remove stale or contradictory operational knowledge, add reusable findings,
    and check referenced paths and cross-links. Do not make cosmetic or empty
    edits, add timestamps, or record one-off execution details.
-7. Run `perl tools/check-agent-sync.pl` after the final documentation edit. It
+7. Run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final documentation edit. It
    checks Git change coverage, non-empty instruction edits, required section
    structure, skill frontmatter and locally resolvable Markdown links. The
    check is structural; a reviewer must still judge whether the update is
@@ -381,3 +381,24 @@ These are real and must not be "fixed" by guesswork:
   Link to the document instead.
 - If code and documentation conflict, verify the code first, then fix the
   documentation or the code as part of the same change.
+
+### Shared Agent Knowledge Validation Contract
+
+Use `python3 scripts/validate-agent-knowledge.py --scope worktree` for local
+changes and `python3 -m unittest discover -s tests/agent_knowledge_validator -v`
+for its contract tests. The validator requires Python 3.11+ and Git, uses only
+the Python standard library, and publishes contract version `1.0.0`. All
+adopting repositories share the same CLI, AK001-AK006 identifiers, output
+schema, and exit codes (`0` pass, `1` policy failure, `2` execution/configuration
+error). For a pull request, pass both revisions with
+`--scope range --base BASE_REF --head HEAD_REF`; compare from their merge base.
+
+Read [Agent Knowledge Validation Contract](docs/agent-knowledge-validation.md)
+for the complete rules, JSON schema, optional repository configuration,
+warning semantics, and extension process. AK004 and AK006 can require human
+review; their warnings do not prove or disprove semantic correctness. Keep the
+canonical script and black-box unittest suite byte-identical across adopting
+repositories. Repository-specific requirements belong in the documented TOML
+configuration or a stable `AKX...` extension, never in a private fork of the
+shared rules. The GitHub PR workflow runs the same tests and range command;
+it does not edit files or require secrets.

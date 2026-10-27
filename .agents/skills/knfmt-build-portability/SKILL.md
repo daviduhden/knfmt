@@ -187,16 +187,16 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `perl tools/check-agent-sync.pl` after the final instruction
+this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A
 repository change is incomplete until this synchronization is done.
 
 The repository's CI is defined in `.github/workflows/agent-sync.yml`; it runs
-`perl tools/check-agent-sync.pl --base <pull-request-base>` on every pull request.
+`python3 scripts/validate-agent-knowledge.py --scope range --base <pull-request-base> --head HEAD` on every pull request.
 The checker is a POSIX shell script using Git and standard utilities, so keep
 it independent of the C toolchain and invoke it directly from CI. Run
-`perl tools/check-agent-sync.pl` locally after making the required instruction
+`python3 scripts/validate-agent-knowledge.py --scope worktree` locally after making the required instruction
 updates. If the workflow or checker changes, update this skill and the root
 `AGENTS.md` procedure together, then validate the checker itself.

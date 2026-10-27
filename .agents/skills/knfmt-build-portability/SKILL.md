@@ -174,3 +174,29 @@ Do not claim a platform build succeeded unless it was actually performed.
   instrumentation", "Valgrind memory checking".
 - `docs/FUZZ.md` for fuzzing builds.
 - `.clang-tidy`, `cppcheck-suppressions.xml`, `.clang-format`.
+
+## Maintenance & Continuous Learning
+
+When this skill is used to modify the repository, review it once after the
+implementation. Update it when the supported procedures, tools,
+configurations, assumptions, examples or validation commands changed, when a
+reusable finding improves future work, or when an instruction proved wrong.
+Keep the examples and validation steps aligned with the current repository;
+remove obsolete or contradictory guidance. Do not add cosmetic edits,
+timestamps or execution-specific notes that will not help future tasks.
+
+Also inspect the applicable `AGENTS.md` and any related specialized agent
+instructions, keep their responsibilities and references synchronized with
+this skill, and run `tools/check-agent-sync.sh` after the final instruction
+edit. That check verifies structural conditions; use judgment to ensure the
+updated knowledge is pertinent and accurate. Report which agent and skill
+instructions were reviewed or updated and whether the check passed. A
+repository change is incomplete until this synchronization is done.
+
+The repository's CI is defined in `.github/workflows/agent-sync.yml`; it runs
+`tools/check-agent-sync.sh --base <pull-request-base>` on every pull request.
+The checker is a POSIX shell script using Git and standard utilities, so keep
+it independent of the C toolchain and invoke it directly from CI. Run
+`tools/check-agent-sync.sh` locally after making the required instruction
+updates. If the workflow or checker changes, update this skill and the root
+`AGENTS.md` procedure together, then validate the checker itself.

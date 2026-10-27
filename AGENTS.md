@@ -238,6 +238,87 @@ Use subagents for independent investigation when the task spans more than one
 subsystem. Give each subagent a concrete file list and require file:line
 evidence. Do not let a subagent's summary replace reading the code.
 
+## Continuous Agent & Skills Maintenance
+
+Agent instructions and skills are living repository artifacts.
+
+Every repository modification MUST include an agent/skills synchronization
+step.
+
+Before completing any task, inspect the applicable AGENTS.md and SKILL.md
+files, update the affected instructions, and validate their consistency with
+the implementation.
+
+A code change without the corresponding agent knowledge maintenance is
+considered incomplete.
+
+Never claim completion when the synchronization step has been skipped or has
+failed.
+
+This applies to every change, including code, tests, configuration,
+dependencies, documentation, build files, workflows, and agent or skill
+files. At the end of the task, make one complete review; repeat it only when
+that review finds an error that is then corrected.
+
+### Required review procedure
+
+1. Inventory the changed paths with `git diff` and identify the subsystem or
+   repository practice they change.
+2. Inspect the root and nearest applicable `AGENTS.md` files, all relevant
+   `.agents/skills/**/SKILL.md` files, and any tool-specific agent or skill
+   instructions present under `.github/`, `.claude/` or `.cursor/`.
+3. Select skills by their stated scope and the files or behavior changed.
+   Review every matching skill; review the build/portability skill for build,
+   tooling or CI changes and the testing/fuzzing skill for validation changes.
+4. Update an existing skill when its supported files, procedure, tools,
+   assumptions, examples, commands, validation or reusable knowledge changed.
+   Create a skill only when a durable responsibility has no suitable existing
+   skill; do not split or duplicate a responsibility merely to satisfy this
+   policy.
+5. Keep specialized agent instructions synchronized with the root policy and
+   their matching skills. If a new specialized agent is added, give it the
+   mandatory post-change procedure and final synchronization report below.
+6. Remove stale or contradictory operational knowledge, add reusable findings,
+   and check referenced paths and cross-links. Do not make cosmetic or empty
+   edits, add timestamps, or record one-off execution details.
+7. Run `tools/check-agent-sync.sh` after the final documentation edit. It
+   checks Git change coverage, non-empty instruction edits, required section
+   structure, skill frontmatter and locally resolvable Markdown links. The
+   check is structural; a reviewer must still judge whether the update is
+   pertinent and accurate.
+
+The task is incomplete if applicable instructions were not inspected, an
+affected instruction was not updated, the synchronization check fails, or a
+limitation prevents the required maintenance. Fix the issue or state the
+limitation and report FAIL; never silently omit the step.
+
+### Post-change workflow and definition of done
+
+Every specialized agent must include **Post-Change Knowledge Synchronization**
+in its workflow: identify and review related skills after changes, update new
+or changed knowledge and its own instructions, run or delegate the relevant
+validation, and report the result. Every skill must include
+**Maintenance & Continuous Learning** and direct its user to review and update
+the skill after repository modifications, keeping reusable procedures current
+without adding execution-specific notes.
+
+Before finishing, verify each item:
+
+- [ ] Repository changes implemented.
+- [ ] Relevant agent instructions reviewed.
+- [ ] Relevant skills reviewed.
+- [ ] Affected AGENTS.md / SKILL.md files updated.
+- [ ] Obsolete knowledge removed.
+- [ ] New reusable knowledge incorporated.
+- [ ] Agent and skill references validated.
+- [ ] Automated maintenance checks passed.
+- [ ] Final synchronization status reported.
+
+The final response must contain **Agent & Skills Synchronization** and list
+agents and skills reviewed, instruction files updated, knowledge incorporated
+or corrected, validations actually run, and a final **PASS** or **FAIL**.
+Do not claim a validation passed unless it was run.
+
 Before changing code:
 
 1. Identify the modules and skills involved.

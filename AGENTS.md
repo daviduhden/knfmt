@@ -281,7 +281,7 @@ that review finds an error that is then corrected.
 6. Remove stale or contradictory operational knowledge, add reusable findings,
    and check referenced paths and cross-links. Do not make cosmetic or empty
    edits, add timestamps, or record one-off execution details.
-7. Run `tools/check-agent-sync.sh` after the final documentation edit. It
+7. Run `perl tools/check-agent-sync.pl` after the final documentation edit. It
    checks Git change coverage, non-empty instruction edits, required section
    structure, skill frontmatter and locally resolvable Markdown links. The
    check is structural; a reviewer must still judge whether the update is

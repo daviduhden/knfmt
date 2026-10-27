@@ -176,7 +176,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `tools/check-agent-sync.sh` after the final instruction
+this skill, and run `perl tools/check-agent-sync.pl` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

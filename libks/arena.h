@@ -21,6 +21,11 @@
 #include <stddef.h> /* size_t */
 #include <stdint.h>
 
+/*
+ * Enter a scope whose allocations are reclaimed when the variable leaves
+ * scope. The cleanup attribute requires compiler support and runs when
+ * control leaves the block through a normal exit path, such as return or goto.
+ */
 #define arena_scope(arena, varname)                                            \
 	__attribute__((                                                        \
 	    cleanup(arena_scope_leave))) struct arena_scope varname =          \
@@ -82,32 +87,53 @@ struct arena_trace_event {
 	} type;
 };
 
+/* Create an arena with an initial frame; allocation failures terminate. */
 struct arena *arena_alloc(const char *);
+
+/* Release the owner; outstanding scopes retain the arena until they leave. */
 void	      arena_free(struct arena *);
 
+/* Capture the current frame and allocation offset as a scope checkpoint. */
 #define arena_scope_enter(a) arena_scope_enter_impl((a), __func__, __LINE__)
 struct arena_scope arena_scope_enter_impl(struct arena *, const char *, int);
 
+/* Run cleanup callbacks and reclaim allocations made in the scope. */
 void arena_scope_leave(struct arena_scope *);
 
+/* Allocate aligned storage in the scope; failures are fatal. */
 void *arena_malloc(struct arena_scope *, size_t)
     __attribute__((malloc, alloc_size(2), returns_nonnull));
+
+/* Allocate zeroed storage after checking nmemb * size for overflow. */
 void *arena_calloc(struct arena_scope *, size_t, size_t)
     __attribute__((malloc, alloc_size(2, 3), returns_nonnull));
+
+/*
+ * Resize an arena allocation. old_size must be its exact prior allocation
+ * size; growth may move it, and the old region is poisoned after copying.
+ */
 void *arena_realloc(struct arena_scope *, void *, size_t, size_t)
     __attribute__((malloc, alloc_size(4), returns_nonnull));
 
+/* Format a string into the scope; formatting or allocation failure is fatal. */
 char *arena_sprintf(struct arena_scope *, const char *, ...)
     __attribute__((format(printf, 2, 3), returns_nonnull));
 
+/* Copy a NUL-terminated string into the scope. */
 char *arena_strdup(struct arena_scope *, const char *)
     __attribute__((returns_nonnull));
+
+/* Copy exactly len source bytes into the scope and append a NUL byte. */
 char *arena_strndup(struct arena_scope *, const char *, size_t)
     __attribute__((returns_nonnull));
 
+/* Register a callback to run when this scope is left; callbacks run LIFO. */
 void arena_cleanup(struct arena_scope *, void (*)(void *), void *);
 
+/* Return unused bytes in the current frame, before alignment overhead. */
 size_t arena_capacity(const struct arena_scope *);
+
+/* Mark a region inaccessible to ASan and Valgrind when either is active. */
 void   arena_poison(const void *, size_t);
 
 #endif /* !LIBKS_ARENA_H */

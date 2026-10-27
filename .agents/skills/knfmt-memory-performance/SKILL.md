@@ -48,8 +48,11 @@ only acceptable if it preserves output and the documented invariants.
 - Allocation is a bump allocator. A failed frame allocation or an arithmetic
   overflow is fatal (`err`/`errx`); arena allocation is not nullable.
 - A scope records the current frame and length. Leaving it frees newer frames
-  and truncates the entry frame. Use `arena_scope(arena, name)` and let the
-  cleanup attribute run on every return path.
+  and truncates the entry frame. Registered cleanup callbacks run in reverse
+  registration order. Use `arena_scope(arena, name)` and let the cleanup
+  attribute run on every return path. Releasing the arena owner closes its
+  trace descriptor; outstanding scopes keep the arena storage alive until they
+  leave and run their cleanup callbacks.
 - `arena_scope_validate()` traps when an allocation is made from an outer
   scope while an inner scope is live. This catches pointers escaping a
   speculative parse scope.
@@ -59,8 +62,10 @@ only acceptable if it preserves output and the documented invariants.
 - Arena alignment is `sizeof(void *)`, not a general `max_align_t`
   guarantee. Do not allocate over-aligned objects from an arena without
   checking.
-- `arena_free()` is not idempotent. Do not call it twice. It closes the
-  `ARENA_TRACE` descriptor when it actually frees the arena.
+- `arena_free()` is not idempotent. Do not call it twice. With no outstanding
+  scopes it closes the `ARENA_TRACE` descriptor before teardown. It also closes
+  that descriptor when outstanding scopes keep the arena storage alive after
+  the owner reference is released.
 
 ## libks contracts
 

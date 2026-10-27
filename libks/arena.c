@@ -135,6 +135,7 @@ struct arena_frame {
 };
 
 struct arena {
+	/* Frames form a newest-first stack; scopes retain frame/length checkpoints. */
 	struct arena_frame *frame;
 	/* Initial heap frame size, multiple of page size. */
 	size_t frame_size;
@@ -325,6 +326,7 @@ arena_push_impl(struct arena *a, struct arena_frame *frame, size_t size,
 	void  *ptr;
 	size_t newlen, oldlen;
 
+	/* Grow the used prefix only after the requested range fits this frame. */
 	if (KS_size_add_overflow(frame->len, size, &newlen)) {
 		errno = EOVERFLOW;
 		return nullptr;
@@ -334,6 +336,9 @@ arena_push_impl(struct arena *a, struct arena_frame *frame, size_t size,
 		return nullptr;
 	}
 
+	/* Leave aligned, poisoned gaps between allocations when instrumentation
+	 * is on.
+	 */
 	frame_unpoison(frame, size, poison);
 	ptr = &frame->ptr[frame->len];
 	oldlen = newlen;
@@ -369,6 +374,7 @@ arena_frame_alloc(struct arena *a, size_t frame_size)
 {
 	struct arena_frame *frame;
 
+	/* The frame header lives at the start of the same block as its payload. */
 	frame = malloc(frame_size);
 	if (frame == nullptr)
 		return 0;
@@ -399,6 +405,7 @@ arena_alloc(const char *name)
 	struct arena *a;
 	long	      page_size;
 
+	/* Start with sixteen pages; later spills grow geometrically as needed. */
 	page_size = sysconf(_SC_PAGESIZE);
 	if (page_size == -1)
 		err(1, "sysconf");
@@ -436,14 +443,16 @@ arena_free(struct arena *a)
 	arena_trace_stats(a, ARENA_TRACE_STATS_SCOPES, a->stats.scopes.max,
 	    a->stats.scopes.total);
 
+	if (a->trace.fd != -1) {
+		close(a->trace.fd);
+		a->trace.fd = -1;
+	}
+
+	/* Live scopes hold references and perform their own cleanup when left. */
 	if (a->refs > 1) {
 		/* Scope(s) still alive. */
 		arena_rele(a);
 	} else {
-		if (a->trace.fd != -1) {
-			close(a->trace.fd);
-			a->trace.fd = -1;
-		}
 		arena_scope_leave(&(struct arena_scope){.arena = a});
 	}
 }
@@ -459,6 +468,7 @@ arena_scope_leave(struct arena_scope *s)
 	if (idx < MAX_SOURCE_LOCATIONS)
 		a->scope_locations[idx] = (struct source_location){0};
 
+	/* Cleanup entries are prepended at registration, so this traversal is LIFO. */
 	for (ac = s->cleanup; ac != nullptr; ac = ac->next)
 		ac->fun(ac->ptr);
 	s->cleanup = nullptr;
@@ -467,6 +477,9 @@ arena_scope_leave(struct arena_scope *s)
 	if (a->refs == 1)
 		last_frame = nullptr;
 
+	/* Discard newer frames, then rewind the checkpoint frame to its saved
+	 * offset.
+	 */
 	while (a->frame != nullptr && a->frame != last_frame) {
 		struct arena_frame *frame = a->frame;
 
@@ -499,6 +512,7 @@ arena_scope_enter_impl(struct arena *a, const char *fun, int lno)
 		};
 	}
 
+	/* Retain the arena and snapshot all state that leaving this scope restores. */
 	arena_ref(a);
 	s = (struct arena_scope){
 	    .arena = a,
@@ -523,6 +537,7 @@ arena_scope_validate(struct arena *a, const struct arena_scope *s, size_t size)
 	const struct source_location *scope_location;
 	int			      i;
 
+	/* An inner scope could rewind memory allocated through this outer scope. */
 	if (s->id == a->refs)
 		return;
 
@@ -555,6 +570,7 @@ arena_malloc(struct arena_scope *s, size_t size)
 
 	arena_scope_validate(a, s, size);
 
+	/* Use the active frame first; allocate a sufficiently large frame on spill. */
 	ptr = arena_push(a, a->frame, size, POISON_UNDEFINED);
 	if (ptr != nullptr)
 		return ptr;
@@ -607,7 +623,9 @@ arena_realloc_fast(
 	struct arena	  *a = s->arena;
 	union address	   old_addr;
 
-	/* Always allow existing allocations to shrink. */
+	/* Shrinks stay in place and poison the removed tail; they do not rewind
+	 * the frame.
+	 */
 	if (new_size <= old_size) {
 		arena_poison(&ptr[new_size], old_size - new_size);
 		return 1;
@@ -643,6 +661,9 @@ arena_realloc(
 	/* Fast path while reallocating last allocated object. */
 	if (ptr != nullptr && arena_realloc_fast(s, ptr, old_size, new_size))
 		return ptr;
+	/* If in-place resizing is impossible, allocate-copy-poison using the exact
+	 * old allocation size.
+	 */
 	arena_trace_realloc_spill(s->arena, old_size);
 
 	new_ptr = arena_malloc(s, new_size);
@@ -708,6 +729,7 @@ arena_cleanup(struct arena_scope *s, void (*fun)(void *), void *ptr)
 {
 	struct arena_cleanup *ac;
 
+	/* Prepending makes callbacks execute in reverse registration order. */
 	ac = arena_malloc(s, sizeof(*ac));
 	ac->ptr = ptr;
 	ac->fun = fun;

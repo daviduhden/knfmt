@@ -155,19 +155,22 @@ recovery point; the rejected alternatives are recorded in
 
 ## Style and clang-format
 
-- `.clang-format` in this repository is the source formatting rule
+- `.knfmt` in this repository is the source formatting rule
   (`BasedOnStyle: OpenBSD`, `ColumnLimit: 100`). Follow the surrounding KNF.
+- `.clang-format` and `.clang-tidy` use standard LLVM-compatible configuration
+  for the upstream tools. Keep knfmt-specific style options in `.knfmt`.
 - Runtime style discovery is separate: knfmt searches upward from the current
-  working directory for `.clang-format` (or uses `-c FILE`). It does not look
-  next to each input file. Only the nearest file is used; there is no merge.
+  working directory for the nearest `.knfmt` or `.clang-format` (or uses
+  `-c FILE`). `.knfmt` wins when both are in the same directory. It does not
+  look next to each input file, and it does not merge configuration files.
 - `style.c` maps a subset of clang-format options. Options that are accepted
   but not implemented are interpreted (for example
   `AlignAfterOpenBracket: AlwaysBreak` behaves as `DontAlign`). `-s` enables
   include sorting even when `SortIncludes` is not `CaseSensitive`.
-- `IncludeGuards` is a knfmt extension. It can insert or remove guards and is
-  not gated on `-s`.
-- A malformed `.clang-format` is non-fatal and is normally silent. Use `-ts`
-  to see style diagnostics.
+- `IncludeGuards` is a `.knfmt` extension. It can insert or remove guards and
+  is not gated on `-s`.
+- A malformed discovered style file is non-fatal and is normally silent. Use
+  `-ts` to see style diagnostics.
 
 ## Build, test and fuzzing
 

@@ -1,6 +1,15 @@
 ---
-BasedOnStyle: OpenBSD
+BasedOnStyle: LLVM
 ColumnLimit: 100
+IndentWidth: 8
+TabWidth: 8
+UseTab: Always
+ContinuationIndentWidth: 4
+BreakBeforeBraces: Linux
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: Right
+AlignOperands: DontAlign
+AlwaysBreakAfterReturnType: AllDefinitions
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^"config\.h"'
@@ -16,9 +25,5 @@ IncludeCategories:
     Priority: 4
   - Regex: '^"'
     Priority: 5
-IncludeGuards:
-  - Regex: 'arenas\.h'
-  - Regex: 'lexer-callbacks\.h'
-  - Regex: 'options\.h'
-  - Regex: 'trace-types\.h'
+SortIncludes: Never
 ...

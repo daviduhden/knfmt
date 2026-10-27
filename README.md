@@ -38,9 +38,11 @@ operands are not accepted with `-D`. It is compatible with `-d`, `-i` and
 $ git diff | knfmt -Dds
 ```
 
-It can interoperate with clang-format if a `.clang-format` file is found by
-searching upward from the current working directory, see [knfmt(1)][knfmt]
-for further details.
+It can interoperate with clang-format when a standard `.clang-format` file is
+found by searching upward from the current working directory. `knfmt` first
+looks for its `.knfmt` configuration, which supports the OpenBSD base style and
+knfmt-specific options, then falls back to `.clang-format`. Only the nearest
+configuration is used; files are not merged. See [knfmt(1)][knfmt] for details.
 
 The implementation is further described in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

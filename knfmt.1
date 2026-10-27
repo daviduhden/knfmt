@@ -26,8 +26,13 @@ The options are as follows:
 .It Fl c Ar file
 Read the clang-format configuration from
 .Ar file
-instead of searching for
-.Pa .clang-format .
+instead of searching upward for the nearest
+.Pa .knfmt
+or
+.Pa .clang-format
+file. If both files are in the same directory,
+.Pa .knfmt
+takes precedence.
 .It Fl D
 Only format source regions that intersect changed lines extracted from a
 unified diff read from standard input.

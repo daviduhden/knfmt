@@ -1,0 +1,17 @@
+name: Agent knowledge synchronization
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  agent-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require maintained agent knowledge
+        run: tools/check-agent-sync.sh --base "${{ github.event.pull_request.base.sha }}"

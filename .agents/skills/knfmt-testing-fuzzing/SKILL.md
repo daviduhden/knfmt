@@ -161,3 +161,29 @@ well as GNU.
   injection", "Semantic-preservation oracle", "CPP branch content loss".
 - `tests/knfmt.sh` for the exact flag dispatch.
 - `mkls.sh` for generated lists.
+
+## Maintenance & Continuous Learning
+
+When this skill is used to modify the repository, review it once after the
+implementation. Update it when the supported procedures, tools,
+configurations, assumptions, examples or validation commands changed, when a
+reusable finding improves future work, or when an instruction proved wrong.
+Keep the examples and validation steps aligned with the current repository;
+remove obsolete or contradictory guidance. Do not add cosmetic edits,
+timestamps or execution-specific notes that will not help future tasks.
+
+Also inspect the applicable `AGENTS.md` and any related specialized agent
+instructions, keep their responsibilities and references synchronized with
+this skill, and run `tools/check-agent-sync.sh` after the final instruction
+edit. That check verifies structural conditions; use judgment to ensure the
+updated knowledge is pertinent and accurate. Report which agent and skill
+instructions were reviewed or updated and whether the check passed. A
+repository change is incomplete until this synchronization is done.
+
+The maintenance gate is `tools/check-agent-sync.sh`. It checks Git's changed
+paths for at least one substantive instruction-file edit, required section
+structure, skill frontmatter and resolvable local Markdown links. Run it after
+the final instruction edit; CI runs it for pull requests. This structural
+check cannot decide whether knowledge is relevant, so review that manually.
+Changes to the checker, its workflow, or its validation contract must also be
+reflected in the root `AGENTS.md` and this skill where relevant.

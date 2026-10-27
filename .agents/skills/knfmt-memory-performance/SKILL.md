@@ -88,8 +88,9 @@ only acceptable if it preserves output and the documented invariants.
 - `KS_str` match tables are initialized once from linker sections. The x86-64
   dispatch selects SSE/AVX2/AVX-512; Valgrind disables PCMPISTRI.
 - `KS_fs_replace()` writes a hidden sibling temporary file, copies mode and
-  ownership, then renames. It must unlink the temporary on every failure and
-  leave the target untouched.
+  ownership, fsyncs the file, renames it, then fsyncs the parent directory.
+  Failures before rename leave the target untouched; a directory-sync error
+  can be returned after publication, with crash durability uncertain.
 - Checked arithmetic is mandatory for sizes and indices:
   `KS_size_add_overflow`, `KS_size_mul_overflow`, `ckd_add`, etc. Do not
   compute a byte count in `size_t` and hope.

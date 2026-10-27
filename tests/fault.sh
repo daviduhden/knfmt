@@ -55,7 +55,8 @@ run() {
 	return 1
 }
 
-# run_inplace <file>: on failure the target must be unchanged.
+# run_inplace <file>: injected allocation failures happen before replacement,
+# so the target must remain unchanged.
 run_inplace() {
 	_src="$1"
 	_n=0 _rc=

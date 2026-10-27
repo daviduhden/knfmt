@@ -286,7 +286,8 @@ filediff(struct main_context *c, const struct file *fe)
 /*
  * Replace the input file with the formatted result. Nothing is written when
  * the bytes are unchanged. KS_fs_replace() writes a sibling temporary file and
- * renames it over the target, so a failed run leaves the original intact.
+ * fsyncs the new file and parent directory. Errors before rename leave the
+ * original intact; a directory-sync error can follow publication.
  */
 static int
 filewrite(struct main_context *c, const struct file *fe)

@@ -5,8 +5,9 @@
 - Restore the Linux x86-64 assembler prologue and the GCC AddressSanitizer
   preprocessor comment that the source reformat had corrupted.
 - Check for overflow when growing the last arena allocation, close
-  `ARENA_TRACE` descriptors in `arena_free()`, and reject failed arena-vector
-  allocations.
+  `ARENA_TRACE` descriptors in `arena_free()` even with live scopes, and reject
+  failed arena-vector allocations.
+- Synchronize the replacement file and parent directory during in-place edits.
 - Null the caller's pointer in `MAP_FREE` and reserve buffer space after a
   full read so a file that grows after `fstat(2)` is not truncated.
 - Guard unified-diff hunk arithmetic against unsigned overflow.

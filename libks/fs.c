@@ -35,6 +35,7 @@ construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 	const char *p, *suffix;
 	int	    n;
 
+	/* Keep the temporary beside the target so rename stays on one filesystem. */
 	p = strrchr(path, '/');
 	if (p != nullptr) {
 		size_t len;
@@ -55,6 +56,42 @@ construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 	if (n < 0 || (size_t)n >= bufsiz) {
 		errno = ENAMETOOLONG;
 		return -1;
+	}
+	return 0;
+}
+
+static int
+open_parent_directory(const char *path)
+{
+	char       dir[PATH_MAX];
+	const char *slash;
+	size_t     len;
+
+	slash = strrchr(path, '/');
+	if (slash == nullptr)
+		return open(".", O_RDONLY | O_CLOEXEC);
+
+	len = (size_t)(slash - path);
+	if (len == 0) {
+		dir[0] = '/';
+		dir[1] = '\0';
+	} else {
+		if (len >= sizeof(dir)) {
+			errno = ENAMETOOLONG;
+			return -1;
+		}
+		memcpy(dir, path, len);
+		dir[len] = '\0';
+	}
+	return open(dir, O_RDONLY | O_CLOEXEC);
+}
+
+static int
+fsync_retry(int fd)
+{
+	while (fsync(fd) == -1) {
+		if (errno != EINTR)
+			return -1;
 	}
 	return 0;
 }
@@ -84,10 +121,13 @@ KS_fs_replace(const char *path, const char *buf, size_t buflen)
 {
 	char   tmppath[PATH_MAX] = {0};
 	mode_t old_umask;
+	int    dirfd = -1;
 	int    tmpfd = -1;
 	int    error = -1;
-	int    srcfd;
+	int    srcfd = -1;
+	int    saved_errno;
 
+	/* Open the target so the temporary file can inherit its mode and owner. */
 	srcfd = open(path, O_RDONLY | O_CLOEXEC);
 	if (srcfd == -1)
 		goto out;
@@ -112,19 +152,35 @@ KS_fs_replace(const char *path, const char *buf, size_t buflen)
 
 	if (inherit_ownership_and_permissions(srcfd, tmpfd) == -1)
 		goto out;
+	if (fsync_retry(tmpfd) == -1)
+		goto out;
 
+	dirfd = open_parent_directory(path);
+	if (dirfd == -1)
+		goto out;
+
+	/* Rename publishes the completed contents atomically at the target path. */
 	if (rename(tmppath, path) == -1)
+		goto out;
+	/* Persist the directory entry after the new file's data and metadata. */
+	if (fsync_retry(dirfd) == -1)
 		goto out;
 
 	error = 0;
 
 out:
+	if (error == -1)
+		saved_errno = errno;
 	if (tmppath[0] != '\0')
 		(void)unlink(tmppath);
 	if (srcfd != -1)
 		close(srcfd);
 	if (tmpfd != -1)
 		close(tmpfd);
+	if (dirfd != -1)
+		close(dirfd);
+	if (error == -1)
+		errno = saved_errno;
 	return error;
 }
 
@@ -147,6 +203,7 @@ KS_fs_tmpfd(const char *buf, size_t buflen, char *path, size_t pathsiz)
 	umask(old_umask);
 	if (fd == -1)
 		return -1;
+	/* Keep the open descriptor after removing its temporary directory entry. */
 	if (unlink(tmppath) == -1)
 		goto err;
 

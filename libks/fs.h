@@ -20,7 +20,9 @@
 
 #include <stddef.h> /* size_t */
 
+/* Sync a replaced path; a directory-sync error can follow publication. */
 int KS_fs_replace(const char *, const char *, size_t);
+/* Write bytes to an unlinked temporary file, rewind it, and return its fd. */
 int KS_fs_tmpfd(const char *, size_t, char *, size_t);
 
 #endif /* !LIBKS_FS_H */

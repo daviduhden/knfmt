@@ -51,6 +51,10 @@ exits 1 when differences are found.
 .It Fl i
 In place edit of
 .Ar file .
+The formatted contents are written to a sibling temporary file, synchronized,
+and renamed over the original; the parent directory is then synchronized.
+If that final synchronization fails, the replacement may already be visible
+although the command reports an error.
 Standard input cannot be edited in place unless
 .Fl D
 is also given.

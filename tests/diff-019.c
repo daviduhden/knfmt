@@ -42,33 +42,33 @@
 #include "ipsecctl.h"
 #include "pfkey.h"
 
-static void	print_proto(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_flow(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_supp(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_prop(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_sens(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_spir(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_policy(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_sa(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_addr(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_key(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_life(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_ident(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_udpenc(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_tag(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_rdomain(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_replay(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_mtu(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_tap(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_satype(struct sadb_ext *, struct sadb_msg *, int);
-static void	print_counter(struct sadb_ext *, struct sadb_msg *, int);
+static void print_proto(struct sadb_ext *, struct sadb_msg *, int);
+static void print_flow(struct sadb_ext *, struct sadb_msg *, int);
+static void print_supp(struct sadb_ext *, struct sadb_msg *, int);
+static void print_prop(struct sadb_ext *, struct sadb_msg *, int);
+static void print_sens(struct sadb_ext *, struct sadb_msg *, int);
+static void print_spir(struct sadb_ext *, struct sadb_msg *, int);
+static void print_policy(struct sadb_ext *, struct sadb_msg *, int);
+static void print_sa(struct sadb_ext *, struct sadb_msg *, int);
+static void print_addr(struct sadb_ext *, struct sadb_msg *, int);
+static void print_key(struct sadb_ext *, struct sadb_msg *, int);
+static void print_life(struct sadb_ext *, struct sadb_msg *, int);
+static void print_ident(struct sadb_ext *, struct sadb_msg *, int);
+static void print_udpenc(struct sadb_ext *, struct sadb_msg *, int);
+static void print_tag(struct sadb_ext *, struct sadb_msg *, int);
+static void print_rdomain(struct sadb_ext *, struct sadb_msg *, int);
+static void print_replay(struct sadb_ext *, struct sadb_msg *, int);
+static void print_mtu(struct sadb_ext *, struct sadb_msg *, int);
+static void print_tap(struct sadb_ext *, struct sadb_msg *, int);
+static void print_satype(struct sadb_ext *, struct sadb_msg *, int);
+static void print_counter(struct sadb_ext *, struct sadb_msg *, int);
 
 static struct idname *lookup(struct idname *, u_int32_t);
-static char    *lookup_name(struct idname *, u_int32_t);
-static void	print_ext(struct sadb_ext *, struct sadb_msg *, int);
+static char *lookup_name(struct idname *, u_int32_t);
+static void print_ext(struct sadb_ext *, struct sadb_msg *, int);
 
-void		pfkey_print_raw(u_int8_t *, ssize_t);
-static char	*print_flags(uint32_t);
+void pfkey_print_raw(u_int8_t *, ssize_t);
+static char *print_flags(uint32_t);
 
 struct sadb_ext *extensions[SADB_EXT_MAX + 1];
 
@@ -78,151 +78,93 @@ struct idname {
 	void (*func)(struct sadb_ext *, struct sadb_msg *, int);
 };
 
-struct idname ext_types[] = {
-	{ SADB_EXT_RESERVED,		"reserved",		NULL },
-	{ SADB_EXT_SA,			"sa",			print_sa },
-	{ SADB_EXT_LIFETIME_CURRENT,	"lifetime_cur",		print_life },
-	{ SADB_EXT_LIFETIME_HARD,	"lifetime_hard",	print_life },
-	{ SADB_EXT_LIFETIME_SOFT,	"lifetime_soft",	print_life },
-	{ SADB_EXT_ADDRESS_SRC,		"address_src",		print_addr },
-	{ SADB_EXT_ADDRESS_DST,		"address_dst",		print_addr },
-	{ SADB_EXT_ADDRESS_PROXY,	"address_proxy",	print_addr },
-	{ SADB_EXT_KEY_AUTH,		"key_auth",		print_key },
-	{ SADB_EXT_KEY_ENCRYPT,		"key_encrypt",		print_key },
-	{ SADB_EXT_IDENTITY_SRC,	"identity_src",		print_ident },
-	{ SADB_EXT_IDENTITY_DST,	"identity_dst",		print_ident },
-	{ SADB_EXT_SENSITIVITY,		"sensitivity",		print_sens },
-	{ SADB_EXT_PROPOSAL,		"proposal",		print_prop },
-	{ SADB_EXT_SUPPORTED_AUTH,	"supported_auth",	print_supp },
-	{ SADB_EXT_SUPPORTED_ENCRYPT,	"supported_encrypt",	print_supp },
-	{ SADB_EXT_SPIRANGE,		"spirange",		print_spir },
-	{ SADB_X_EXT_SRC_MASK,		"src_mask",		print_addr },
-	{ SADB_X_EXT_DST_MASK,		"dst_mask",		print_addr },
-	{ SADB_X_EXT_PROTOCOL,		"protocol",		print_proto },
-	{ SADB_X_EXT_FLOW_TYPE,		"flow_type",		print_flow },
-	{ SADB_X_EXT_SRC_FLOW,		"src_flow",		print_addr },
-	{ SADB_X_EXT_DST_FLOW,		"dst_flow",		print_addr },
-	{ SADB_X_EXT_SA2,		"sa2",			print_sa },
-	{ SADB_X_EXT_DST2,		"dst2",			print_addr },
-	{ SADB_X_EXT_POLICY,		"policy",		print_policy },
-	{ SADB_X_EXT_SUPPORTED_COMP,	"supported_comp",	print_supp },
-	{ SADB_X_EXT_UDPENCAP,		"udpencap",		print_udpenc },
-	{ SADB_X_EXT_LIFETIME_LASTUSE,	"lifetime_lastuse",	print_life },
-	{ SADB_X_EXT_TAG,		"tag",			print_tag },
-	{ SADB_X_EXT_RDOMAIN,		"rdomain",		print_rdomain },
-	{ SADB_X_EXT_REPLAY,		"replay",		print_replay },
-	{ SADB_X_EXT_MTU,		"mtu",			print_mtu },
-	{ SADB_X_EXT_TAP,		"tap",			print_tap },
-	{ SADB_X_EXT_SATYPE2,		"satype2",		print_satype },
-	{ SADB_X_EXT_COUNTER,		"counter",		print_counter },
-	{ 0,				NULL,			NULL }
-};
+struct idname ext_types[] = {{SADB_EXT_RESERVED, "reserved", NULL}, {SADB_EXT_SA, "sa", print_sa},
+    {SADB_EXT_LIFETIME_CURRENT, "lifetime_cur", print_life},
+    {SADB_EXT_LIFETIME_HARD, "lifetime_hard", print_life},
+    {SADB_EXT_LIFETIME_SOFT, "lifetime_soft", print_life},
+    {SADB_EXT_ADDRESS_SRC, "address_src", print_addr},
+    {SADB_EXT_ADDRESS_DST, "address_dst", print_addr},
+    {SADB_EXT_ADDRESS_PROXY, "address_proxy", print_addr},
+    {SADB_EXT_KEY_AUTH, "key_auth", print_key}, {SADB_EXT_KEY_ENCRYPT, "key_encrypt", print_key},
+    {SADB_EXT_IDENTITY_SRC, "identity_src", print_ident},
+    {SADB_EXT_IDENTITY_DST, "identity_dst", print_ident},
+    {SADB_EXT_SENSITIVITY, "sensitivity", print_sens}, {SADB_EXT_PROPOSAL, "proposal", print_prop},
+    {SADB_EXT_SUPPORTED_AUTH, "supported_auth", print_supp},
+    {SADB_EXT_SUPPORTED_ENCRYPT, "supported_encrypt", print_supp},
+    {SADB_EXT_SPIRANGE, "spirange", print_spir}, {SADB_X_EXT_SRC_MASK, "src_mask", print_addr},
+    {SADB_X_EXT_DST_MASK, "dst_mask", print_addr}, {SADB_X_EXT_PROTOCOL, "protocol", print_proto},
+    {SADB_X_EXT_FLOW_TYPE, "flow_type", print_flow}, {SADB_X_EXT_SRC_FLOW, "src_flow", print_addr},
+    {SADB_X_EXT_DST_FLOW, "dst_flow", print_addr}, {SADB_X_EXT_SA2, "sa2", print_sa},
+    {SADB_X_EXT_DST2, "dst2", print_addr}, {SADB_X_EXT_POLICY, "policy", print_policy},
+    {SADB_X_EXT_SUPPORTED_COMP, "supported_comp", print_supp},
+    {SADB_X_EXT_UDPENCAP, "udpencap", print_udpenc},
+    {SADB_X_EXT_LIFETIME_LASTUSE, "lifetime_lastuse", print_life},
+    {SADB_X_EXT_TAG, "tag", print_tag}, {SADB_X_EXT_RDOMAIN, "rdomain", print_rdomain},
+    {SADB_X_EXT_REPLAY, "replay", print_replay}, {SADB_X_EXT_MTU, "mtu", print_mtu},
+    {SADB_X_EXT_TAP, "tap", print_tap}, {SADB_X_EXT_SATYPE2, "satype2", print_satype},
+    {SADB_X_EXT_COUNTER, "counter", print_counter}, {0, NULL, NULL}};
 
 struct idname msg_types[] = {
-	{ SADB_ACQUIRE,			"sadb_acquire",		NULL },
-	{ SADB_ADD,			"sadb_add",		NULL },
-	{ SADB_DELETE,			"sadb_delete",		NULL },
-	{ SADB_DUMP,			"sadb_dump",		NULL },
-	{ SADB_EXPIRE,			"sadb_expire",		NULL },
-	{ SADB_FLUSH,			"sadb_flush",		NULL },
-	{ SADB_GET,			"sadb_get",		NULL },
-	{ SADB_GETSPI,			"sadb_getspi",		NULL },
-	{ SADB_REGISTER,		"sadb_register",	NULL },
-	{ SADB_UPDATE,			"sadb_update",		NULL },
-	{ SADB_X_ADDFLOW,		"sadb_addflow",		NULL },
-	{ SADB_X_ASKPOLICY,		"sadb_askpolicy",	NULL },
-	{ SADB_X_DELFLOW,		"sadb_delflow",		NULL },
-	{ SADB_X_GRPSPIS,		"sadb_grpspis",		NULL },
-	{ SADB_X_PROMISC,		"sadb_promisc",		NULL },
-	{ 0,				NULL,			NULL },
+    {SADB_ACQUIRE, "sadb_acquire", NULL},
+    {SADB_ADD, "sadb_add", NULL},
+    {SADB_DELETE, "sadb_delete", NULL},
+    {SADB_DUMP, "sadb_dump", NULL},
+    {SADB_EXPIRE, "sadb_expire", NULL},
+    {SADB_FLUSH, "sadb_flush", NULL},
+    {SADB_GET, "sadb_get", NULL},
+    {SADB_GETSPI, "sadb_getspi", NULL},
+    {SADB_REGISTER, "sadb_register", NULL},
+    {SADB_UPDATE, "sadb_update", NULL},
+    {SADB_X_ADDFLOW, "sadb_addflow", NULL},
+    {SADB_X_ASKPOLICY, "sadb_askpolicy", NULL},
+    {SADB_X_DELFLOW, "sadb_delflow", NULL},
+    {SADB_X_GRPSPIS, "sadb_grpspis", NULL},
+    {SADB_X_PROMISC, "sadb_promisc", NULL},
+    {0, NULL, NULL},
 };
 
-struct idname sa_types[] = {
-	{ SADB_SATYPE_UNSPEC,		"unspec",		NULL },
-	{ SADB_SATYPE_AH,		"ah",			NULL },
-	{ SADB_SATYPE_ESP,		"esp",			NULL },
-	{ SADB_SATYPE_RSVP,		"rsvp",			NULL },
-	{ SADB_SATYPE_OSPFV2,		"ospfv2",		NULL },
-	{ SADB_SATYPE_RIPV2,		"ripv2",		NULL },
-	{ SADB_SATYPE_MIP,		"mip",			NULL },
-	{ SADB_X_SATYPE_IPIP,		"ipip",			NULL },
-	{ SADB_X_SATYPE_TCPSIGNATURE,	"tcpmd5",		NULL },
-	{ SADB_X_SATYPE_IPCOMP,		"ipcomp",		NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname sa_types[] = {{SADB_SATYPE_UNSPEC, "unspec", NULL}, {SADB_SATYPE_AH, "ah", NULL},
+    {SADB_SATYPE_ESP, "esp", NULL}, {SADB_SATYPE_RSVP, "rsvp", NULL},
+    {SADB_SATYPE_OSPFV2, "ospfv2", NULL}, {SADB_SATYPE_RIPV2, "ripv2", NULL},
+    {SADB_SATYPE_MIP, "mip", NULL}, {SADB_X_SATYPE_IPIP, "ipip", NULL},
+    {SADB_X_SATYPE_TCPSIGNATURE, "tcpmd5", NULL}, {SADB_X_SATYPE_IPCOMP, "ipcomp", NULL},
+    {0, NULL, NULL}};
 
-struct idname auth_types[] = {
-	{ SADB_AALG_NONE,		"none",			NULL },
-	{ SADB_AALG_MD5HMAC,		"hmac-md5",		NULL },
-	{ SADB_X_AALG_RIPEMD160HMAC,	"hmac-ripemd160",	NULL },
-	{ SADB_AALG_SHA1HMAC,		"hmac-sha1",		NULL },
-	{ SADB_X_AALG_SHA2_256,		"hmac-sha2-256",	NULL },
-	{ SADB_X_AALG_SHA2_384,		"hmac-sha2-384",	NULL },
-	{ SADB_X_AALG_SHA2_512,		"hmac-sha2-512",	NULL },
-	{ SADB_X_AALG_AES128GMAC,	"gmac-aes-128",		NULL },
-	{ SADB_X_AALG_AES192GMAC,	"gmac-aes-192",		NULL },
-	{ SADB_X_AALG_AES256GMAC,	"gmac-aes-256",		NULL },
-	{ SADB_X_AALG_CHACHA20POLY1305,	"chacha20-poly1305",	NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname auth_types[] = {{SADB_AALG_NONE, "none", NULL}, {SADB_AALG_MD5HMAC, "hmac-md5", NULL},
+    {SADB_X_AALG_RIPEMD160HMAC, "hmac-ripemd160", NULL}, {SADB_AALG_SHA1HMAC, "hmac-sha1", NULL},
+    {SADB_X_AALG_SHA2_256, "hmac-sha2-256", NULL}, {SADB_X_AALG_SHA2_384, "hmac-sha2-384", NULL},
+    {SADB_X_AALG_SHA2_512, "hmac-sha2-512", NULL}, {SADB_X_AALG_AES128GMAC, "gmac-aes-128", NULL},
+    {SADB_X_AALG_AES192GMAC, "gmac-aes-192", NULL}, {SADB_X_AALG_AES256GMAC, "gmac-aes-256", NULL},
+    {SADB_X_AALG_CHACHA20POLY1305, "chacha20-poly1305", NULL}, {0, NULL, NULL}};
 
-struct idname enc_types[] = {
-	{ SADB_EALG_NONE,		"none",			NULL },
-	{ SADB_EALG_3DESCBC,		"3des-cbc",		NULL },
-	{ SADB_X_EALG_AES,		"aes",			NULL },
-	{ SADB_X_EALG_AESCTR,		"aesctr",		NULL },
-	{ SADB_X_EALG_AESGCM16,		"aes-gcm",		NULL },
-	{ SADB_X_EALG_AESGMAC,		"aes-gmac",		NULL },
-	{ SADB_X_EALG_BLF,		"blowfish",		NULL },
-	{ SADB_X_EALG_CAST,		"cast128",		NULL },
-	{ SADB_EALG_NULL,		"null",			NULL },
-	{ SADB_X_EALG_CHACHA20POLY1305,	"chacha20-poly1305",	NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname enc_types[] = {{SADB_EALG_NONE, "none", NULL}, {SADB_EALG_3DESCBC, "3des-cbc", NULL},
+    {SADB_X_EALG_AES, "aes", NULL}, {SADB_X_EALG_AESCTR, "aesctr", NULL},
+    {SADB_X_EALG_AESGCM16, "aes-gcm", NULL}, {SADB_X_EALG_AESGMAC, "aes-gmac", NULL},
+    {SADB_X_EALG_BLF, "blowfish", NULL}, {SADB_X_EALG_CAST, "cast128", NULL},
+    {SADB_EALG_NULL, "null", NULL}, {SADB_X_EALG_CHACHA20POLY1305, "chacha20-poly1305", NULL},
+    {0, NULL, NULL}};
 
-struct idname comp_types[] = {
-	{ SADB_X_CALG_NONE,		"none",			NULL },
-	{ SADB_X_CALG_OUI,		"oui",			NULL },
-	{ SADB_X_CALG_DEFLATE,		"deflate",		NULL },
-	{ SADB_X_CALG_LZS,		"lzs",			NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname comp_types[] = {{SADB_X_CALG_NONE, "none", NULL}, {SADB_X_CALG_OUI, "oui", NULL},
+    {SADB_X_CALG_DEFLATE, "deflate", NULL}, {SADB_X_CALG_LZS, "lzs", NULL}, {0, NULL, NULL}};
 
-struct idname flag_types[] = {
-	{ SADB_SAFLAGS_PFS,		"pfs",			NULL },
-	{ SADB_X_SAFLAGS_TUNNEL,	"tunnel",		NULL },
-	{ SADB_X_SAFLAGS_CHAINDEL,	"chaindel",		NULL },
-	{ SADB_X_SAFLAGS_UDPENCAP,	"udpencap",		NULL },
-	{ SADB_X_SAFLAGS_ESN,		"esn",			NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname flag_types[] = {{SADB_SAFLAGS_PFS, "pfs", NULL},
+    {SADB_X_SAFLAGS_TUNNEL, "tunnel", NULL}, {SADB_X_SAFLAGS_CHAINDEL, "chaindel", NULL},
+    {SADB_X_SAFLAGS_UDPENCAP, "udpencap", NULL}, {SADB_X_SAFLAGS_ESN, "esn", NULL},
+    {0, NULL, NULL}};
 
-struct idname identity_types[] = {
-	{ SADB_IDENTTYPE_RESERVED,	"reserved",		NULL },
-	{ SADB_IDENTTYPE_PREFIX,	"prefix",		NULL },
-	{ SADB_IDENTTYPE_FQDN,		"fqdn",			NULL },
-	{ SADB_IDENTTYPE_USERFQDN,	"ufqdn",		NULL },
-	{ SADB_IDENTTYPE_ASN1_DN,	"asn1_dn",		NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname identity_types[] = {{SADB_IDENTTYPE_RESERVED, "reserved", NULL},
+    {SADB_IDENTTYPE_PREFIX, "prefix", NULL}, {SADB_IDENTTYPE_FQDN, "fqdn", NULL},
+    {SADB_IDENTTYPE_USERFQDN, "ufqdn", NULL}, {SADB_IDENTTYPE_ASN1_DN, "asn1_dn", NULL},
+    {0, NULL, NULL}};
 
-struct idname flow_types[] = {
-	{ SADB_X_FLOW_TYPE_USE,		"use",			NULL },
-	{ SADB_X_FLOW_TYPE_ACQUIRE,	"acquire",		NULL },
-	{ SADB_X_FLOW_TYPE_REQUIRE,	"require",		NULL },
-	{ SADB_X_FLOW_TYPE_BYPASS,	"bypass",		NULL },
-	{ SADB_X_FLOW_TYPE_DENY,	"deny",			NULL },
-	{ SADB_X_FLOW_TYPE_DONTACQ,	"dontacq",		NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname flow_types[] = {{SADB_X_FLOW_TYPE_USE, "use", NULL},
+    {SADB_X_FLOW_TYPE_ACQUIRE, "acquire", NULL}, {SADB_X_FLOW_TYPE_REQUIRE, "require", NULL},
+    {SADB_X_FLOW_TYPE_BYPASS, "bypass", NULL}, {SADB_X_FLOW_TYPE_DENY, "deny", NULL},
+    {SADB_X_FLOW_TYPE_DONTACQ, "dontacq", NULL}, {0, NULL, NULL}};
 
-struct idname states[] = {
-	{ SADB_SASTATE_LARVAL,		"larval",		NULL },
-	{ SADB_SASTATE_MATURE,		"mature",		NULL },
-	{ SADB_SASTATE_DYING,		"dying",		NULL },
-	{ SADB_SASTATE_DEAD,		"dead",			NULL },
-	{ 0,				NULL,			NULL }
-};
+struct idname states[] = {{SADB_SASTATE_LARVAL, "larval", NULL},
+    {SADB_SASTATE_MATURE, "mature", NULL}, {SADB_SASTATE_DYING, "dying", NULL},
+    {SADB_SASTATE_DEAD, "dead", NULL}, {0, NULL, NULL}};
 
 static struct idname *
 lookup(struct idname *tab, u_int32_t id)
@@ -250,16 +192,14 @@ print_ext(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 	struct idname *entry;
 
 	if ((entry = lookup(ext_types, ext->sadb_ext_type)) == NULL) {
-		printf("unknown ext: type %u len %u\n",
-		    ext->sadb_ext_type, ext->sadb_ext_len);
+		printf("unknown ext: type %u len %u\n", ext->sadb_ext_type, ext->sadb_ext_len);
 		return;
 	}
 	printf("\t%s: ", entry->name);
 	if (entry->func != NULL)
 		(*entry->func)(ext, msg, opts);
 	else
-		printf("type %u len %u",
-		    ext->sadb_ext_type, ext->sadb_ext_len);
+		printf("type %u len %u", ext->sadb_ext_type, ext->sadb_ext_len);
 	printf("\n");
 }
 
@@ -275,11 +215,9 @@ print_flags(uint32_t flags)
 	if (len < 0 || (size_t)len >= sizeof(fstr))
 		return (NULL);
 	for (i = 0; i < 32; i++) {
-		if ((flags & (1 << i)) == 0 ||
-		    (entry = lookup(flag_types, 1 << i)) == NULL)
+		if ((flags & (1 << i)) == 0 || (entry = lookup(flag_types, 1 << i)) == NULL)
 			continue;
-		n = snprintf(fstr + len, sizeof(fstr) - len - 1,
-		    comma ? ",%s" : "%s", entry->name);
+		n = snprintf(fstr + len, sizeof(fstr) - len - 1, comma ? ",%s" : "%s", entry->name);
 		if (n < 0 || (size_t)n >= sizeof(fstr) - len - 1)
 			return (NULL);
 		len += n;
@@ -296,16 +234,13 @@ print_sa(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 	struct sadb_sa *sa = (struct sadb_sa *)ext;
 
 	if (msg->sadb_msg_satype == SADB_X_SATYPE_IPCOMP)
-		printf("cpi 0x%8.8x comp %s\n",
-		    ntohl(sa->sadb_sa_spi),
+		printf("cpi 0x%8.8x comp %s\n", ntohl(sa->sadb_sa_spi),
 		    lookup_name(comp_types, sa->sadb_sa_encrypt));
 	else
-		printf("spi 0x%8.8x auth %s enc %s\n",
-		    ntohl(sa->sadb_sa_spi),
+		printf("spi 0x%8.8x auth %s enc %s\n", ntohl(sa->sadb_sa_spi),
 		    lookup_name(auth_types, sa->sadb_sa_auth),
 		    lookup_name(enc_types, sa->sadb_sa_encrypt));
-	printf("\t\tstate %s replay %u flags %s",
-	    lookup_name(states, sa->sadb_sa_state),
+	printf("\t\tstate %s replay %u flags %s", lookup_name(states, sa->sadb_sa_state),
 	    sa->sadb_sa_replay, print_flags(sa->sadb_sa_flags));
 }
 
@@ -322,8 +257,7 @@ print_addr(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 	sa = (struct sockaddr *)(addr + 1);
 	if (sa->sa_family == 0)
 		printf("<any>");
-	else if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), NULL, 0,
-	    NI_NUMERICHOST))
+	else if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST))
 		printf("<could not get numeric hostname>");
 	else
 		printf("%s", hbuf);
@@ -353,7 +287,7 @@ print_key(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 	data = (u_int8_t *)(key + 1);
 	for (i = 0; i < key->sadb_key_bits / 8; i++) {
 		printf("%2.2x", data[i]);
-		data[i] = 0x00;		/* clear sensitive data */
+		data[i] = 0x00; /* clear sensitive data */
 	}
 }
 
@@ -363,11 +297,8 @@ print_life(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 {
 	struct sadb_lifetime *life = (struct sadb_lifetime *)ext;
 
-	printf("alloc %u bytes %llu add %llu first %llu",
-	    life->sadb_lifetime_allocations,
-	    life->sadb_lifetime_bytes,
-	    life->sadb_lifetime_addtime,
-	    life->sadb_lifetime_usetime);
+	printf("alloc %u bytes %llu add %llu first %llu", life->sadb_lifetime_allocations,
+	    life->sadb_lifetime_bytes, life->sadb_lifetime_addtime, life->sadb_lifetime_usetime);
 }
 
 static void
@@ -377,12 +308,10 @@ print_proto(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 
 	/* overloaded */
 	if (msg->sadb_msg_type == SADB_X_GRPSPIS)
-		printf("satype %s flags %x",
-		    lookup_name(sa_types, proto->sadb_protocol_proto),
+		printf("satype %s flags %x", lookup_name(sa_types, proto->sadb_protocol_proto),
 		    proto->sadb_protocol_flags);
 	else
-		printf("proto %u flags %x",
-		    proto->sadb_protocol_proto, proto->sadb_protocol_flags);
+		printf("proto %u flags %x", proto->sadb_protocol_proto, proto->sadb_protocol_flags);
 }
 
 /* ARGSUSED1 */
@@ -400,8 +329,7 @@ print_flow(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 		dir = "out";
 		break;
 	}
-	printf("type %s direction %s",
-	    lookup_name(flow_types, proto->sadb_protocol_proto), dir);
+	printf("type %s direction %s", lookup_name(flow_types, proto->sadb_protocol_proto), dir);
 }
 
 static void
@@ -454,14 +382,15 @@ print_counter(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 	printf("\n");
 
 #define plural(n) ((n) != 1 ? "s" : "")
-#define p(f, m) if (scnt->f || opts & IPSECCTL_OPT_VERBOSE2) \
+#define p(f, m)                                                                                    \
+	if (scnt->f || opts & IPSECCTL_OPT_VERBOSE2)                                               \
 	printf(m, scnt->f, plural(scnt->f))
 	p(sadb_x_counter_ipackets, "\t\t%llu input packet%s\n");
 	p(sadb_x_counter_opackets, "\t\t%llu output packet%s\n");
 	p(sadb_x_counter_ibytes, "\t\t%llu input byte%s\n");
 	p(sadb_x_counter_obytes, "\t\t%llu output byte%s\n");
 	p(sadb_x_counter_idecompbytes, "\t\t%llu input byte%s, decompressed\n");
-	p(sadb_x_counter_ouncompbytes,"\t\t%llu output byte%s, uncompressed\n");
+	p(sadb_x_counter_ouncompbytes, "\t\t%llu output byte%s, uncompressed\n");
 	p(sadb_x_counter_idrops, "\t\t%llu packet%s dropped on input\n");
 	p(sadb_x_counter_odrops, "\t\t%llu packet%s dropped on output\n");
 #undef p
@@ -486,9 +415,8 @@ alg_by_ext(u_int8_t ext_type, u_int8_t id)
 static void
 print_alg(struct sadb_alg *alg, u_int8_t ext_type)
 {
-	printf("\t\t%s iv %u min %u max %u",
-	    alg_by_ext(ext_type, alg->sadb_alg_id), alg->sadb_alg_ivlen,
-	    alg->sadb_alg_minbits, alg->sadb_alg_maxbits);
+	printf("\t\t%s iv %u min %u max %u", alg_by_ext(ext_type, alg->sadb_alg_id),
+	    alg->sadb_alg_ivlen, alg->sadb_alg_minbits, alg->sadb_alg_maxbits);
 }
 
 /* ARGSUSED1 */
@@ -500,8 +428,7 @@ print_supp(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 
 	printf("\n");
 	for (alg = (struct sadb_alg *)(supported + 1);
-	    (size_t)((u_int8_t *)alg - (u_int8_t *)ext) <
-	    ext->sadb_ext_len * PFKEYV2_CHUNK;
+	    (size_t)((u_int8_t *)alg - (u_int8_t *)ext) < ext->sadb_ext_len * PFKEYV2_CHUNK;
 	    alg++) {
 		struct sadb_alg *next = alg + 1;
 		print_alg(alg, ext->sadb_ext_type);
@@ -516,19 +443,14 @@ static void
 print_comb(struct sadb_comb *comb, struct sadb_msg *msg, int opts)
 {
 	printf("\t\tauth %s min %u max %u\n"
-	    "\t\tenc %s min %u max %u\n"
-	    "\t\taddtime hard %llu soft %llu\n"
-	    "\t\tusetime hard %llu soft %llu",
-	    lookup_name(auth_types, comb->sadb_comb_auth),
-	    comb->sadb_comb_auth_minbits,
-	    comb->sadb_comb_auth_maxbits,
-	    lookup_name(enc_types, comb->sadb_comb_encrypt),
-	    comb->sadb_comb_encrypt_minbits,
-	    comb->sadb_comb_encrypt_maxbits,
-	    comb->sadb_comb_soft_addtime,
-	    comb->sadb_comb_hard_addtime,
-	    comb->sadb_comb_soft_usetime,
-	    comb->sadb_comb_hard_usetime);
+	       "\t\tenc %s min %u max %u\n"
+	       "\t\taddtime hard %llu soft %llu\n"
+	       "\t\tusetime hard %llu soft %llu",
+	    lookup_name(auth_types, comb->sadb_comb_auth), comb->sadb_comb_auth_minbits,
+	    comb->sadb_comb_auth_maxbits, lookup_name(enc_types, comb->sadb_comb_encrypt),
+	    comb->sadb_comb_encrypt_minbits, comb->sadb_comb_encrypt_maxbits,
+	    comb->sadb_comb_soft_addtime, comb->sadb_comb_hard_addtime,
+	    comb->sadb_comb_soft_usetime, comb->sadb_comb_hard_usetime);
 #if 0
 	    comb->sadb_comb_flags,
 	    comb->sadb_comb_reserved,
@@ -548,8 +470,7 @@ print_prop(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 
 	printf("replay %u\n", prop->sadb_prop_replay);
 	for (comb = (struct sadb_comb *)(prop + 1);
-	    (size_t)((u_int8_t *)comb - (u_int8_t *)ext) <
-	    ext->sadb_ext_len * PFKEYV2_CHUNK;
+	    (size_t)((u_int8_t *)comb - (u_int8_t *)ext) < ext->sadb_ext_len * PFKEYV2_CHUNK;
 	    comb++)
 		print_comb(comb, msg, opts);
 }
@@ -560,10 +481,8 @@ print_sens(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 {
 	struct sadb_sens *sens = (struct sadb_sens *)ext;
 
-	printf("dpd %u sens_level %u integ_level %u",
-	    sens->sadb_sens_dpd,
-	    sens->sadb_sens_sens_level,
-	    sens->sadb_sens_integ_level);
+	printf("dpd %u sens_level %u integ_level %u", sens->sadb_sens_dpd,
+	    sens->sadb_sens_sens_level, sens->sadb_sens_integ_level);
 }
 
 /* ARGSUSED1 */
@@ -572,8 +491,7 @@ print_spir(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 {
 	struct sadb_spirange *spirange = (struct sadb_spirange *)ext;
 
-	printf("min 0x%8.8x max 0x%8.8x",
-	    spirange->sadb_spirange_min, spirange->sadb_spirange_max);
+	printf("min 0x%8.8x max 0x%8.8x", spirange->sadb_spirange_min, spirange->sadb_spirange_max);
 }
 
 /* ARGSUSED1 */
@@ -582,8 +500,7 @@ print_ident(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 {
 	struct sadb_ident *ident = (struct sadb_ident *)ext;
 
-	printf("type %s id %llu: %s",
-	    lookup_name(identity_types, ident->sadb_ident_type),
+	printf("type %s id %llu: %s", lookup_name(identity_types, ident->sadb_ident_type),
 	    ident->sadb_ident_id, (char *)(ident + 1));
 }
 
@@ -611,8 +528,7 @@ print_rdomain(struct sadb_ext *ext, struct sadb_msg *msg, int opts)
 {
 	struct sadb_x_rdomain *srdomain = (struct sadb_x_rdomain *)ext;
 
-	printf("%d/%d", srdomain->sadb_x_rdomain_dom1,
-	    srdomain->sadb_x_rdomain_dom2);
+	printf("%d/%d", srdomain->sadb_x_rdomain_dom1, srdomain->sadb_x_rdomain_dom2);
 }
 
 static void
@@ -624,10 +540,9 @@ setup_extensions(struct sadb_msg *msg)
 	if (msg->sadb_msg_len == 0)
 		return;
 	for (ext = (struct sadb_ext *)(msg + 1);
-	    (size_t)((u_int8_t *)ext - (u_int8_t *)msg) <
-	    msg->sadb_msg_len * PFKEYV2_CHUNK && ext->sadb_ext_len > 0;
-	    ext = (struct sadb_ext *)((u_int8_t *)ext +
-	    ext->sadb_ext_len * PFKEYV2_CHUNK))
+	    (size_t)((u_int8_t *)ext - (u_int8_t *)msg) < msg->sadb_msg_len * PFKEYV2_CHUNK &&
+	    ext->sadb_ext_len > 0;
+	    ext = (struct sadb_ext *)((u_int8_t *)ext + ext->sadb_ext_len * PFKEYV2_CHUNK))
 		extensions[ext->sadb_ext_type] = ext;
 }
 
@@ -719,8 +634,9 @@ pfkey_print_sa(struct sadb_msg *msg, int opts)
 	bzero(&r, sizeof r);
 	r.type |= RULE_SA;
 	r.tmode = (msg->sadb_msg_satype != SADB_X_SATYPE_TCPSIGNATURE) &&
-	    (sa->sadb_sa_flags & SADB_X_SAFLAGS_TUNNEL) ?
-	    IPSEC_TUNNEL : IPSEC_TRANSPORT;
+		(sa->sadb_sa_flags & SADB_X_SAFLAGS_TUNNEL)
+	    ? IPSEC_TUNNEL
+	    : IPSEC_TRANSPORT;
 	r.spi = ntohl(sa->sadb_sa_spi);
 
 	switch (msg->sadb_msg_satype) {
@@ -779,10 +695,10 @@ pfkey_print_sa(struct sadb_msg *msg, int opts)
 				break;
 			case SADB_X_EALG_AES:
 				switch (r.enckey->len) {
-				case 192/8:
+				case 192 / 8:
 					xfs.encxf = &encxfs[ENCXF_AES_192];
 					break;
-				case 256/8:
+				case 256 / 8:
 					xfs.encxf = &encxfs[ENCXF_AES_256];
 					break;
 				default:
@@ -899,19 +815,15 @@ pfkey_print_sa(struct sadb_msg *msg, int opts)
 void
 pfkey_monitor_sa(struct sadb_msg *msg, int opts)
 {
-	int		 i;
+	int i;
 
 	setup_extensions(msg);
 
 	printf("%s: satype %s vers %u len %u seq %u pid %u\n",
-	    lookup_name(msg_types, msg->sadb_msg_type),
-	    lookup_name(sa_types, msg->sadb_msg_satype),
-	    msg->sadb_msg_version, msg->sadb_msg_len,
-	    msg->sadb_msg_seq,
-	    msg->sadb_msg_pid);
+	    lookup_name(msg_types, msg->sadb_msg_type), lookup_name(sa_types, msg->sadb_msg_satype),
+	    msg->sadb_msg_version, msg->sadb_msg_len, msg->sadb_msg_seq, msg->sadb_msg_pid);
 	if (msg->sadb_msg_errno)
-		printf("\terrno %u: %s\n", msg->sadb_msg_errno,
-		    strerror(msg->sadb_msg_errno));
+		printf("\terrno %u: %s\n", msg->sadb_msg_errno, strerror(msg->sadb_msg_errno));
 	for (i = 0; i <= SADB_EXT_MAX; i++)
 		if (extensions[i])
 			print_ext(extensions[i], msg, opts);

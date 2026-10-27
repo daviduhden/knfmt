@@ -7,11 +7,11 @@ main(void)
 {
 	if (
 #if 0
-#  if 1
+#if 1
 	0
-#  else
+#else
 	1
-#  endif
 #endif
-   )
+#endif
+	)
 }

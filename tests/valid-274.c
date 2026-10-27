@@ -5,10 +5,11 @@
 int
 main(void)
 {
-	asm("nop" : [ctrl] "i" (ctrl), [ranges] "r" (ranges), "a" (ranges_len), [str] "r" (str)
-	    : [ctrl] "i" (ctrl), [ranges] "r" (ranges), "a" (ranges_len), [str] "r" (str));
+	asm("nop"
+	    : [ctrl] "i"(ctrl), [ranges] "r"(ranges), "a"(ranges_len), [str] "r"(str)
+	    : [ctrl] "i"(ctrl), [ranges] "r"(ranges), "a"(ranges_len), [str] "r"(str));
 
 	asm("nop"
-	    : [ctrl] "i" (ctrl), [ranges] "r" (ranges), "a" (ranges_len), [str] "r" (str)
-	    : [ctrl] "i" (ctrl), [ranges] "r" (ranges), "a" (ranges_len), [str] "r" (str));
+	    : [ctrl] "i"(ctrl), [ranges] "r"(ranges), "a"(ranges_len), [str] "r"(str)
+	    : [ctrl] "i"(ctrl), [ranges] "r"(ranges), "a"(ranges_len), [str] "r"(str));
 }

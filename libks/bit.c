@@ -23,12 +23,10 @@
 
 extern uint64_t KS_extract_and_deposit_native(uint64_t, uint64_t, uint64_t);
 
-uint64_t (*KS_extract_and_deposit)(
-    uint64_t, uint64_t, uint64_t) = KS_extract_and_deposit_default;
+uint64_t (*KS_extract_and_deposit)(uint64_t, uint64_t, uint64_t) = KS_extract_and_deposit_default;
 
 uint64_t
-KS_extract_and_deposit_default(
-    uint64_t val, uint64_t extract_mask, uint64_t deposit_mask)
+KS_extract_and_deposit_default(uint64_t val, uint64_t extract_mask, uint64_t deposit_mask)
 {
 	uint64_t extracted_bits = 0;
 	for (uint32_t i = 0; extract_mask != 0; extract_mask >>= 1, val >>= 1) {

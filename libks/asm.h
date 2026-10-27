@@ -21,7 +21,7 @@
 #if defined(__x86_64__)
 
 #if defined(__linux__) && defined(__ELF__)
-#define ASM_PROLOGUE .section .note.GNU-stack,"",%progbits
+#define ASM_PROLOGUE .section.note.GNU - stack, "", % progbits
 #else
 #define ASM_PROLOGUE
 #endif
@@ -33,12 +33,12 @@
 #endif
 
 /* NOLINTBEGIN(bugprone-macro-parentheses) */
-#define ENTRY(x)                                                               \
-	.globl	x;                                                             \
-	.hidden x;                                                             \
-	.text;                                                                 \
-	.type x, @function;                                                    \
-	x:                                                                     \
+#define ENTRY(x)                                                                                   \
+	.globl x;                                                                                  \
+	.hidden x;                                                                                 \
+	.text;                                                                                     \
+	.type x, @function;                                                                        \
+	x:                                                                                         \
 	_CET_ENDBR
 /* NOLINTEND(bugprone-macro-parentheses) */
 #define END(x) .size x, .- x

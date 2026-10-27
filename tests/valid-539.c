@@ -20,11 +20,13 @@ int z = f(
 
 int w = _Generic((
 #if A
-    p
+		     p
 #else
-    q
+		     q
 #endif
-), int: 1, default: 0);
+		     ),
+    int: 1,
+    default: 0);
 
 int v = (struct s){
 #if A

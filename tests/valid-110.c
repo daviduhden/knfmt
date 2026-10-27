@@ -4,10 +4,10 @@
 
 #if 1
 
-int	x;
+int x;
 
 #else
 
-int	y;
+int y;
 
 #endif

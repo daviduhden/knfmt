@@ -3,5 +3,5 @@
  */
 
 /* clang-format off: trailing comment is allowed. */
-	int x;
+int x;
 /* clang-format on: trailing comment is allowed. */

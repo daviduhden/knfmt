@@ -25,21 +25,17 @@
 
 #include "extern.h"
 
-#define _PATH_DIFF	"/usr/bin/diff"
+#define _PATH_DIFF "/usr/bin/diff"
 
-static __dead void	usage(void);
+static __dead void usage(void);
 
-static int	filelist(int, char **, struct file_list *,
-    const struct config *);
-static int	fileformat(const struct file *, struct error *,
-    const struct config *);
-static int	filediff(const struct buffer *, const struct buffer *,
-    const char *);
-static int	filewrite(const struct buffer *, const struct buffer *,
-    const char *);
-static int	fileattr(const char *, const char *);
+static int filelist(int, char **, struct file_list *, const struct config *);
+static int fileformat(const struct file *, struct error *, const struct config *);
+static int filediff(const struct buffer *, const struct buffer *, const char *);
+static int filewrite(const struct buffer *, const struct buffer *, const char *);
+static int fileattr(const char *, const char *);
 
-static int	tmpfd(const char *, char *, size_t);
+static int tmpfd(const char *, char *, size_t);
 
 int
 main(int argc, char *argv[])
@@ -102,7 +98,8 @@ main(int argc, char *argv[])
 		error = 1;
 		goto out;
 	}
-	TAILQ_FOREACH(fe, &files, fe_entry) {
+	TAILQ_FOREACH(fe, &files, fe_entry)
+	{
 		if (fileformat(fe, &er, &cf)) {
 			error = 1;
 			error_flush(&er);
@@ -127,8 +124,7 @@ usage(void)
 }
 
 static int
-filelist(int argc, char **argv, struct file_list *files,
-    const struct config *cf)
+filelist(int argc, char **argv, struct file_list *files, const struct config *cf)
 {
 	struct file *fe;
 
@@ -211,8 +207,8 @@ filediff(const struct buffer *src, const struct buffer *dst, const char *path)
 		if (n < 0 || n >= siz)
 			errc(1, ENAMETOOLONG, "%s: label", __func__);
 
-		execl(_PATH_DIFF, _PATH_DIFF, "-u", "-L", label, "-L", path,
-		    srcpath, dstpath, NULL);
+		execl(
+		    _PATH_DIFF, _PATH_DIFF, "-u", "-L", label, "-L", path, srcpath, dstpath, NULL);
 		_exit(1);
 	}
 
@@ -307,8 +303,7 @@ fileattr(const char *srcpath, const char *dstpath)
 		return 1;
 	}
 
-	if (srcst.st_mode != dstst.st_mode &&
-	    chmod(srcpath, dstst.st_mode) == -1) {
+	if (srcst.st_mode != dstst.st_mode && chmod(srcpath, dstst.st_mode) == -1) {
 		warn("chmod: %s", srcpath);
 		return 1;
 	}

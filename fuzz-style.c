@@ -7,8 +7,8 @@
 
 struct test_context {
 	struct options op;
-	struct arena  *eternal;
-	struct arena  *scratch;
+	struct arena *eternal;
+	struct arena *scratch;
 };
 
 static void *

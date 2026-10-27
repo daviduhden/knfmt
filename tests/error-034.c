@@ -6,8 +6,8 @@ int
 #if
 f = 0|{[,
 #else
-e =
+    e =
 #else
-e
+    e
 #endif
 };

@@ -3,8 +3,8 @@
  * missing declarator is part of the preprocessing-token sequence.
  */
 
-int	a,;
+int a, ;
 
-int	(*fp)(void),;
+int (*fp)(void), ;
 
-int	b, c,;
+int b, c, ;

@@ -26,15 +26,14 @@
 #include "libks/fs.h"
 
 int
-KS_exec_diff(const char *path, const char *src, size_t srclen, const char *dst,
-    size_t dstlen)
+KS_exec_diff(const char *path, const char *src, size_t srclen, const char *dst, size_t dstlen)
 {
-	char  dstpath[PATH_MAX], srcpath[PATH_MAX], label[PATH_MAX];
+	char dstpath[PATH_MAX], srcpath[PATH_MAX], label[PATH_MAX];
 	pid_t pid;
-	int   dstfd = -1;
-	int   srcfd = -1;
-	int   rv = -1;
-	int   n, status;
+	int dstfd = -1;
+	int srcfd = -1;
+	int rv = -1;
+	int n, status;
 
 	n = snprintf(label, sizeof(label), "%s.orig", path);
 	if (n < 0 || (size_t)n >= sizeof(label)) {
@@ -53,8 +52,8 @@ KS_exec_diff(const char *path, const char *src, size_t srclen, const char *dst,
 	if (pid == -1)
 		goto out;
 	if (pid == 0) {
-		execlp("diff", "diff", "-u", "-L", label, "-L", path, srcpath,
-		    dstpath, (char *)nullptr);
+		execlp("diff", "diff", "-u", "-L", label, "-L", path, srcpath, dstpath,
+		    (char *)nullptr);
 		_exit(1);
 	}
 

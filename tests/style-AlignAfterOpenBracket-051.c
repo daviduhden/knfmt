@@ -9,10 +9,9 @@
 int
 main(void)
 {
-        if (0) {
-                if (!aaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbb,
-                            fffffffffffffff(ccc,
-                                    CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC)))
-                        return 0;
-        }
+	if (0) {
+		if (!aaaaaaaaaaaaaaaaaaaa(bbbbbbbbbbbbbbbb,
+			fffffffffffffff(ccc, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC)))
+			return 0;
+	}
 }

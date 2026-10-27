@@ -8,6 +8,7 @@ static @type@proxy_@name@(void)
 }
 #endif
 
-int main(void)
+int
+main(void)
 {
 }

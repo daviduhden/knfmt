@@ -31,7 +31,7 @@ enum vector_error {
 
 struct vector {
 	struct vector_callbacks vc_callbacks;
-	size_t			vc_siz;
+	size_t vc_siz;
 	/* Must come last. */
 	struct vector_public p;
 };
@@ -47,8 +47,7 @@ callback_calloc(size_t nmemb, size_t size, void *UNUSED(arg))
 }
 
 static void *
-callback_realloc(
-    void *ptr, size_t UNUSED(oldsize), size_t newsize, void *UNUSED(arg))
+callback_realloc(void *ptr, size_t UNUSED(oldsize), size_t newsize, void *UNUSED(arg))
 {
 	return realloc(ptr, newsize);
 }
@@ -71,8 +70,8 @@ vector_init(void **vv, size_t stride)
 }
 
 int
-vector_init_impl(enum vector_type type, void **vv, size_t stride,
-    const struct vector_callbacks *callbacks)
+vector_init_impl(
+    enum vector_type type, void **vv, size_t stride, const struct vector_callbacks *callbacks)
 {
 	struct vector *vc;
 
@@ -94,8 +93,7 @@ vector_free(void **vv)
 	if (*vv == nullptr)
 		return;
 	vc = ptov(*vv);
-	vc->vc_callbacks.free(
-	    vc, sizeof(*vc) + (vc->p.len * vc->p.stride), vc->vc_callbacks.arg);
+	vc->vc_callbacks.free(vc, sizeof(*vc) + (vc->p.len * vc->p.stride), vc->vc_callbacks.arg);
 	*vv = nullptr;
 }
 
@@ -105,8 +103,7 @@ vector_copy(void *v)
 	const struct vector *src = ptov(v);
 
 	void *dst;
-	if (vector_init_impl(
-		src->p.type, &dst, src->p.stride, &src->vc_callbacks))
+	if (vector_init_impl(src->p.type, &dst, src->p.stride, &src->vc_callbacks))
 		return nullptr;
 	if (vector_reserve(&dst, src->p.len)) {
 		vector_free(&dst);
@@ -213,7 +210,7 @@ vector_reserve1(struct vector **vv, size_t len)
 {
 	struct vector *vc = *vv;
 	struct vector *newvc;
-	size_t	       newsiz, oldlen, totlen;
+	size_t newsiz, oldlen, totlen;
 
 	if (vc->p.len > ULONG_MAX - len)
 		goto overflow;
@@ -236,8 +233,7 @@ vector_reserve1(struct vector **vv, size_t len)
 		goto overflow;
 	totlen += sizeof(*vc);
 
-	newvc =
-	    vc->vc_callbacks.realloc(vc, oldlen, totlen, vc->vc_callbacks.arg);
+	newvc = vc->vc_callbacks.realloc(vc, oldlen, totlen, vc->vc_callbacks.arg);
 	if (newvc == nullptr)
 		return VECTOR_ERROR;
 	newvc->vc_siz = newsiz;

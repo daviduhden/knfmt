@@ -2,5 +2,5 @@
  * Trailing comment in expression.
  */
 
-int	x = FOO | /* FOO */
+int x = FOO | /* FOO */
     BAR;

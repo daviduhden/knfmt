@@ -7,5 +7,5 @@ int
 main(void)
 {
 	SLIST_FOREACH(sensor, &report->sensors, rep_next)
-		upd_sensor_update(sc, sensor, data, len);
+	upd_sensor_update(sc, sensor, data, len);
 }

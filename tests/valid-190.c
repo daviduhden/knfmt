@@ -6,8 +6,8 @@ int
 main(void)
 {
 	if (nest) {
-		if (strlcpy(uw_forwarder->ip, hostbuf, sizeof(uw_forwarder->ip))
-		    >= sizeof(uw_forwarder->ip))
+		if (strlcpy(uw_forwarder->ip, hostbuf, sizeof(uw_forwarder->ip)) >=
+		    sizeof(uw_forwarder->ip))
 			fatalx("strlcpy");
 	}
 }

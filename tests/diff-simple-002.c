@@ -2,8 +2,7 @@ int
 main(void)
 {
 	if (irqno < 0 || irqno >= sc->sc_nintr)
-		panic("ampintc_intr_establish: bogus irqnumber %d: %s",
-		    irqno, name);
+		panic("ampintc_intr_establish: bogus irqnumber %d: %s", irqno, name);
 
 	if (ci == NULL)
 		ci = &cpu_info_primary;

@@ -33,13 +33,13 @@ enum doc_type {
 };
 
 struct doc_exec_arg {
-	const struct style     *st;
-	struct buffer	       *bf;
-	struct lexer	       *lx;
+	const struct style *st;
+	struct buffer *bf;
+	struct lexer *lx;
 	const struct diffchunk *diff_chunks;
-	const struct doc       *dc;
-	struct arena	       *scratch;
-	unsigned int		flags;
+	const struct doc *dc;
+	struct arena *scratch;
+	unsigned int flags;
 #define DOC_EXEC_DIFF 0x00000001U
 #define DOC_EXEC_TRACE 0x00000002U
 #define DOC_EXEC_TRIM 0x00000004U
@@ -57,7 +57,7 @@ struct doc_minimize {
 	struct {
 		unsigned int nlines;
 		unsigned int nexceeds;
-		double	     sum;
+		double sum;
 	} penality;
 
 	unsigned int flags;
@@ -71,15 +71,15 @@ struct doc_align {
 	unsigned int tabalign;
 };
 
-void	     doc_exec(struct doc_exec_arg *);
+void doc_exec(struct doc_exec_arg *);
 unsigned int doc_width(struct doc_exec_arg *);
-void	     doc_append(struct doc *, struct doc *);
-void	     doc_move_before(struct doc *, struct doc *, struct doc *);
-void	     doc_remove(struct doc *, struct doc *);
-int	     doc_remove_tail(struct doc *);
-void	     doc_set_indent(struct doc *, unsigned int);
-void	     doc_set_dedent(struct doc *, unsigned int);
-void	     doc_set_align(struct doc *, const struct doc_align *);
+void doc_append(struct doc *, struct doc *);
+void doc_move_before(struct doc *, struct doc *, struct doc *);
+void doc_remove(struct doc *, struct doc *);
+int doc_remove_tail(struct doc *);
+void doc_set_indent(struct doc *, unsigned int);
+void doc_set_dedent(struct doc *, unsigned int);
+void doc_set_align(struct doc *, const struct doc_align *);
 
 #define doc_root(a) doc_root_impl((a), __func__, __LINE__)
 struct doc *doc_root_impl(struct arena_scope *, const char *, int);
@@ -115,24 +115,18 @@ struct doc *doc_indent_impl(unsigned int, struct doc *, const char *, int);
 #define doc_dedent(a, b) doc_dedent_impl((a), (b), __func__, __LINE__)
 struct doc *doc_dedent_impl(unsigned int, struct doc *, const char *, int);
 
-#define doc_minimize(a, b)                                                     \
-	doc_minimize_impl(a, sizeof(a) / sizeof((a)[0]), b, __func__, __LINE__)
-struct doc *doc_minimize_impl(
-    const struct doc_minimize *, size_t, struct doc *, const char *, int);
+#define doc_minimize(a, b) doc_minimize_impl(a, sizeof(a) / sizeof((a)[0]), b, __func__, __LINE__)
+struct doc *doc_minimize_impl(const struct doc_minimize *, size_t, struct doc *, const char *, int);
 
 #define doc_literal(a, b) doc_literal_impl((a), (b), __func__, __LINE__)
 struct doc *doc_literal_impl(const char *, struct doc *, const char *, int);
 
-#define doc_literaln(a, b, c)                                                  \
-	doc_literaln_impl((a), (b), (c), __func__, __LINE__)
-struct doc *doc_literaln_impl(
-    const char *, size_t, struct doc *, const char *, int);
+#define doc_literaln(a, b, c) doc_literaln_impl((a), (b), (c), __func__, __LINE__)
+struct doc *doc_literaln_impl(const char *, size_t, struct doc *, const char *, int);
 
-struct doc *doc_token(
-    struct token *, struct doc *, enum doc_type, const char *, int);
+struct doc *doc_token(struct token *, struct doc *, enum doc_type, const char *, int);
 
-#define doc_max_lines(a, b)                                                    \
-	doc_alloc_impl(DOC_MAXLINES, (b), (a), __func__, __LINE__)
+#define doc_max_lines(a, b) doc_alloc_impl(DOC_MAXLINES, (b), (a), __func__, __LINE__)
 
 int doc_max(const struct doc *, struct arena *);
 

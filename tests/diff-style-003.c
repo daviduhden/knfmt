@@ -9,9 +9,10 @@
 int
 main(void)
 {
-        aaaaaaaaaaaaaa(bb, &(struct new_event){});
+	aaaaaaaaaaaaaa(bb, &(struct new_event){});
 
-        aaaaaaaaaaaaaa(bb, &(struct new_event){
-                .flags = 0,
-        });
+	aaaaaaaaaaaaaa(bb,
+	    &(struct new_event){
+		.flags = 0,
+	    });
 }

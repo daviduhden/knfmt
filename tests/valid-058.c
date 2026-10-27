@@ -3,5 +3,5 @@
  */
 
 struct s {
-	int	f:1;
+	int f : 1;
 };

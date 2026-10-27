@@ -8,7 +8,7 @@ main(void)
 #ifdeAGNOSTIC
 	if (1) {
 	}
-#endif /TIC */
+#endif / TIC * /
 
 #if
 #else

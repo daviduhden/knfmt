@@ -2,6 +2,4 @@
  * Empty struct.
  */
 
-struct a {
-
-};
+struct a {};

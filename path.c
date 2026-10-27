@@ -22,12 +22,12 @@ int
 searchpath(const char *filename, int *nlevels)
 {
 	struct stat sb;
-	dev_t	    dev = 0;
-	ino_t	    ino = 0;
-	int	    fd = -1;
-	int	    flags = O_RDONLY | O_CLOEXEC;
-	int	    i = 0;
-	int	    dirfd;
+	dev_t dev = 0;
+	ino_t ino = 0;
+	int fd = -1;
+	int flags = O_RDONLY | O_CLOEXEC;
+	int i = 0;
+	int dirfd;
 
 	dirfd = open(".", flags | O_DIRECTORY);
 	if (dirfd == -1)

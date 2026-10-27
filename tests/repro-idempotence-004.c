@@ -1,4 +1,3 @@
 struct foo s = {
-L	.callbacks = {
-	},
+    L.callbacks = {},
 };

@@ -5,7 +5,7 @@
 #ifndef HEADER_CRYPTO_H
 #define HEADER_CRYPTO_H
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -16,7 +16,7 @@ __attribute__((__noreturn__))
 #endif
 void OpenSSLDie(const char *file, int line, const char *assertion);
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

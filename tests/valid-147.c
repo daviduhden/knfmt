@@ -7,7 +7,6 @@ main(void)
 {
 	if (nest)
 		return 0;
-	else
-		if (nest)
-			return 1;
+	else if (nest)
+		return 1;
 }

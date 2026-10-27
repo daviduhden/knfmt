@@ -5,7 +5,7 @@
 int
 vmm_quiesce_vmx(void)
 {
-	struct vm		*vm;
-	struct vcpu		*vcpu;
-	int			 err;
+	struct vm *vm;
+	struct vcpu *vcpu;
+	int err;
 }

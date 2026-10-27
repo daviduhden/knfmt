@@ -54,8 +54,8 @@ static int
 ctotrace(char c)
 {
 	switch (c) {
-#define OP(name, shortname)                                                    \
-	case shortname:                                                        \
+#define OP(name, shortname)                                                                        \
+	case shortname:                                                                            \
 		return TRACE_##name;
 		FOR_TRACE_TYPES(OP)
 #undef OP

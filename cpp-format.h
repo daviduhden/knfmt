@@ -11,5 +11,5 @@ struct token;
  * its length through lenp, or nullptr when the token should keep its source
  * spelling. The returned string is allocated in the lexer's arena.
  */
-const char *cpp_format(const struct lexer *, struct token *,
-    const struct style *, struct arenas *, const struct options *, size_t *);
+const char *cpp_format(const struct lexer *, struct token *, const struct style *, struct arenas *,
+    const struct options *, size_t *);

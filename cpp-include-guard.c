@@ -36,9 +36,9 @@ static int
 is_guard_define(const struct token *tk)
 {
 	const char *str = tk->tk_str;
-	size_t	    len = tk->tk_len;
-	int	    nwords = 0;
-	int	    threshold = 2;
+	size_t len = tk->tk_len;
+	int nwords = 0;
+	int threshold = 2;
 
 	while (len > 0) {
 		int word = 0;
@@ -66,8 +66,8 @@ static const char *
 path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 {
 	struct buffer *bf;
-	const char    *sliced_path;
-	char	      *resolved_path;
+	const char *sliced_path;
+	char *resolved_path;
 
 	resolved_path = arena_malloc(s, PATH_MAX);
 	if (realpath(path, resolved_path) == nullptr)
@@ -95,9 +95,8 @@ path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
  * cannot be inspected.
  */
 static int
-sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
-    const char *cpp_define, const char *cpp_endif,
-    struct include_guard_context *c)
+sense_include_guards(struct lexer *lx, const char *cpp_ifndef, const char *cpp_define,
+    const char *cpp_endif, struct include_guard_context *c)
 {
 	struct token *define, *endif, *eof, *first, *ifndef;
 
@@ -113,13 +112,11 @@ sense_include_guards(struct lexer *lx, const char *cpp_ifndef,
 		return 0;
 
 	define = token_list_find(&first->tk_prefixes, TOKEN_CPP_DEFINE, 0);
-	if (define == nullptr || token_next(ifndef) != define ||
-	    !is_guard_define(define))
+	if (define == nullptr || token_next(ifndef) != define || !is_guard_define(define))
 		return 0;
 
 	endif = clang_token_branch_next(ifndef);
-	if (endif->tk_type != TOKEN_CPP_ENDIF ||
-	    clang_token_branch_parent(endif) != eof)
+	if (endif->tk_type != TOKEN_CPP_ENDIF || clang_token_branch_parent(endif) != eof)
 		return 0;
 
 	c->ifndef.tk = ifndef;
@@ -157,9 +154,9 @@ emit_line(struct lexer *lx)
 static unsigned int
 token_count_lines(const struct token *tk)
 {
-	const char  *str = tk->tk_str;
-	size_t	     len = tk->tk_len;
-	size_t	     i;
+	const char *str = tk->tk_str;
+	size_t len = tk->tk_len;
+	size_t i;
 	unsigned int count = 0;
 
 	for (i = 0; i < len; i++) {
@@ -207,14 +204,12 @@ emit_ifndef(struct lexer *lx, struct token *tk, const char *cpp)
 
 	if (comment != nullptr) {
 		if (token_has_verbatim_line(comment, 2)) {
-			token_list_append_after(
-			    &tk->tk_prefixes, comment, ifndef);
+			token_list_append_after(&tk->tk_prefixes, comment, ifndef);
 		} else {
 			struct token *line;
 
 			line = emit_line(lx);
-			token_list_append_after(
-			    &tk->tk_prefixes, comment, line);
+			token_list_append_after(&tk->tk_prefixes, comment, line);
 			token_list_append_after(&tk->tk_prefixes, line, ifndef);
 		}
 	} else {
@@ -267,13 +262,12 @@ remove_include_guards(struct include_guard_context *c)
  * because a failed guard recovery would not change the output.
  */
 void
-cpp_include_guard(
-    const struct style *st, struct lexer *lx, struct arena *scratch)
+cpp_include_guard(const struct style *st, struct lexer *lx, struct arena *scratch)
 {
 	struct include_guard_context c = {0};
-	struct arena_scope	    *eternal_scope;
-	struct token		    *define, *endif, *ifndef;
-	const char  *cpp_define, *cpp_endif, *cpp_ifndef, *guard, *path;
+	struct arena_scope *eternal_scope;
+	struct token *define, *endif, *ifndef;
+	const char *cpp_define, *cpp_endif, *cpp_ifndef, *guard, *path;
 	unsigned int ncomponents;
 
 	path = lexer_get_path(lx);
@@ -289,8 +283,7 @@ cpp_include_guard(
 	cpp_define = arena_sprintf(eternal_scope, "#define %s\n\n", guard);
 	cpp_endif = arena_sprintf(eternal_scope, "#endif /* !%s */\n", guard);
 
-	int has_include_guards =
-	    sense_include_guards(lx, cpp_ifndef, cpp_define, cpp_endif, &c);
+	int has_include_guards = sense_include_guards(lx, cpp_ifndef, cpp_define, cpp_endif, &c);
 	/*
 	 * A negative result means the lexer could not be inspected; the
 	 * context is left zeroed, so bail out rather than dereference null

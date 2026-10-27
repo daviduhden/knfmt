@@ -28,7 +28,7 @@
 
 static void *callback_alloc(size_t, void *);
 static void *callback_realloc(void *, size_t, size_t, void *);
-static void  callback_free(void *, size_t, void *);
+static void callback_free(void *, size_t, void *);
 
 static struct buffer_callbacks *
 init_callbacks(struct buffer_callbacks *callbacks, struct arena_scope *s)
@@ -65,10 +65,10 @@ struct buffer *
 arena_buffer_read(struct arena_scope *s, const char *path)
 {
 	struct buffer_callbacks callbacks;
-	struct buffer	       *bf;
-	size_t			init_size = 1 << 10;
-	int			overshoot = 1;
-	int			errno_save, error, fd;
+	struct buffer *bf;
+	size_t init_size = 1 << 10;
+	int overshoot = 1;
+	int errno_save, error, fd;
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
@@ -76,8 +76,7 @@ arena_buffer_read(struct arena_scope *s, const char *path)
 
 	if (estimate_size(fd, &init_size))
 		overshoot = 0;
-	bf = buffer_alloc_impl(
-	    init_size, overshoot, init_callbacks(&callbacks, s));
+	bf = buffer_alloc_impl(init_size, overshoot, init_callbacks(&callbacks, s));
 	error = buffer_read_fd_impl(bf, fd);
 	errno_save = errno;
 	close(fd);
@@ -103,8 +102,7 @@ arena_buffer_read_fd(struct arena_scope *s, int fd)
 }
 
 const char *
-arena_buffer_getline(struct arena_scope *s, const struct buffer *bf,
-    struct buffer_getline *getline)
+arena_buffer_getline(struct arena_scope *s, const struct buffer *bf, struct buffer_getline *getline)
 {
 	if (getline->bf == nullptr)
 		getline->bf = arena_buffer_alloc(s, 1 << 10);

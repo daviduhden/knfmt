@@ -26,20 +26,19 @@
  * scope. The cleanup attribute requires compiler support and runs when
  * control leaves the block through a normal exit path, such as return or goto.
  */
-#define arena_scope(arena, varname)                                            \
-	__attribute__((                                                        \
-	    cleanup(arena_scope_leave))) struct arena_scope varname =          \
+#define arena_scope(arena, varname)                                                                \
+	__attribute__((cleanup(arena_scope_leave))) struct arena_scope varname =                   \
 	    arena_scope_enter((arena))
 
 struct arena_scope {
-	struct arena	     *arena;
-	struct arena_frame   *frame;
+	struct arena *arena;
+	struct arena_frame *frame;
 	struct arena_cleanup *cleanup;
-	size_t		      frame_len;
-	size_t		      bytes;
-	size_t		      frames;
-	size_t		      scopes;
-	int		      id;
+	size_t frame_len;
+	size_t bytes;
+	size_t frames;
+	size_t scopes;
+	int id;
 };
 
 struct arena_trace_event {
@@ -47,10 +46,9 @@ struct arena_trace_event {
 
 	union {
 #define ARENA_TRACE_STACK_TRACE_DEPTH 10
-#define ARENA_NAME_MAX_LENGTH                                                  \
-	(sizeof(uintptr_t) * ARENA_TRACE_STACK_TRACE_DEPTH)
+#define ARENA_NAME_MAX_LENGTH (sizeof(uintptr_t) * ARENA_TRACE_STACK_TRACE_DEPTH)
 		uintptr_t stack_trace[ARENA_TRACE_STACK_TRACE_DEPTH];
-		char	  name[ARENA_NAME_MAX_LENGTH];
+		char name[ARENA_NAME_MAX_LENGTH];
 	};
 
 	union {
@@ -59,7 +57,7 @@ struct arena_trace_event {
 		struct {
 			size_t size;
 			size_t alignment_spill;
-			int    internal;
+			int internal;
 		} push;
 
 		struct {
@@ -91,7 +89,7 @@ struct arena_trace_event {
 struct arena *arena_alloc(const char *);
 
 /* Release the owner; outstanding scopes retain the arena until they leave. */
-void	      arena_free(struct arena *);
+void arena_free(struct arena *);
 
 /* Capture the current frame and allocation offset as a scope checkpoint. */
 #define arena_scope_enter(a) arena_scope_enter_impl((a), __func__, __LINE__)
@@ -120,12 +118,10 @@ char *arena_sprintf(struct arena_scope *, const char *, ...)
     __attribute__((format(printf, 2, 3), returns_nonnull));
 
 /* Copy a NUL-terminated string into the scope. */
-char *arena_strdup(struct arena_scope *, const char *)
-    __attribute__((returns_nonnull));
+char *arena_strdup(struct arena_scope *, const char *) __attribute__((returns_nonnull));
 
 /* Copy exactly len source bytes into the scope and append a NUL byte. */
-char *arena_strndup(struct arena_scope *, const char *, size_t)
-    __attribute__((returns_nonnull));
+char *arena_strndup(struct arena_scope *, const char *, size_t) __attribute__((returns_nonnull));
 
 /* Register a callback to run when this scope is left; callbacks run LIFO. */
 void arena_cleanup(struct arena_scope *, void (*)(void *), void *);
@@ -134,6 +130,6 @@ void arena_cleanup(struct arena_scope *, void (*)(void *), void *);
 size_t arena_capacity(const struct arena_scope *);
 
 /* Mark a region inaccessible to ASan and Valgrind when either is active. */
-void   arena_poison(const void *, size_t);
+void arena_poison(const void *, size_t);
 
 #endif /* !LIBKS_ARENA_H */

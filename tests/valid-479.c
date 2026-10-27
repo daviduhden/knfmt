@@ -5,5 +5,5 @@
 struct s {
 	int x;
 };
-struct s s = { };
-int a[3] = { };
+struct s s = {};
+int a[3] = {};

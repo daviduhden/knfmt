@@ -2,4 +2,4 @@
  * Empty expression argument.
  */
 
-MAP(int,, Foo *) foo;
+MAP(int, , Foo *) foo;

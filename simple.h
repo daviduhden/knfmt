@@ -33,21 +33,19 @@ enum simple_pass {
 };
 
 struct simple_cookie {
-	struct simple	*si;
+	struct simple *si;
 	enum simple_pass pass;
-	int		 state;
+	int state;
 };
 
-#define simple_cookie(varname)                                                 \
-	__attribute__((                                                        \
-	    cleanup(simple_leave))) struct simple_cookie varname = {0}
+#define simple_cookie(varname)                                                                     \
+	__attribute__((cleanup(simple_leave))) struct simple_cookie varname = {0}
 
 struct simple *simple_alloc(struct arena_scope *, const struct options *);
 
-int simple_enter(
-    struct simple *, enum simple_pass, unsigned int, struct simple_cookie *);
+int simple_enter(struct simple *, enum simple_pass, unsigned int, struct simple_cookie *);
 void simple_leave(struct simple_cookie *);
-int  is_simple_enabled(const struct simple *, enum simple_pass);
+int is_simple_enabled(const struct simple *, enum simple_pass);
 
-int  simple_disable(struct simple *);
+int simple_disable(struct simple *);
 void simple_enable(struct simple *, int);

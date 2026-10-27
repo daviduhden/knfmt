@@ -5,23 +5,26 @@
 int
 main(void)
 {
-	goto foo;;
-	continue;;
-	return;;
-	break;;
+	goto foo;
+	;
+	continue;
+	;
+	return;
+	;
+	break;
+	;
 	do {
-	} while (0);;
+	} while (0);
+	;
 
 	{
 		int x;
 	};
 }
 
-int
-main(void)
-{
+int main(void){
 #if 0
 	}
 #endif
-;
+    ;
 }

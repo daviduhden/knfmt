@@ -6,7 +6,7 @@ int
 main(void)
 {
 	switch (0) {
-	case 0: ;
-	default: ;
+	case 0:;
+	default:;
 	}
 }

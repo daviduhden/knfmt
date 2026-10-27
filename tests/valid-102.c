@@ -13,7 +13,7 @@ main(void)
 #else
 	    2
 #endif
-	    ) {
+	) {
 	}
 	return 0;
 }

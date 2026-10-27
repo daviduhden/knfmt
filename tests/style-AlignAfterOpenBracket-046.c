@@ -9,8 +9,8 @@
 int
 main(void)
 {
-        if (0) {
-                STATIC_ASSERT(sizeof(aaaaa.bbbbbbbbbbbb) == CCCCCCCCCCCCCCCCCCCC
-                        && sizeof(ccccccccccc.dddddddddddd) == CCCCCCCCCCCCCCCCCCCC);
-        }
+	if (0) {
+		STATIC_ASSERT(sizeof(aaaaa.bbbbbbbbbbbb) == CCCCCCCCCCCCCCCCCCCC &&
+		    sizeof(ccccccccccc.dddddddddddd) == CCCCCCCCCCCCCCCCCCCC);
+	}
 }

@@ -30,16 +30,16 @@ struct ruler_column {
 };
 
 struct ruler_indent {
-	struct doc  *ri_dc;
+	struct doc *ri_dc;
 	unsigned int ri_rd;
-	int	     ri_sign;
+	int ri_sign;
 };
 
 struct ruler_datum {
-	struct doc   *rd_dc;
+	struct doc *rd_dc;
 	struct token *rd_tk;
-	unsigned int  rd_len;
-	unsigned int  rd_nspaces;
+	unsigned int rd_len;
+	unsigned int rd_nspaces;
 };
 
 struct ruler_length {
@@ -51,8 +51,7 @@ static void ruler_exec_indent(struct ruler *);
 static void ruler_reset(struct ruler *);
 
 static unsigned int sense_column_length(struct ruler_column *);
-static int	    ruler_column_length(
-    const struct ruler *, struct ruler_column *, struct ruler_length *);
+static int ruler_column_length(const struct ruler *, struct ruler_column *, struct ruler_length *);
 static unsigned int count_trailing_spaces(const char *, size_t);
 
 static int minimize(const struct ruler_column *);
@@ -71,8 +70,7 @@ ruler_cleanup(void *arg)
  * column vector is allocated lazily by ruler_insert().
  */
 void
-ruler_init(struct ruler *rl, unsigned int align, unsigned int flags,
-    struct arena_scope *s)
+ruler_init(struct ruler *rl, unsigned int align, unsigned int flags, struct arena_scope *s)
 {
 	memset(rl, 0, sizeof(*rl));
 	ARENA_VECTOR_INIT(s, rl->rl_columns, 1 << 3);
@@ -93,17 +91,15 @@ ruler_init(struct ruler *rl, unsigned int align, unsigned int flags,
  * document is created under dc.
  */
 void
-ruler_insert_impl(struct ruler *rl, struct token *tk, struct doc *dc,
-    unsigned int col, unsigned int len, unsigned int nspaces, const char *fun,
-    int lno)
+ruler_insert_impl(struct ruler *rl, struct token *tk, struct doc *dc, unsigned int col,
+    unsigned int len, unsigned int nspaces, const char *fun, int lno)
 {
 	struct ruler_column *rc;
-	struct ruler_datum  *rd;
+	struct ruler_datum *rd;
 
 	while (VECTOR_LENGTH(rl->rl_columns) < col) {
 		rc = ARENA_VECTOR_CALLOC(rl->rl_columns);
-		ARENA_VECTOR_INIT(
-		    rl->rl_arena.ruler_scope, rc->rc_datums, 1 << 6);
+		ARENA_VECTOR_INIT(rl->rl_arena.ruler_scope, rc->rc_datums, 1 << 6);
 	}
 	rc = &rl->rl_columns[col - 1];
 
@@ -136,8 +132,8 @@ ruler_insert_impl(struct ruler *rl, struct token *tk, struct doc *dc,
  * the caller is expected to free it.
  */
 struct doc *
-ruler_indent_impl(struct ruler *rl, struct doc *dc,
-    struct ruler_indent **cookie, int sign, const char *fun, int lno)
+ruler_indent_impl(struct ruler *rl, struct doc *dc, struct ruler_indent **cookie, int sign,
+    const char *fun, int lno)
 {
 	struct ruler_column *rc;
 	struct ruler_indent *ri;
@@ -149,8 +145,7 @@ ruler_indent_impl(struct ruler *rl, struct doc *dc,
 		goto err;
 
 	if (rl->rl_indent == nullptr) {
-		ARENA_VECTOR_INIT(
-		    rl->rl_arena.ruler_scope, rl->rl_indent, 1 << 6);
+		ARENA_VECTOR_INIT(rl->rl_arena.ruler_scope, rl->rl_indent, 1 << 6);
 	}
 	ri = ARENA_VECTOR_CALLOC(rl->rl_indent);
 	ri->ri_rd = VECTOR_LENGTH(rc->rc_datums) - 1;
@@ -190,7 +185,7 @@ ruler_exec(struct ruler *rl)
 	size_t i, j;
 
 	for (i = 0; i < VECTOR_LENGTH(rl->rl_columns); i++) {
-		struct ruler_length  len;
+		struct ruler_length len;
 		struct ruler_column *rc = &rl->rl_columns[i];
 
 		if (ruler_column_length(rl, rc, &len))
@@ -240,9 +235,9 @@ ruler_get_column_count(const struct ruler *rl)
 static void
 ruler_exec_indent(struct ruler *rl)
 {
-	struct ruler_length  len = {0};
+	struct ruler_length len = {0};
 	struct ruler_column *rc;
-	size_t		     i;
+	size_t i;
 
 	if (rl->rl_indent == nullptr)
 		return;
@@ -254,9 +249,9 @@ ruler_exec_indent(struct ruler *rl)
 		len.max = (len.max + 8 - 1) & ~0x7U;
 
 	for (i = 0; i < VECTOR_LENGTH(rl->rl_indent); i++) {
-		struct ruler_indent	 *ri = &rl->rl_indent[i];
+		struct ruler_indent *ri = &rl->rl_indent[i];
 		const struct ruler_datum *rd = &rc->rc_datums[ri->ri_rd];
-		unsigned int		  indent;
+		unsigned int indent;
 
 		if (len.max > 0)
 			indent = len.max + (rc->rc_nspaces - rd->rd_nspaces);
@@ -278,7 +273,7 @@ ruler_reset(struct ruler *rl)
 {
 	while (!VECTOR_EMPTY(rl->rl_columns)) {
 		struct ruler_column *rc = VECTOR_POP(rl->rl_columns);
-		size_t		     i;
+		size_t i;
 
 		for (i = 0; i < VECTOR_LENGTH(rc->rc_datums); i++)
 			token_rele(rc->rc_datums[i].rd_tk);
@@ -308,8 +303,8 @@ sense_column_spaces(const struct ruler_column *rc)
 
 	for (i = 0; i < VECTOR_LENGTH(rc->rc_datums); i++) {
 		const struct ruler_datum *rd = &rc->rc_datums[i];
-		struct token		 *suffix;
-		unsigned int		  n;
+		struct token *suffix;
+		unsigned int n;
 
 		if (!token_has_tabs(rd->rd_tk))
 			continue;
@@ -338,7 +333,7 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 {
 	const struct token *tk = rd->rd_tk;
 	const struct token *nx;
-	unsigned int	    alignment_width, datum_width, delta;
+	unsigned int alignment_width, datum_width, delta;
 
 	if (token_has_suffix(tk, TOKEN_COMMENT))
 		return 0;
@@ -354,8 +349,7 @@ sense_datum_width(const struct ruler_datum *rd, unsigned int nspaces)
 	 * every pass.
 	 */
 	if (nx->tk_type == TOKEN_EQUAL &&
-	    (tk->tk_flags &
-		(TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER | TOKEN_FLAG_STORAGE)))
+	    (tk->tk_flags & (TOKEN_FLAG_TYPE | TOKEN_FLAG_QUALIFIER | TOKEN_FLAG_STORAGE)))
 		return 0;
 	/*
 	 * <tab> struct sss <tab> <space> *
@@ -379,7 +373,7 @@ static const struct ruler_datum *
 sense_column_longest_datum(const struct ruler_column *rc)
 {
 	const struct ruler_datum *rd = nullptr;
-	unsigned int		  i;
+	unsigned int i;
 
 	for (i = 0; i < VECTOR_LENGTH(rc->rc_datums); i++) {
 		const struct ruler_datum *candidate = &rc->rc_datums[i];
@@ -402,9 +396,8 @@ sense_column_longest_datum(const struct ruler_column *rc)
 static unsigned int
 sense_column_length(struct ruler_column *rc)
 {
-	size_t	     i;
-	unsigned int alignment_width, effective_nspaces, effective_width, len,
-	    width;
+	size_t i;
+	unsigned int alignment_width, effective_nspaces, effective_width, len, width;
 
 	assert(!VECTOR_EMPTY(rc->rc_datums));
 
@@ -414,8 +407,7 @@ sense_column_length(struct ruler_column *rc)
 	 * Since all datums are expected to be of same width, operate on the
 	 * first one.
 	 */
-	effective_width =
-	    sense_datum_width(&rc->rc_datums[0], effective_nspaces);
+	effective_width = sense_datum_width(&rc->rc_datums[0], effective_nspaces);
 	if (effective_width == 0)
 		return 0;
 
@@ -439,8 +431,7 @@ sense_column_length(struct ruler_column *rc)
 	 * ^width---------^             |
 	 * ^effective_width-------------^
 	 */
-	const struct ruler_datum *longest_datum =
-	    sense_column_longest_datum(rc);
+	const struct ruler_datum *longest_datum = sense_column_longest_datum(rc);
 	const struct token *tk = longest_datum->rd_tk;
 	width = colwidth(tk->tk_str, tk->tk_len, tk->tk_cno);
 	alignment_width = effective_width - width;
@@ -456,8 +447,7 @@ sense_column_length(struct ruler_column *rc)
  * Returns non-zero when the column must be left unaligned.
  */
 static int
-ruler_column_length(
-    const struct ruler *rl, struct ruler_column *rc, struct ruler_length *len)
+ruler_column_length(const struct ruler *rl, struct ruler_column *rc, struct ruler_length *len)
 {
 	unsigned int maxlen = 0;
 	unsigned int tabalign = rl->rl_flags & RULER_ALIGN_TABS;
@@ -471,8 +461,7 @@ ruler_column_length(
 	} else if (rl->rl_flags & RULER_ALIGN_SENSE) {
 		maxlen = sense_column_length(rc);
 		if (maxlen == 0) {
-			if (rc->rc_ntabs > 0 &&
-			    rc->rc_ntabs >= VECTOR_LENGTH(rc->rc_datums) / 4)
+			if (rc->rc_ntabs > 0 && rc->rc_ntabs >= VECTOR_LENGTH(rc->rc_datums) / 4)
 				goto tabs;
 			return 1;
 		}
@@ -509,17 +498,16 @@ count_trailing_spaces(const char *str, size_t len)
 static int
 minimize(const struct ruler_column *rc)
 {
-	size_t	     i;
+	size_t i;
 	unsigned int minspaces = UINT_MAX;
 
-	if (VECTOR_LENGTH(rc->rc_datums) < 2 || rc->rc_nspaces == 0 ||
-	    rc->rc_len % 8 > 0)
+	if (VECTOR_LENGTH(rc->rc_datums) < 2 || rc->rc_nspaces == 0 || rc->rc_len % 8 > 0)
 		return 0;
 
 	/* Find the longest datum with the smallest amount of spaces. */
 	for (i = 0; i < VECTOR_LENGTH(rc->rc_datums); i++) {
 		const struct ruler_datum *rd = &rc->rc_datums[i];
-		unsigned int		  nspaces;
+		unsigned int nspaces;
 
 		if (rd->rd_len < rc->rc_len)
 			continue;

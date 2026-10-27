@@ -5,8 +5,7 @@
 int
 main(void)
 {
-	if (nest)
-	{
+	if (nest) {
 		return nest;
 	}
 	return 0;

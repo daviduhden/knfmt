@@ -40,16 +40,15 @@
  * reparse content that is still present; clang_recover() reports when that is
  * impossible.
  */
-#define clang_trace(cl, fmt, ...)                                              \
-	trace(TRACE_CLANG, (cl)->op, (fmt), __VA_ARGS__)
+#define clang_trace(cl, fmt, ...) trace(TRACE_CLANG, (cl)->op, (fmt), __VA_ARGS__)
 
 struct clang {
-	const struct style     *st;
+	const struct style *st;
 	const struct diffchunk *diff;
-	const struct options   *op;
-	struct cpp_include     *ci;
-	struct arenas		arena;
-	struct token_list	prefixes;
+	const struct options *op;
+	struct cpp_include *ci;
+	struct arenas arena;
+	struct token_list prefixes;
 	VECTOR(struct token *) branches;
 	VECTOR(struct token *) stamps;
 	/*
@@ -77,66 +76,56 @@ struct clang_token {
 	enum clang_token_type type;
 };
 
-static void clang_branch_enter(
-    struct clang *, struct lexer *, struct token *, struct token *);
-static void clang_branch_link(
-    struct clang *, struct lexer *, struct token *, struct token *);
-static void clang_branch_leave(
-    struct clang *, struct lexer *, struct token *, struct token *);
+static void clang_branch_enter(struct clang *, struct lexer *, struct token *, struct token *);
+static void clang_branch_link(struct clang *, struct lexer *, struct token *, struct token *);
+static void clang_branch_leave(struct clang *, struct lexer *, struct token *, struct token *);
 static void clang_branch_purge(struct clang *, struct lexer *);
 
-static void	     clang_free(void *);
-static void	     clang_after_tokenize(struct lexer *, void *);
-static void	     clang_before_free(struct lexer *, void *);
+static void clang_free(void *);
+static void clang_after_tokenize(struct lexer *, void *);
+static void clang_before_free(struct lexer *, void *);
 static struct token *clang_read(struct lexer *, void *);
 static struct token *clang_read_prefix(struct clang *, struct lexer *);
 static struct token *clang_read_comment(struct clang *, struct lexer *, int);
 static struct token *clang_read_cpp(struct clang *, struct lexer *);
-static int	     clang_find_cpp(const char *, size_t);
+static int clang_find_cpp(const char *, size_t);
 static struct token *clang_keyword(const struct clang *, struct lexer *);
-static const struct token *clang_find_keyword(
-    const struct lexer *, const struct lexer_state *);
+static const struct token *clang_find_keyword(const struct lexer *, const struct lexer_state *);
 static const struct token *clang_ellipsis(struct lexer *);
 static unsigned char clang_read_literal_prefix(struct lexer *, unsigned char);
 static struct token *clang_read_number(
     struct clang *, struct lexer *, const struct lexer_state *, unsigned char);
 static struct token *clang_read_string(
     struct clang *, struct lexer *, const struct lexer_state *, unsigned char);
-static size_t	     identifier_match(const char *, size_t);
-static size_t	     ucn_length(const char *, size_t);
-static int	     clang_ucn_start(const struct lexer *);
-static struct token *clang_token_alloc(
-    struct arena_scope *, const struct token *);
+static size_t identifier_match(const char *, size_t);
+static size_t ucn_length(const char *, size_t);
+static int clang_ucn_start(const struct lexer *);
+static struct token *clang_token_alloc(struct arena_scope *, const struct token *);
 static struct token *clang_token_emit(
     const struct clang *, struct lexer *, const struct lexer_state *, int);
-static struct token *clang_token_emit_with_template(const struct clang *,
-    struct lexer *, const struct lexer_state *, const struct token *);
-static const char   *clang_token_serialize(
-    const struct token *, struct arena_scope *);
+static struct token *clang_token_emit_with_template(
+    const struct clang *, struct lexer *, const struct lexer_state *, const struct token *);
+static const char *clang_token_serialize(const struct token *, struct arena_scope *);
 static const char *clang_token_type_serialize(int, struct arena_scope *);
-static const char *clang_token_serialize_prefix(
-    const struct token *, struct arena_scope *);
+static const char *clang_token_serialize_prefix(const struct token *, struct arena_scope *);
 static void clang_token_move_prefixes(struct token *, struct token *);
 
-static struct token *clang_end_of_branch(
-    struct lexer *, struct token *, void *);
+static struct token *clang_end_of_branch(struct lexer *, struct token *, void *);
 
 static struct token *clang_last_stamped(struct clang *);
-static struct token *clang_recover_find_branch(
-    struct token *, struct token *, int);
-static void clang_branch_fold(
-    struct clang *, struct lexer *, struct token *, struct token **);
+static struct token *clang_recover_find_branch(struct token *, struct token *, int);
+static void clang_branch_fold(struct clang *, struct lexer *, struct token *, struct token **);
 
 static void remove_token(struct lexer *, struct token *);
 
 static void token_move_prefix(struct token *, struct token *, struct token *);
 static void token_branch_exhaust(struct token *);
 static struct token *token_branch_find(struct token *);
-static void	     token_branch_link(struct token *, struct token *);
-static void	     token_branch_parent(struct token *, struct token *);
-static void	     token_branch_parent_update_flags(struct token *);
-static void	     token_branch_revert(struct token *);
-static void	     token_prolong(struct token *, struct token *);
+static void token_branch_link(struct token *, struct token *);
+static void token_branch_parent(struct token *, struct token *);
+static void token_branch_parent_update_flags(struct token *);
+static void token_branch_revert(struct token *);
+static void token_prolong(struct token *, struct token *);
 
 static MAP(const char, *, const struct token *) clang_tokens;
 static MAP(const char, *, int) cpp_token_types;
@@ -151,30 +140,30 @@ static const struct token *token_types[TOKEN_NONE + 1];
 void
 clang_init(void)
 {
-#define OP(type, keyword, flags)                                               \
-	{                                                                      \
-	    .tk_type = (type),                                                 \
-	    .tk_flags = (flags),                                               \
-	    .tk_str = (keyword),                                               \
-	    .tk_len = sizeof((keyword)) - 1,                                   \
+#define OP(type, keyword, flags)                                                                   \
+	{                                                                                          \
+	    .tk_type = (type),                                                                     \
+	    .tk_flags = (flags),                                                                   \
+	    .tk_str = (keyword),                                                                   \
+	    .tk_len = sizeof((keyword)) - 1,                                                       \
 	},
 	static struct token keywords[] = {FOR_TOKEN_TYPES(OP)};
 	static struct token aliases[] = {FOR_TOKEN_ALIASES(OP)};
 #undef OP
-#define OP(type, normalized_type, keyword)                                     \
-	{                                                                      \
-	    .tk_type = (type),                                                 \
-	    .tk_str = (keyword),                                               \
+#define OP(type, normalized_type, keyword)                                                         \
+	{                                                                                          \
+	    .tk_type = (type),                                                                     \
+	    .tk_str = (keyword),                                                                   \
 	},
 	const struct token cpp[] = {FOR_TOKEN_CPP(OP)};
 #undef OP
-#define OP(type, keyword)                                                      \
-	{                                                                      \
-	    .key = (keyword),                                                  \
-	    .val = (type),                                                     \
+#define OP(type, keyword)                                                                          \
+	{                                                                                          \
+	    .key = (keyword),                                                                      \
+	    .val = (type),                                                                         \
 	},
 	const struct {
-		const char	     *key;
+		const char *key;
 		enum clang_token_type val;
 	} identifiers[] = {FOR_CLANG_IDENTIFIERS(OP)};
 #undef OP
@@ -207,16 +196,15 @@ clang_init(void)
 	for (i = 0; i < countof(cpp); i++) {
 		const struct token *src = &cpp[i];
 
-		if (MAP_INSERT_VALUE(
-			cpp_token_types, src->tk_str, src->tk_type) == nullptr)
+		if (MAP_INSERT_VALUE(cpp_token_types, src->tk_str, src->tk_type) == nullptr)
 			err(1, nullptr);
 	}
 
 	if (MAP_INIT(clang_identifiers))
 		err(1, nullptr);
 	for (i = 0; i < countof(identifiers); i++) {
-		if (MAP_INSERT_VALUE(clang_identifiers, identifiers[i].key,
-			identifiers[i].val) == nullptr)
+		if (MAP_INSERT_VALUE(clang_identifiers, identifiers[i].key, identifiers[i].val) ==
+		    nullptr)
 			err(1, nullptr);
 	}
 }
@@ -237,8 +225,7 @@ clang_shutdown(void)
  */
 struct clang *
 clang_alloc(const struct style *st, struct simple *si, struct arenas *arena,
-    const struct diffchunk *diff, const struct options *op,
-    struct arena_scope *s)
+    const struct diffchunk *diff, const struct options *op, struct arena_scope *s)
 {
 	struct clang *cl;
 
@@ -249,8 +236,7 @@ clang_alloc(const struct style *st, struct simple *si, struct arenas *arena,
 	cl->diff = diff;
 	cl->op = op;
 	cl->arena = *arena;
-	cl->ci =
-	    cpp_include_alloc(st, si, &cl->prefixes, arena->scratch, op, s);
+	cl->ci = cpp_include_alloc(st, si, &cl->prefixes, arena->scratch, op, s);
 	if (VECTOR_INIT(cl->branches))
 		err(1, nullptr);
 	if (VECTOR_INIT(cl->stamps))
@@ -298,13 +284,12 @@ void
 clang_stamp(struct clang *cl, struct lexer *lx, unsigned int ndocs)
 {
 	struct token **dst;
-	unsigned int  *docs;
-	struct token  *back;
+	unsigned int *docs;
+	struct token *back;
 
 	if (!lexer_back(lx, &back))
 		return;
-	clang_trace(
-	    cl, "stamp %s at %u document(s)", lexer_serialize(lx, back), ndocs);
+	clang_trace(cl, "stamp %s at %u document(s)", lexer_serialize(lx, back), ndocs);
 	token_ref(back);
 	dst = VECTOR_ALLOC(cl->stamps);
 	if (dst == nullptr)
@@ -331,7 +316,7 @@ int
 clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
 {
 	struct token *back, *cpp_dst, *cpp_src, *dst, *rm, *seek, *src;
-	int	      error = 0;
+	int error = 0;
 
 	if (!lexer_back(lx, &back))
 		return 0;
@@ -348,9 +333,8 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
 	dst = token_priv(cpp_dst, struct clang_token)->branch.parent;
 	token_ref(dst);
 
-	clang_trace(cl, "branch from %s to %s, covering [%s, %s)",
-	    lexer_serialize(lx, cpp_src), lexer_serialize(lx, cpp_dst),
-	    lexer_serialize(lx, src), lexer_serialize(lx, dst));
+	clang_trace(cl, "branch from %s to %s, covering [%s, %s)", lexer_serialize(lx, cpp_src),
+	    lexer_serialize(lx, cpp_dst), lexer_serialize(lx, src), lexer_serialize(lx, dst));
 
 	clang_token_branch_unlink(cpp_src);
 
@@ -416,14 +400,14 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
  * parse can be replaced by verbatim output; a failed parse still fails.
  */
 int
-clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
-    unsigned int cur_docs, unsigned int brch_docs, int *verbatim, int *deferred)
+clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute, unsigned int cur_docs,
+    unsigned int brch_docs, int *verbatim, int *deferred)
 {
 	struct token *seek = nullptr;
 	struct token *back, *cpp_dst, *cpp_src, *dst, *src, *stamp;
-	size_t	      i, seek_index = 0;
-	unsigned int  remove;
-	int	      error = 0;
+	size_t i, seek_index = 0;
+	unsigned int remove;
+	int error = 0;
 
 	if (verbatim != nullptr)
 		*verbatim = 0;
@@ -433,8 +417,7 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 	if (!lexer_back(lx, &back) && !lexer_peek_first(lx, &back))
 		return 0;
 	stamp = clang_last_stamped(cl);
-	clang_trace(cl, "back %s, stamp %s", lexer_serialize(lx, back),
-	    lexer_serialize(lx, stamp));
+	clang_trace(cl, "back %s, stamp %s", lexer_serialize(lx, back), lexer_serialize(lx, stamp));
 	cpp_src = clang_recover_find_branch(back, stamp, 0);
 	if (cpp_src == nullptr)
 		cpp_src = clang_recover_find_branch(back, stamp, 1);
@@ -444,9 +427,8 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 	src = token_priv(cpp_src, struct clang_token)->branch.parent;
 	cpp_dst = token_priv(cpp_src, struct clang_token)->branch.nx;
 	dst = token_priv(cpp_dst, struct clang_token)->branch.parent;
-	clang_trace(cl, "branch from %s to %s covering [%s, %s)",
-	    lexer_serialize(lx, cpp_src), lexer_serialize(lx, cpp_dst),
-	    lexer_serialize(lx, src), lexer_serialize(lx, dst));
+	clang_trace(cl, "branch from %s to %s covering [%s, %s)", lexer_serialize(lx, cpp_src),
+	    lexer_serialize(lx, cpp_dst), lexer_serialize(lx, src), lexer_serialize(lx, dst));
 
 	/*
 	 * Find the last stamped token before the branch. Its recorded document
@@ -455,8 +437,7 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 	 */
 	for (i = VECTOR_LENGTH(cl->stamps); i > 0; i--) {
 		stamp = cl->stamps[i - 1];
-		if (!token_is_dangling(stamp) &&
-		    token_cmp(stamp, cpp_src) < 0) {
+		if (!token_is_dangling(stamp) && token_cmp(stamp, cpp_src) < 0) {
 			seek_index = i;
 			break;
 		}
@@ -469,8 +450,7 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute,
 	 * content would be lost. Ask the caller to preserve the source
 	 * verbatim instead.
 	 */
-	if (seek_index > 0 && brch_docs > 0 &&
-	    cl->stamp_docs[seek_index - 1] < brch_docs) {
+	if (seek_index > 0 && brch_docs > 0 && cl->stamp_docs[seek_index - 1] < brch_docs) {
 		if (verbatim != nullptr)
 			*verbatim = 1;
 		return 0;
@@ -558,7 +538,7 @@ void
 clang_token_branch_unlink(struct token *tk)
 {
 	struct token *nx, *pv;
-	int	      token_type;
+	int token_type;
 
 	pv = token_priv(tk, struct clang_token)->branch.pv;
 	nx = token_priv(tk, struct clang_token)->branch.nx;
@@ -580,10 +560,8 @@ clang_token_branch_unlink(struct token *tk)
 	} else if (token_type == TOKEN_CPP_ELSE) {
 		token_priv(pv, struct clang_token)->branch.nx = nx;
 		token_priv(nx, struct clang_token)->branch.pv = pv;
-		token_branch_parent_update_flags(
-		    token_priv(pv, struct clang_token)->branch.parent);
-		token_branch_parent_update_flags(
-		    token_priv(nx, struct clang_token)->branch.parent);
+		token_branch_parent_update_flags(token_priv(pv, struct clang_token)->branch.parent);
+		token_branch_parent_update_flags(token_priv(nx, struct clang_token)->branch.parent);
 		token_branch_exhaust(tk);
 	} else if (token_type == TOKEN_CPP_ENDIF) {
 		assert(nx == nullptr);
@@ -670,12 +648,12 @@ clang_find_identifier(const char *str, size_t len)
 static struct token *
 clang_read(struct lexer *lx, void *arg)
 {
-	struct clang	  *cl = arg;
-	struct token	  *prefix, *tk, *tmp;
+	struct clang *cl = arg;
+	struct token *prefix, *tk, *tmp;
 	struct lexer_state st;
-	int		   ncomments = 0;
-	int		   nlines;
-	unsigned char	   ch;
+	int ncomments = 0;
+	int nlines;
+	unsigned char ch;
 
 	/* Consume all comments and preprocessor directives. */
 	for (;;) {
@@ -714,7 +692,7 @@ clang_read(struct lexer *lx, void *arg)
 	if (isalpha(ch) || ch == '_' || (ch == '\\' && clang_ucn_start(lx))) {
 		struct lexer_buffer buf;
 		const struct token *kw;
-		size_t		    len;
+		size_t len;
 
 		lexer_buffer_peek(lx, &buf);
 		len = identifier_match(buf.ptr, buf.len);
@@ -811,11 +789,10 @@ clang_token_alloc(struct arena_scope *s, const struct token *def)
 }
 
 static struct token *
-clang_token_emit(const struct clang *cl, struct lexer *lx,
-    const struct lexer_state *st, int token_type)
+clang_token_emit(
+    const struct clang *cl, struct lexer *lx, const struct lexer_state *st, int token_type)
 {
-	return clang_token_emit_with_template(
-	    cl, lx, st, &(struct token){.tk_type = token_type});
+	return clang_token_emit_with_template(cl, lx, st, &(struct token){.tk_type = token_type});
 }
 
 static int
@@ -857,8 +834,8 @@ static const char *
 clang_token_type_str(enum clang_token_type type)
 {
 	switch (type) {
-#define OP(type, keyword)                                                      \
-	case type:                                                             \
+#define OP(type, keyword)                                                                          \
+	case type:                                                                                 \
 		return &#type[sizeof("CLANG_TOKEN_") - 1];
 		FOR_CLANG_IDENTIFIERS(OP)
 #undef OP
@@ -873,8 +850,8 @@ static const char *
 clang_token_serialize(const struct token *tk, struct arena_scope *s)
 {
 	return token_serialize_with_extra_flags(tk,
-	    TOKEN_SERIALIZE_VERBATIM | TOKEN_SERIALIZE_QUOTE |
-		TOKEN_SERIALIZE_POSITION | TOKEN_SERIALIZE_FLAGS,
+	    TOKEN_SERIALIZE_VERBATIM | TOKEN_SERIALIZE_QUOTE | TOKEN_SERIALIZE_POSITION |
+		TOKEN_SERIALIZE_FLAGS,
 	    clang_token_type_str(clang_token_type(tk)), s);
 }
 
@@ -887,7 +864,7 @@ clang_token_type_serialize(int token_type, struct arena_scope *s)
 static const char *
 clang_token_serialize_prefix(const struct token *prefix, struct arena_scope *s)
 {
-	struct buffer		 *bf;
+	struct buffer *bf;
 	const struct clang_token *ct;
 
 	bf = arena_buffer_alloc(s, 1 << 8);
@@ -895,20 +872,17 @@ clang_token_serialize_prefix(const struct token *prefix, struct arena_scope *s)
 
 	ct = token_priv(prefix, const struct clang_token);
 	if (ct->branch.pv != nullptr) {
-		buffer_printf(
-		    bf, ", pv %s", clang_token_serialize(ct->branch.pv, s));
+		buffer_printf(bf, ", pv %s", clang_token_serialize(ct->branch.pv, s));
 	}
 	if (ct->branch.nx != nullptr) {
-		buffer_printf(
-		    bf, ", nx %s", clang_token_serialize(ct->branch.nx, s));
+		buffer_printf(bf, ", nx %s", clang_token_serialize(ct->branch.nx, s));
 	}
 
 	return buffer_str(bf);
 }
 
 static struct token *
-clang_end_of_branch(
-    struct lexer *UNUSED(lx), struct token *tk, void *UNUSED(arg))
+clang_end_of_branch(struct lexer *UNUSED(lx), struct token *tk, void *UNUSED(arg))
 {
 	struct token *prefix;
 
@@ -945,8 +919,7 @@ clang_last_stamped(struct clang *cl)
  * to recover after encountering invalid source code.
  */
 static struct token *
-clang_recover_find_branch(
-    struct token *tk, struct token *threshold, int forward)
+clang_recover_find_branch(struct token *tk, struct token *threshold, int forward)
 {
 	for (;;) {
 		struct token *prefix;
@@ -954,7 +927,7 @@ clang_recover_find_branch(
 		LIST_FOREACH_REVERSE(prefix, &tk->tk_prefixes)
 		{
 			struct token *br, *nx;
-			int	      token_type;
+			int token_type;
 
 			token_type = token_type_normalize(prefix);
 			if (token_type == TOKEN_CPP_IF) {
@@ -962,8 +935,7 @@ clang_recover_find_branch(
 			} else if (token_type == TOKEN_CPP_ELSE) {
 				br = prefix;
 			} else if (token_type == TOKEN_CPP_ENDIF) {
-				br = token_priv(prefix, struct clang_token)
-					 ->branch.pv;
+				br = token_priv(prefix, struct clang_token)->branch.pv;
 			} else {
 				continue;
 			}
@@ -994,12 +966,11 @@ clang_recover_find_branch(
  * destination, and the destination is reported for unmuting.
  */
 static void
-clang_branch_fold(struct clang *cl, struct lexer *lx, struct token *cpp_src,
-    struct token **unmute)
+clang_branch_fold(struct clang *cl, struct lexer *lx, struct token *cpp_src, struct token **unmute)
 {
 	struct token *cpp_dst, *dst, *prefix, *pv, *rm, *src;
-	size_t	      len;
-	int	      dangling = 0;
+	size_t len;
+	int dangling = 0;
 
 	src = token_priv(cpp_src, struct clang_token)->branch.parent;
 	token_ref(src);
@@ -1035,8 +1006,8 @@ clang_branch_fold(struct clang *cl, struct lexer *lx, struct token *cpp_src,
 			break;
 	}
 
-	clang_trace(cl, "add prefix %s to %s", lexer_serialize(lx, prefix),
-	    lexer_serialize(lx, dst));
+	clang_trace(
+	    cl, "add prefix %s to %s", lexer_serialize(lx, prefix), lexer_serialize(lx, dst));
 	LIST_INSERT_HEAD(&dst->tk_prefixes, prefix);
 
 	/*
@@ -1110,8 +1081,7 @@ remove_token(struct lexer *lx, struct token *tk)
  * branch and the ordinary token following it is recorded as its parent.
  */
 static void
-clang_branch_enter(
-    struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
+clang_branch_enter(struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
 {
 	struct token **br;
 
@@ -1129,11 +1099,10 @@ clang_branch_enter(
  * so a malformed conditional does not abort the parse.
  */
 static void
-clang_branch_link(
-    struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
+clang_branch_link(struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
 {
 	struct token **last;
-	struct token  *br;
+	struct token *br;
 
 	/* Silently ignore broken branch. */
 	last = VECTOR_LAST(cl->branches);
@@ -1143,8 +1112,7 @@ clang_branch_link(
 	}
 	br = *last;
 
-	clang_trace(
-	    cl, "%s -> %s", lexer_serialize(lx, br), lexer_serialize(lx, cpp));
+	clang_trace(cl, "%s -> %s", lexer_serialize(lx, br), lexer_serialize(lx, cpp));
 
 	token_branch_parent(cpp, parent);
 	token_branch_link(br, cpp);
@@ -1157,8 +1125,7 @@ clang_branch_link(
  * before the innermost group is popped.
  */
 static void
-clang_branch_leave(
-    struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
+clang_branch_leave(struct clang *cl, struct lexer *lx, struct token *cpp, struct token *parent)
 {
 	struct token **last;
 
@@ -1186,15 +1153,14 @@ clang_branch_purge(struct clang *cl, struct lexer *lx)
 {
 	while (!VECTOR_EMPTY(cl->branches)) {
 		struct token **tail;
-		struct token  *pv, *tk;
+		struct token *pv, *tk;
 
 		tail = VECTOR_POP(cl->branches);
 		tk = *tail;
 		do {
 			pv = token_priv(tk, struct clang_token)->branch.pv;
-			clang_trace(cl, "broken branch: %s%s%s",
-			    lexer_serialize(lx, tk), pv ? " -> " : "",
-			    pv ? lexer_serialize(lx, pv) : "");
+			clang_trace(cl, "broken branch: %s%s%s", lexer_serialize(lx, tk),
+			    pv ? " -> " : "", pv ? lexer_serialize(lx, pv) : "");
 			token_branch_revert(tk);
 			tk = pv;
 		} while (tk != nullptr);
@@ -1211,8 +1177,7 @@ clang_read_prefix(struct clang *cl, struct lexer *lx)
 		struct token *pv;
 
 		pv = LIST_LAST(&cl->prefixes);
-		if (pv != nullptr && pv->tk_type == TOKEN_COMMENT &&
-		    token_cmp(comment, pv) == 0) {
+		if (pv != nullptr && pv->tk_type == TOKEN_COMMENT && token_cmp(comment, pv) == 0) {
 			token_prolong(pv, comment);
 			return pv;
 		}
@@ -1233,13 +1198,12 @@ static int
 peek_c99_comment(struct lexer *lx, const struct lexer_state *first_line)
 {
 	struct lexer_state st;
-	int		   peek = 0;
-	unsigned char	   ch;
+	int peek = 0;
+	unsigned char ch;
 
 	st = lexer_get_state(lx);
 	lexer_eat_spaces(lx, nullptr);
-	if (lexer_getc(lx, &ch) == 0 && ch == '/' && lexer_getc(lx, &ch) == 0 &&
-	    ch == '/') {
+	if (lexer_getc(lx, &ch) == 0 && ch == '/' && lexer_getc(lx, &ch) == 0 && ch == '/') {
 		const struct lexer_state line = lexer_get_state(lx);
 
 		/*
@@ -1256,8 +1220,8 @@ static const char *
 comment_find_last_line(const char *buf, size_t *buflen)
 {
 	const char *last;
-	size_t	    len = *buflen;
-	size_t	    i;
+	size_t len = *buflen;
+	size_t i;
 
 	while (len > 0 && isspace((unsigned char)buf[len - 1]))
 		len--;
@@ -1274,11 +1238,11 @@ comment_find_last_line(const char *buf, size_t *buflen)
 static unsigned int
 sense_clang_format_comment(const struct token *tk)
 {
-	size_t	    comment_needle_len = sizeof("//") - 1;
-	const char  clang_format_needle[] = " clang-format ";
-	size_t	    clang_format_needle_len = sizeof(clang_format_needle) - 1;
+	size_t comment_needle_len = sizeof("//") - 1;
+	const char clang_format_needle[] = " clang-format ";
+	size_t clang_format_needle_len = sizeof(clang_format_needle) - 1;
 	const char *str = tk->tk_str;
-	size_t	    len = tk->tk_len;
+	size_t len = tk->tk_len;
 
 	str = comment_find_last_line(str, &len);
 	if (str == nullptr)
@@ -1317,11 +1281,11 @@ static struct token *
 clang_read_comment(struct clang *cl, struct lexer *lx, int block)
 {
 	struct lexer_state oldst, st;
-	struct token	  *tk;
-	const char	  *trim;
-	size_t		   trimlen;
-	int		   c99;
-	unsigned char	   ch;
+	struct token *tk;
+	const char *trim;
+	size_t trimlen;
+	int c99;
+	unsigned char ch;
 
 	oldst = st = lexer_get_state(lx);
 again:
@@ -1380,8 +1344,7 @@ again:
 		tk->tk_flags |= TOKEN_FLAG_COMMENT_C99;
 	tk->tk_flags |= sense_clang_format_comment(tk);
 
-	trim = comment_trim(
-	    tk, cl->st, cl->arena.scratch, lexer_get_arena_scope(lx), &trimlen);
+	trim = comment_trim(tk, cl->st, cl->arena.scratch, lexer_get_arena_scope(lx), &trimlen);
 	if (trim != nullptr)
 		token_set_str(tk, trim, trimlen);
 
@@ -1404,12 +1367,12 @@ static struct token *
 clang_read_cpp(struct clang *cl, struct lexer *lx)
 {
 	static struct KS_str_match match;
-	struct lexer_buffer	   buf;
-	struct lexer_state	   oldst, st;
-	struct token		  *tk;
-	size_t			   len;
-	int			   comment, type;
-	unsigned char		   ch, pv, pv2;
+	struct lexer_buffer buf;
+	struct lexer_state oldst, st;
+	struct token *tk;
+	size_t len;
+	int comment, type;
+	unsigned char ch, pv, pv2;
 
 	KS_str_match_init_once("az", &match);
 
@@ -1491,7 +1454,7 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 
 	if (tk->tk_type == TOKEN_CPP_DEFINE) {
 		const char *str;
-		size_t	    len;
+		size_t len;
 
 		str = cpp_format(lx, tk, cl->st, &cl->arena, cl->op, &len);
 		if (str != nullptr)
@@ -1524,10 +1487,10 @@ clang_find_cpp(const char *str, size_t len)
 static struct token *
 clang_keyword(const struct clang *cl, struct lexer *lx)
 {
-	struct lexer_state  st;
+	struct lexer_state st;
 	const struct token *pv = nullptr;
 	const struct token *tk = nullptr;
-	unsigned char	    ch;
+	unsigned char ch;
 
 	lexer_eat_lines_and_spaces(lx, nullptr);
 	st = lexer_get_state(lx);
@@ -1548,8 +1511,7 @@ clang_keyword(const struct clang *cl, struct lexer *lx)
 			 * A backslash introducing a universal character name
 			 * belongs to an identifier, not a standalone token.
 			 */
-			if (tmp->tk_type == TOKEN_BACKSLASH &&
-			    clang_ucn_start(lx)) {
+			if (tmp->tk_type == TOKEN_BACKSLASH && clang_ucn_start(lx)) {
 				lexer_set_state(lx, &st);
 				return nullptr;
 			}
@@ -1559,7 +1521,7 @@ clang_keyword(const struct clang *cl, struct lexer *lx)
 
 		if (tmp->tk_type == TOKEN_PERIOD) {
 			const struct token *ellipsis;
-			unsigned char	    peek;
+			unsigned char peek;
 
 			/* Detect fractional only float literals. */
 			if (lexer_getc(lx, &peek) || isdigit(peek))
@@ -1590,7 +1552,7 @@ clang_keyword(const struct clang *cl, struct lexer *lx)
 static const struct token *
 clang_find_keyword(const struct lexer *lx, const struct lexer_state *st)
 {
-	struct lexer_buffer  buf;
+	struct lexer_buffer buf;
 	const struct token **kw;
 
 	if (!lexer_buffer_slice(lx, st, &buf))
@@ -1605,8 +1567,8 @@ static const struct token *
 clang_ellipsis(struct lexer *lx)
 {
 	struct lexer_state oldst;
-	unsigned char	   ch;
-	int		   i;
+	unsigned char ch;
+	int i;
 
 	oldst = lexer_get_state(lx);
 
@@ -1641,8 +1603,7 @@ clang_read_literal_prefix(struct lexer *lx, unsigned char ch)
 	if (ch == 'u' && peek == '8') {
 		unsigned char peek2;
 
-		if (lexer_getc(lx, &peek2) == 0 &&
-		    (peek2 == '"' || peek2 == '\''))
+		if (lexer_getc(lx, &peek2) == 0 && (peek2 == '"' || peek2 == '\''))
 			return peek2;
 		if (!lexer_eof(lx))
 			lexer_ungetc(lx);
@@ -1662,8 +1623,8 @@ clang_read_literal_prefix(struct lexer *lx, unsigned char ch)
  * malformed as well as valid input.
  */
 static struct token *
-clang_read_number(struct clang *cl, struct lexer *lx,
-    const struct lexer_state *st, unsigned char ch)
+clang_read_number(
+    struct clang *cl, struct lexer *lx, const struct lexer_state *st, unsigned char ch)
 {
 	unsigned char pv = ch;
 
@@ -1677,8 +1638,8 @@ clang_read_number(struct clang *cl, struct lexer *lx,
 			unsigned char n2;
 
 			if (lexer_eof(lx) || lexer_getc(lx, &n2) != 0 ||
-			    !(isdigit((unsigned char)n2) ||
-				isalpha((unsigned char)n2) || n2 == '_')) {
+			    !(isdigit((unsigned char)n2) || isalpha((unsigned char)n2) ||
+				n2 == '_')) {
 				/*
 				 * Not a digit separator, does not belong to
 				 * the number. However at EOF the leading
@@ -1716,8 +1677,8 @@ clang_read_number(struct clang *cl, struct lexer *lx,
  * consumed. The lexer is positioned immediately after the opening quote.
  */
 static struct token *
-clang_read_string(struct clang *cl, struct lexer *lx,
-    const struct lexer_state *st, unsigned char delim)
+clang_read_string(
+    struct clang *cl, struct lexer *lx, const struct lexer_state *st, unsigned char delim)
 {
 	unsigned char ch, pch = delim;
 
@@ -1731,8 +1692,7 @@ clang_read_string(struct clang *cl, struct lexer *lx,
 		pch = ch;
 	}
 
-	return clang_token_emit(
-	    cl, lx, st, delim == '"' ? TOKEN_STRING : TOKEN_LITERAL);
+	return clang_token_emit(cl, lx, st, delim == '"' ? TOKEN_STRING : TOKEN_LITERAL);
 }
 
 /*

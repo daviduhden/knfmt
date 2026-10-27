@@ -16,8 +16,8 @@ dk_mountroot(void)
 		mountrootfn = ffs_mountroot;
 	}
 #else
-		panic("disk 0x%x filesystem type %d not known",
-		    rootdev, dl.d_partitions[part].p_fstype);
+		panic("disk 0x%x filesystem type %d not known", rootdev,
+		    dl.d_partitions[part].p_fstype);
 #endif
 	}
 	return (*mountrootfn)();

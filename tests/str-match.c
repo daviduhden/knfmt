@@ -20,26 +20,21 @@
 #include "libks/string.h"
 #include "libks/valgrind.h"
 
-size_t	KS_str_match_native_128(const char *, size_t,
-    const struct KS_str_match *);
-size_t	KS_str_match_native_256(const char *, size_t,
-    const struct KS_str_match *);
-size_t	KS_str_match_native_512(const char *, size_t,
-    const struct KS_str_match *);
-size_t	KS_str_match_until_native_128(const char *, size_t,
-    const struct KS_str_match *);
-size_t	KS_str_match_until_native_256(const char *, size_t,
-    const struct KS_str_match *);
+size_t KS_str_match_native_128(const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_native_256(const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_native_512(const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_until_native_128(const char *, size_t, const struct KS_str_match *);
+size_t KS_str_match_until_native_256(const char *, size_t, const struct KS_str_match *);
 
 typedef size_t (*match_fn)(const char *, size_t, const struct KS_str_match *);
 
 static const char *const rangesets[] = {
-	"  ",				/* space */
-	"  \f\f\n\n\r\r\t\t\v\v",	/* whitespace, 16 bytes */
-	"azAZ09",			/* alnum-ish */
-	"\001\177",			/* printable ASCII */
-	"~~",				/* tilde */
-	"!~",				/* visible ASCII */
+    "  ",		      /* space */
+    "  \f\f\n\n\r\r\t\t\v\v", /* whitespace, 16 bytes */
+    "azAZ09",		      /* alnum-ish */
+    "\001\177",		      /* printable ASCII */
+    "~~",		      /* tilde */
+    "!~",		      /* visible ASCII */
 };
 
 static unsigned long ntest, nfail;
@@ -54,8 +49,7 @@ hexdump(const char *p, size_t len)
 }
 
 static void
-check(const char *name, const char *ranges, const char *data, size_t len,
-    size_t got, size_t want)
+check(const char *name, const char *ranges, const char *data, size_t len, size_t got, size_t want)
 {
 	ntest++;
 	if (got == want)
@@ -72,17 +66,16 @@ static void
 run(const char *name, const char *ranges, match_fn native, match_fn reference,
     const struct KS_str_match *match, const char *data, size_t len)
 {
-	check(name, ranges, data, len, native(data, len, match),
-	    reference(data, len, match));
+	check(name, ranges, data, len, native(data, len, match), reference(data, len, match));
 }
 
 static void
-run_one(const struct KS_str_match *match, const char *ranges,
-    const char *name1, match_fn m1, const char *name2, match_fn m2)
+run_one(const struct KS_str_match *match, const char *ranges, const char *name1, match_fn m1,
+    const char *name2, match_fn m2)
 {
 	static char buf[600];
-	size_t lens[] = { 0, 1, 2, 3, 7, 15, 16, 17, 31, 32, 33, 47, 63,
-	    64, 65, 95, 127, 128, 129, 200, 255 };
+	size_t lens[] = {
+	    0, 1, 2, 3, 7, 15, 16, 17, 31, 32, 33, 47, 63, 64, 65, 95, 127, 128, 129, 200, 255};
 	size_t i, k, v;
 
 	for (i = 0; i < sizeof(lens) / sizeof(lens[0]); i++) {
@@ -98,16 +91,13 @@ run_one(const struct KS_str_match *match, const char *ranges,
 		 * outside the printable range.
 		 */
 		for (k = 0; k < len; k++)
-			buf[k] = (k % 8 == 0) ? (char)0x80 :
-			    (char)(0x20 + (k % 95));
+			buf[k] = (k % 8 == 0) ? (char)0x80 : (char)(0x20 + (k % 95));
 
 		/* Unguarded differential comparison. */
 		if (m1 != NULL)
-			run(name1, ranges, m1, KS_str_match_default, match,
-			    buf, len);
+			run(name1, ranges, m1, KS_str_match_default, match, buf, len);
 		if (m2 != NULL)
-			run(name2, ranges, m2, KS_str_match_until_default,
-			    match, buf, len);
+			run(name2, ranges, m2, KS_str_match_until_default, match, buf, len);
 
 		/* Guarded: data ends exactly at a PROT_NONE page. */
 		base = mmap(NULL, (size_t)pg * 2, PROT_READ | PROT_WRITE,
@@ -123,11 +113,9 @@ run_one(const struct KS_str_match *match, const char *ranges,
 		}
 		g = base + pg - len;
 		if (m1 != NULL)
-			run(name1, ranges, m1, KS_str_match_default, match,
-			    g, len);
+			run(name1, ranges, m1, KS_str_match_default, match, g, len);
 		if (m2 != NULL)
-			run(name2, ranges, m2, KS_str_match_until_default,
-			    match, g, len);
+			run(name2, ranges, m2, KS_str_match_until_default, match, g, len);
 		munmap(base, (size_t)pg * 2);
 
 		/* Unaligned start: shift within a larger buffer. */
@@ -135,12 +123,10 @@ run_one(const struct KS_str_match *match, const char *ranges,
 			buf[v] = (char)(0x21 + (v % 0x5e));
 		for (v = 1; v <= 3 && v + len <= sizeof(buf); v++) {
 			if (m1 != NULL)
-				run(name1, ranges, m1, KS_str_match_default,
-				    match, buf + v, len);
+				run(name1, ranges, m1, KS_str_match_default, match, buf + v, len);
 			if (m2 != NULL)
-				run(name2, ranges, m2,
-				    KS_str_match_until_default, match,
-				    buf + v, len);
+				run(name2, ranges, m2, KS_str_match_until_default, match, buf + v,
+				    len);
 		}
 	}
 }
@@ -151,7 +137,6 @@ main(void)
 	const struct KS_x86_capabilites *caps = KS_x86_capabilites();
 	match_fn m128 = NULL, m256 = NULL, m512 = NULL, u128 = NULL, u256 = NULL;
 	size_t i;
-
 
 	if (caps == NULL) {
 		printf("str-match: no x86 capabilities, skipping\n");
@@ -168,17 +153,21 @@ main(void)
 	if (caps->avx >= 2 && caps->bmi >= 2)
 		u256 = KS_str_match_until_native_256;
 
-	printf("str-match: avx=%u bmi=%u sse=%#x bw=%u; testing",
-	    caps->avx, caps->bmi, caps->sse, caps->avx512.bw);
-	if (m128) printf(" match_128");
-	if (m256) printf(" match_256");
-	if (m512) printf(" match_512");
-	if (u128) printf(" until_128");
-	if (u256) printf(" until_256");
+	printf("str-match: avx=%u bmi=%u sse=%#x bw=%u; testing", caps->avx, caps->bmi, caps->sse,
+	    caps->avx512.bw);
+	if (m128)
+		printf(" match_128");
+	if (m256)
+		printf(" match_256");
+	if (m512)
+		printf(" match_512");
+	if (u128)
+		printf(" until_128");
+	if (u256)
+		printf(" until_256");
 	printf("\n");
 
-	if (m128 == NULL && m256 == NULL && m512 == NULL &&
-	    u128 == NULL && u256 == NULL) {
+	if (m128 == NULL && m256 == NULL && m512 == NULL && u128 == NULL && u256 == NULL) {
 		printf("str-match: no native implementation available\n");
 		return 0;
 	}
@@ -202,15 +191,12 @@ main(void)
 	for (i = 0; i < sizeof(rangesets) / sizeof(rangesets[0]); i++) {
 		struct KS_str_match match;
 
-
 		if (KS_str_match_init(rangesets[i], &match) == -1) {
 			fprintf(stderr, "KS_str_match_init failed\n");
 			return 2;
 		}
-		run_one(&match, rangesets[i], "match_128", m128,
-		    "until_128", u128);
-		run_one(&match, rangesets[i], "match_256", m256,
-		    "until_256", u256);
+		run_one(&match, rangesets[i], "match_128", m128, "until_128", u128);
+		run_one(&match, rangesets[i], "match_256", m256, "until_256", u256);
 		run_one(&match, rangesets[i], "match_512", m512, NULL, NULL);
 	}
 

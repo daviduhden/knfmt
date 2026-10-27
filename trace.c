@@ -8,8 +8,8 @@ static char
 trace_type_str(enum trace_type type)
 {
 	switch (type) {
-#define OP(name, shortname)                                                    \
-	case TRACE_##name:                                                     \
+#define OP(name, shortname)                                                                        \
+	case TRACE_##name:                                                                         \
 		return shortname;
 		FOR_TRACE_TYPES(OP)
 #undef OP

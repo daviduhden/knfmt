@@ -22,15 +22,13 @@
 #include <stdio.h>
 
 int
-assert_consistency(
-    int consistent, const char *a, const char *b, const char *fun, int lno)
+assert_consistency(int consistent, const char *a, const char *b, const char *fun, int lno)
 {
 	if (consistent)
 		return 0;
 
-	fprintf(stderr,
-	    "consistency \"(%s) == (%s)\" failed: function \"%s\", line %d\n",
-	    a, b, fun, lno);
+	fprintf(stderr, "consistency \"(%s) == (%s)\" failed: function \"%s\", line %d\n", a, b,
+	    fun, lno);
 	return 1;
 }
 

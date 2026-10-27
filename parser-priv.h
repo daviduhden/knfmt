@@ -23,26 +23,25 @@ struct token;
 #define BRCH 0x00000008
 #define HALT (FAIL | NONE | BRCH)
 
-#define parser_trace(pr, fmt, ...)                                             \
-	trace(TRACE_PARSER, (pr)->pr_op, (fmt), __VA_ARGS__)
+#define parser_trace(pr, fmt, ...) trace(TRACE_PARSER, (pr)->pr_op, (fmt), __VA_ARGS__)
 
 struct parser {
-	struct lexer	     *pr_lx;
+	struct lexer *pr_lx;
 	const struct options *pr_op;
-	const struct style   *pr_st;
-	struct simple	     *pr_si;
-	struct clang	     *pr_clang;
-	struct arenas	      pr_arena;
+	const struct style *pr_st;
+	struct simple *pr_si;
+	struct clang *pr_clang;
+	struct arenas pr_arena;
 
 	struct {
 		struct arena_scope *doc;
 	} pr_arena_scope;
 
 	struct {
-		struct simple_stmt	   *stmt;
-		struct simple_decl	   *decl;
+		struct simple_stmt *stmt;
+		struct simple_decl *decl;
 		struct simple_decl_forward *decl_forward;
-		struct simple_decl_proto   *decl_proto;
+		struct simple_decl_proto *decl_proto;
 	} pr_simple;
 
 	struct {
@@ -95,12 +94,12 @@ struct parser {
 	 */
 	size_t pr_decl_scan_beg;
 	size_t pr_decl_scan_end;
-	int    pr_decl_scan_nolbrace;
+	int pr_decl_scan_nolbrace;
 };
 
 struct parser_arena_scope_cookie {
 	struct arena_scope **restore_scope;
-	struct arena_scope  *old_scope;
+	struct arena_scope *old_scope;
 };
 
 int parser_good(const struct parser *);
@@ -121,23 +120,20 @@ struct parser_depth_guard {
 	struct parser *pd_pr;
 };
 
-int  parser_depth_enter(struct parser *);
+int parser_depth_enter(struct parser *);
 void parser_depth_leave(struct parser_depth_guard *);
 
-#define parser_depth_guard(a)                                                  \
-	__attribute__((cleanup(                                                \
-	    parser_depth_leave))) struct parser_depth_guard pd_guard = {       \
-	    .pd_pr = (a),                                                      \
+#define parser_depth_guard(a)                                                                      \
+	__attribute__((cleanup(parser_depth_leave))) struct parser_depth_guard pd_guard = {        \
+	    .pd_pr = (a),                                                                          \
 	}
 
 /*
  * Emit a token and its dangling prefixes/suffixes. The macro records the call
  * site for document tracing and for diagnostics.
  */
-#define parser_doc_token(a, b, c)                                              \
-	parser_doc_token_impl((a), (b), (c), __func__, __LINE__)
-struct doc *parser_doc_token_impl(
-    struct parser *, struct token *, struct doc *, const char *, int);
+#define parser_doc_token(a, b, c) parser_doc_token_impl((a), (b), (c), __func__, __LINE__)
+struct doc *parser_doc_token_impl(struct parser *, struct token *, struct doc *, const char *, int);
 
 void parser_token_trim_after(const struct parser *, struct token *);
 void parser_token_trim_before(const struct parser *, struct token *);
@@ -154,11 +150,10 @@ int parser_root(struct parser *, struct doc *);
  * path; this keeps rollback cheap and prevents speculative documents from
  * being referenced after their arena scope has been left.
  */
-#define parser_arena_scope(old_scope, new_scope, varname)                      \
-	__attribute__((cleanup(                                                \
-	    parser_arena_scope_leave))) struct parser_arena_scope_cookie       \
-	    varname;                                                           \
+#define parser_arena_scope(old_scope, new_scope, varname)                                          \
+	__attribute__((                                                                            \
+	    cleanup(parser_arena_scope_leave))) struct parser_arena_scope_cookie varname;          \
 	parser_arena_scope_enter(&(varname), (old_scope), (new_scope))
-void parser_arena_scope_enter(struct parser_arena_scope_cookie *,
-    struct arena_scope **, struct arena_scope *);
+void parser_arena_scope_enter(
+    struct parser_arena_scope_cookie *, struct arena_scope **, struct arena_scope *);
 void parser_arena_scope_leave(struct parser_arena_scope_cookie *);

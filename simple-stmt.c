@@ -29,21 +29,21 @@
 #define SIMPLE_STMT_MAX 32
 
 struct stmt {
-	struct doc   *root;
-	struct doc   *indent;
+	struct doc *root;
+	struct doc *indent;
 	struct token *lbrace;
 	struct token *rbrace;
-	unsigned int  indent_width;
-	unsigned int  flags;
+	unsigned int indent_width;
+	unsigned int flags;
 #define STMT_BRACES 0x00000001u
 #define STMT_IGNORE 0x00000002u
 };
 
 struct simple_stmt {
 	VECTOR(struct stmt) stmts;
-	struct lexer	     *lx;
+	struct lexer *lx;
 	const struct options *op;
-	const struct style   *st;
+	const struct style *st;
 
 	struct {
 		struct arena *scratch;
@@ -53,10 +53,9 @@ struct simple_stmt {
 
 static struct stmt *simple_stmt_alloc(
     struct simple_stmt *, struct doc *, unsigned int, unsigned int);
-static int simple_stmt_need_braces(
-    struct simple_stmt *, const struct stmt *, struct buffer *);
+static int simple_stmt_need_braces(struct simple_stmt *, const struct stmt *, struct buffer *);
 
-static int  need_braces(struct simple_stmt *);
+static int need_braces(struct simple_stmt *);
 static void add_braces(struct simple_stmt *);
 static void remove_braces(struct simple_stmt *);
 
@@ -65,15 +64,13 @@ static int is_brace_moveable(struct simple_stmt *, const struct token *);
 static const char *strtrim(const char *, size_t *);
 
 struct simple_stmt *
-simple_stmt_enter(struct lexer *lx, const struct style *st,
-    struct arena_scope *eternal_scope, struct arena *scratch,
-    struct arena *buffer, const struct options *op)
+simple_stmt_enter(struct lexer *lx, const struct style *st, struct arena_scope *eternal_scope,
+    struct arena *scratch, struct arena *buffer, const struct options *op)
 {
 	struct simple_stmt *ss;
 
 	ss = arena_calloc(eternal_scope, 1, sizeof(*ss));
-	if (VECTOR_INIT(ss->stmts) ||
-	    VECTOR_RESERVE(ss->stmts, SIMPLE_STMT_MAX))
+	if (VECTOR_INIT(ss->stmts) || VECTOR_RESERVE(ss->stmts, SIMPLE_STMT_MAX))
 		err(1, nullptr);
 	ss->arena.scratch = scratch;
 	ss->arena.buffer = buffer;
@@ -114,8 +111,8 @@ simple_stmt_free(struct simple_stmt *ss)
 }
 
 struct doc *
-simple_stmt_braces_enter(struct simple_stmt *ss, struct doc *dc,
-    struct token *lbrace, struct token *rbrace, unsigned int indent)
+simple_stmt_braces_enter(struct simple_stmt *ss, struct doc *dc, struct token *lbrace,
+    struct token *rbrace, unsigned int indent)
 {
 	struct stmt *st;
 	unsigned int flags = STMT_BRACES;
@@ -134,8 +131,8 @@ simple_stmt_braces_enter(struct simple_stmt *ss, struct doc *dc,
 }
 
 struct doc *
-simple_stmt_no_braces_enter(struct simple_stmt *ss, struct doc *dc,
-    struct token *lbrace, unsigned int indent, void **cookie)
+simple_stmt_no_braces_enter(struct simple_stmt *ss, struct doc *dc, struct token *lbrace,
+    unsigned int indent, void **cookie)
 {
 	struct stmt *st;
 	unsigned int flags = 0;
@@ -152,8 +149,7 @@ simple_stmt_no_braces_enter(struct simple_stmt *ss, struct doc *dc,
 }
 
 void
-simple_stmt_no_braces_leave(
-    struct simple_stmt *ss, struct token *rbrace, void *cookie)
+simple_stmt_no_braces_leave(struct simple_stmt *ss, struct token *rbrace, void *cookie)
 {
 	struct stmt *st = cookie;
 
@@ -169,8 +165,7 @@ simple_stmt_no_braces_leave(
  * into the arena would otherwise dangle when the vector reallocates.
  */
 static struct stmt *
-simple_stmt_alloc(struct simple_stmt *ss, struct doc *dc, unsigned int indent,
-    unsigned int flags)
+simple_stmt_alloc(struct simple_stmt *ss, struct doc *dc, unsigned int indent, unsigned int flags)
 {
 	struct stmt *st;
 
@@ -218,11 +213,10 @@ is_stmt_empty(const struct simple_stmt *ss, const struct stmt *st)
  * multi-line result always needs them.
  */
 static int
-simple_stmt_need_braces(
-    struct simple_stmt *ss, const struct stmt *st, struct buffer *bf)
+simple_stmt_need_braces(struct simple_stmt *ss, const struct stmt *st, struct buffer *bf)
 {
 	const char *buf;
-	size_t	    buflen;
+	size_t buflen;
 
 	if (is_stmt_empty(ss, st))
 		return 1;
@@ -237,8 +231,7 @@ simple_stmt_need_braces(
 	buflen = buffer_get_len(bf);
 	buf = strtrim(buffer_get_ptr(bf), &buflen);
 	if (isoneline(buf, buflen)) {
-		return (st->flags & STMT_BRACES) &&
-		    !token_is_moveable(st->rbrace);
+		return (st->flags & STMT_BRACES) && !token_is_moveable(st->rbrace);
 	}
 	return 1;
 }
@@ -247,7 +240,7 @@ static int
 need_braces(struct simple_stmt *ss)
 {
 	struct buffer *bf;
-	size_t	       i;
+	size_t i;
 
 	arena_scope(ss->arena.buffer, s);
 
@@ -270,23 +263,21 @@ static void
 add_braces(struct simple_stmt *ss)
 {
 	struct lexer *lx = ss->lx;
-	size_t	      i;
+	size_t i;
 
 	for (i = 0; i < VECTOR_LENGTH(ss->stmts); i++) {
-		struct stmt  *st = &ss->stmts[i];
+		struct stmt *st = &ss->stmts[i];
 		struct token *lbrace, *pv, *rbrace;
 
 		if (st->flags & (STMT_IGNORE | STMT_BRACES))
 			continue;
 
 		pv = token_prev(st->lbrace);
-		lbrace = lexer_insert_after(
-		    lx, pv, clang_keyword_token(TOKEN_LBRACE));
+		lbrace = lexer_insert_after(lx, pv, clang_keyword_token(TOKEN_LBRACE));
 		token_move_suffixes(pv, lbrace);
 
 		pv = token_prev(st->rbrace);
-		rbrace = lexer_insert_after(
-		    lx, pv, clang_keyword_token(TOKEN_RBRACE));
+		rbrace = lexer_insert_after(lx, pv, clang_keyword_token(TOKEN_RBRACE));
 		token_move_suffixes_if(pv, rbrace, TOKEN_SPACE);
 	}
 }
@@ -295,7 +286,7 @@ static void
 remove_braces(struct simple_stmt *ss)
 {
 	struct lexer *lx = ss->lx;
-	size_t	      i;
+	size_t i;
 
 	for (i = 0; i < VECTOR_LENGTH(ss->stmts); i++) {
 		struct stmt *st = &ss->stmts[i];

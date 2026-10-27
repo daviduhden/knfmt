@@ -1,9 +1,9 @@
 struct parser;
 
 struct parser_stmt_block_arg {
-	struct doc  *head;
-	struct doc  *tail;
-	struct doc  *rbrace;
+	struct doc *head;
+	struct doc *tail;
+	struct doc *rbrace;
 	unsigned int flags;
 /* Switch body: case labels control indentation. */
 #define PARSER_STMT_BLOCK_SWITCH 0x00000001u

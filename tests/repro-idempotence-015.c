@@ -61,9 +61,17 @@
 #include <dev/usb/if_otusreg.h>
 
 #ifdef OTUS_DEBUG
-#define DPRINTF(x)	do { if (otus_debug) printf x; } while (0)
-#define DPRINTFN(n, x)	do { if (otus_debug >= (n)) printf x; } while (0)
-int	otus_debug = 1;
+#define DPRINTF(x)                                                                                 \
+	do {                                                                                       \
+		if (otus_debug)                                                                    \
+			printf x;                                                                  \
+	} while (0)
+#define DPRINTFN(n, x)                                                                             \
+	do {                                                                                       \
+		if (otus_debug >= (n))                                                             \
+			printf x;                                                                  \
+	} while (0)
+int otus_debug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n, x)
@@ -81,8 +89,7 @@ otus_attachhook(struct device *self)
 
 	error = otus_load_firmware(sc, "otus-init", AR_FW_INIT_ADDR);
 	if (error != 0) {
-		printf("%s: could not load %s firmware\n", sc->sc_dev.dv_xname,
-		    "init");
+		printf("%s: could not load %s firmware\n", sc->sc_dev.dv_xname, "init");
 		return;
 	}
 
@@ -90,8 +97,7 @@ otus_attachhook(struct device *self)
 
 	error = otus_load_firmware(sc, "otus-main", AR_FW_MAIN_ADDR);
 	if (error != 0) {
-		printf("%s: could not load %s firmware\n", sc->sc_dev.dv_xname,
-		    "main");
+		printf("%s: could not load %s firmware\n", sc->sc_dev.dv_xname, "main");
 		return;
 	}
 
@@ -102,8 +108,7 @@ otus_attachhook(struct device *self)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 	if (usbd_do_request(sc->sc_udev, &req, NULL) != 0) {
-		printf("%s: firmware initialization failed\n",
-		    sc->sc_dev.dv_xname);
+		printf("%s: firmware initialization failed\n", sc->sc_dev.dv_xname);
 		return;
 	}
 
@@ -114,8 +119,7 @@ otus_attachhook(struct device *self)
 		return;
 	}
 	if (in != out) {
-		printf("%s: echo reply mismatch: 0x%08x!=0x%08x\n",
-		    sc->sc_dev.dv_xname, in, out);
+		printf("%s: echo reply mismatch: 0x%08x!=0x%08x\n", sc->sc_dev.dv_xname, in, out);
 		return;
 	}
 
@@ -129,30 +133,24 @@ otus_attachhook(struct device *self)
 	sc->rxmask = sc->eeprom.baseEepHeader.rxMask;
 	sc->capflags = sc->eeprom.baseEepHeader.opCapFlags;
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, sc->eeprom.baseEepHeader.macAddr);
-	sc->sc_led_newstate = otus_led_newstate_type3;	/* XXX */
+	sc->sc_led_newstate = otus_led_newstate_type3; /* XXX */
 
-	printf("%s: MAC/BBP AR9170, RF AR%X, MIMO %dT%dR, address %s\n",
-	    sc->sc_dev.dv_xname,
-	    (sc->capflags & AR5416_OPFLAGS_11A) ? 0x9104 : ((sc->txmask ==
-	    0x5) ? 0x9102 : 0x9101),
-	    (sc->txmask == 0x5) ? 2 : 1,
-	    (sc->rxmask == 0x5) ? 2 : 1, ether_sprintf(ic->ic_myaddr));
+	printf("%s: MAC/BBP AR9170, RF AR%X, MIMO %dT%dR, address %s\n", sc->sc_dev.dv_xname,
+	    (sc->capflags & AR5416_OPFLAGS_11A) ? 0x9104 : ((sc->txmask == 0x5) ? 0x9102 : 0x9101),
+	    (sc->txmask == 0x5) ? 2 : 1, (sc->rxmask == 0x5) ? 2 : 1, ether_sprintf(ic->ic_myaddr));
 
-	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
-	ic->ic_opmode = IEEE80211_M_STA;	/* default to BSS mode */
+	ic->ic_phytype = IEEE80211_T_OFDM; /* not only, but not used */
+	ic->ic_opmode = IEEE80211_M_STA;   /* default to BSS mode */
 	ic->ic_state = IEEE80211_S_INIT;
 
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
 		/* Set supported .11b and .11g rates. */
-		ic->ic_sup_rates[IEEE80211_MODE_11B] =
-		    ieee80211_std_rateset_11b;
-		ic->ic_sup_rates[IEEE80211_MODE_11G] =
-		    ieee80211_std_rateset_11g;
+		ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_std_rateset_11b;
+		ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_std_rateset_11g;
 	}
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
 		/* Set supported .11a rates. */
-		ic->ic_sup_rates[IEEE80211_MODE_11A] =
-		    ieee80211_std_rateset_11a;
+		ic->ic_sup_rates[IEEE80211_MODE_11A] = ieee80211_std_rateset_11a;
 	}
 
 	/* Build the list of supported channels. */
@@ -232,16 +230,15 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 		return;
 	}
 	hdr = (struct ar_cmd_hdr *)buf;
-	if (__predict_false(sizeof(*hdr) + hdr->len > len ||
-	    sizeof(*hdr) + hdr->len > 64)) {
-		DPRINTF(	("cmd too large %d\n", hdr->len));
+	if (__predict_false(sizeof(*hdr) + hdr->len > len || sizeof(*hdr) + hdr->len > 64)) {
+		DPRINTF(("cmd too large %d\n", hdr->len));
 		return;
 	}
 
 	if ((hdr->code & 0xc0) != 0xc0) {
 		DPRINTFN(2,
-		    ("received reply code=0x%02x len=%d token=%d\n", hdr->code,
-		     hdr->len, hdr->token));
+		    ("received reply code=0x%02x len=%d token=%d\n", hdr->code, hdr->len,
+			hdr->token));
 		cmd = &sc->tx_cmd;
 		if (__predict_false(hdr->token != cmd->token))
 			return;
@@ -254,8 +251,7 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 	}
 
 	/* Received unsolicited notification. */
-	DPRINTF(("received notification code=0x%02x len=%d\n", hdr->code,
-	    hdr->len));
+	DPRINTF(("received notification code=0x%02x len=%d\n", hdr->code, hdr->len));
 	switch (hdr->code & 0x3f) {
 	case AR_EVT_BEACON:
 		break;
@@ -264,9 +260,8 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 		struct ieee80211_node *ni;
 		struct otus_node *on;
 
-		DPRINTF(("tx completed %s status=%d phy=0x%x\n",
-		    ether_sprintf(tx->macaddr), letoh16(tx->status),
-		    letoh32(tx->phy)));
+		DPRINTF(("tx completed %s status=%d phy=0x%x\n", ether_sprintf(tx->macaddr),
+		    letoh16(tx->status), letoh32(tx->phy)));
 		s = splnet();
 #ifdef notyet
 #ifndef IEEE80211_STA_ONLY
@@ -328,7 +323,7 @@ otus_start(struct ifnet *ifp)
 #endif
 		if ((m = ieee80211_encap(ifp, m, &ni)) == NULL)
 			continue;
-sendit:
+	sendit:
 #if NBPFILTER > 0
 		if (ic->ic_rawbpf != NULL)
 			bpf_mtap(ic->ic_rawbpf, m, BPF_DIRECTION_OUT);
@@ -346,23 +341,20 @@ sendit:
 
 #ifdef notyet
 int
-otus_set_key(struct ieee80211com *ic, struct ieee80211_node *ni,
-    struct ieee80211_key *k)
+otus_set_key(struct ieee80211com *ic, struct ieee80211_node *ni, struct ieee80211_key *k)
 {
 	struct otus_softc *sc = ic->ic_softc;
 	struct otus_cmd_key cmd;
 
 	/* Defer setting of WEP keys until interface is brought up. */
-	if ((ic->ic_if.if_flags & (IFF_UP | IFF_RUNNING)) !=
-	    (IFF_UP | IFF_RUNNING))
+	if ((ic->ic_if.if_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
 		return 0;
 
 	/* Do it in a process context. */
 	cmd.key = *k;
 	cmd.ni = *ni;
 	otus_do_async(sc, otus_set_key_cb, &cmd, sizeof cmd);
-	sc->sc_key_tasks++
-	return EBUSY;
+	sc->sc_key_tasks++ return EBUSY;
 }
 
 #endif

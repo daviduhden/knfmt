@@ -7,6 +7,5 @@ int
 main(void)
 {
 	x = CALL(
-		aaaaaaaaaaaaaaaaaaa(bbb, cccccccccccccccccccccccccccccccccccccc),
-		NULL, NULL, NULL);
+	    aaaaaaaaaaaaaaaaaaa(bbb, cccccccccccccccccccccccccccccccccccccc), NULL, NULL, NULL);
 }

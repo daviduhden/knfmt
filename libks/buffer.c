@@ -344,6 +344,7 @@ buffer_reserve(struct buffer *bf, size_t len, int overshoot)
 	size_t newlen, newsiz;
 	char  *ptr;
 
+	/* len is additional capacity, so check before adding it to used bytes. */
 	if (len > ULONG_MAX - bf->bf_len)
 		goto overflow;
 	newlen = bf->bf_len + len;
@@ -351,6 +352,7 @@ buffer_reserve(struct buffer *bf, size_t len, int overshoot)
 		return 0;
 
 	if (overshoot) {
+		/* Geometric growth limits reallocations for repeated small appends. */
 		newsiz = bf->bf_siz ? bf->bf_siz : 16;
 		while (newsiz < newlen) {
 			if (newsiz > ULONG_MAX / 2)

@@ -81,8 +81,10 @@ only acceptable if it preserves output and the documented invariants.
   is safe; retaining
   `nx` across removals is not.
 - `buffer` callbacks are `alloc`, `realloc(ptr, oldsize, newsize)` and
-  `free(ptr, size)`. `buffer_release()` transfers ownership and nulls the
-  internal pointer; a later `buffer_free()` is safe.
+  `free(ptr, size)`. Buffers hold length-delimited bytes unless `buffer_str()`
+  adds a NUL; `buffer_getline()` returns scratch storage invalidated by its next
+  call. `buffer_release()` transfers ownership and nulls the internal pointer;
+  a later `buffer_free()` is safe.
 - `KS_str` match tables are initialized once from linker sections. The x86-64
   dispatch selects SSE/AVX2/AVX-512; Valgrind disables PCMPISTRI.
 - `KS_fs_replace()` writes a hidden sibling temporary file, copies mode and

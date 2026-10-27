@@ -1,0 +1,24 @@
+---
+BasedOnStyle: OpenBSD
+ColumnLimit: 100
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"config\.h"'
+    Priority: 1
+  - Regex: '^<sys/types\.h'
+    Priority: 2
+    SortPriority: 0
+  - Regex: '^<sys/'
+    Priority: 2
+  - Regex: '^<'
+    Priority: 3
+  - Regex: '^"libks/'
+    Priority: 4
+  - Regex: '^"'
+    Priority: 5
+IncludeGuards:
+  - Regex: 'arenas\.h'
+  - Regex: 'lexer-callbacks\.h'
+  - Regex: 'options\.h'
+  - Regex: 'trace-types\.h'
+...

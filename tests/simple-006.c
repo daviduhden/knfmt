@@ -10,11 +10,11 @@ malloc(void)
 	}
 #endif /*GNOSTIC */
 
-#ifdef KMElls+
-;
+#ifdef KMElls +
+	;
 #else
-outS();
-;
+	outS();
+	;
 #else
 #endif
 }

@@ -5,5 +5,5 @@
 int
 main(int argc, char *argv[])
 {
-	asm("mov %[x], %%eax" :: [x] "r" (argc));
+	asm("mov %[x], %%eax" ::[x] "r"(argc));
 }

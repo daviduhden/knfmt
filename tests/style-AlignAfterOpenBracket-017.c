@@ -9,6 +9,5 @@
 int
 main(void)
 {
-        AAAAAAAAAAAA(0, &bbb->ccc, DDD(EEEEEEEEEEE),
-                     "ssssssssssssssssssssss", fffff);
+	AAAAAAAAAAAA(0, &bbb->ccc, DDD(EEEEEEEEEEE), "ssssssssssssssssssssss", fffff);
 }

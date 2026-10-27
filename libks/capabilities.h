@@ -112,14 +112,14 @@ enum KS_x86_uarch {
 
 struct KS_x86_capabilites {
 	enum KS_x86_uarch uarch;
-	uint32_t	  mode;
-	uint32_t	  avx;
-	uint32_t	  bmi;
-	uint32_t	  sse;
-	uint32_t	  fsgsbase:1, lzcnt:1;
+	uint32_t mode;
+	uint32_t avx;
+	uint32_t bmi;
+	uint32_t sse;
+	uint32_t fsgsbase : 1, lzcnt : 1;
 
 	struct {
-		uint32_t bw:1;
+		uint32_t bw : 1;
 	} avx512;
 };
 

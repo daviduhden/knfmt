@@ -21,8 +21,7 @@ sense_empty_loop_braces(const struct token *lbrace, const struct token *rbrace)
 	nx = token_next(lbrace);
 	if (nx == rbrace)
 		return 1;
-	if (nx->tk_type == TOKEN_SEMI && token_is_moveable(nx) &&
-	    token_next(nx) == rbrace)
+	if (nx->tk_type == TOKEN_SEMI && token_is_moveable(nx) && token_next(nx) == rbrace)
 		return 1;
 	return 0;
 }
@@ -30,8 +29,7 @@ sense_empty_loop_braces(const struct token *lbrace, const struct token *rbrace)
 static struct token *
 insert_continue(struct lexer *lx, struct token *after)
 {
-	return lexer_insert_after(
-	    lx, after, clang_keyword_token(TOKEN_CONTINUE));
+	return lexer_insert_after(lx, after, clang_keyword_token(TOKEN_CONTINUE));
 }
 
 static struct token *
@@ -45,8 +43,7 @@ simple_stmt_empty_loop_braces(struct lexer *lx)
 {
 	struct token *after, *lbrace, *nx, *rbrace;
 
-	if (!lexer_peek_if_pair(
-		lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace))
+	if (!lexer_peek_if_pair(lx, TOKEN_LBRACE, TOKEN_RBRACE, &lbrace, &rbrace))
 		return;
 	if (!sense_empty_loop_braces(lbrace, rbrace))
 		return;

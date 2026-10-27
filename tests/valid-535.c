@@ -10,7 +10,7 @@ f(void)
 	auto x = 1;
 	auto *p = &x;
 	auto int y = 2;
-	auto (*q) = &x;
+	auto(*q) = &x;
 	static auto z = 3;
 	const auto c = 4;
 	auto i = 1, *j = &i;
@@ -21,5 +21,5 @@ f(void)
 void
 g(void)
 {
-	auto (*p) = 0;
+	auto(*p) = 0;
 }

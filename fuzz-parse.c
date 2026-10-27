@@ -16,10 +16,10 @@
 #include "style.h"
 
 struct test_context {
-	struct options	   op;
-	struct style	  *st;
-	struct simple	  *si;
-	struct arenas	   arena;
+	struct options op;
+	struct style *st;
+	struct simple *si;
+	struct arenas arena;
 	struct arena_scope eternal_scope;
 };
 
@@ -71,11 +71,11 @@ FUZZER_TEARDOWN(teardown);
  * that scope and released when the caller leaves it.
  */
 static int
-format_once(struct test_context *c, const struct buffer *bf,
-    struct arena_scope *scope, struct buffer *dst)
+format_once(
+    struct test_context *c, const struct buffer *bf, struct arena_scope *scope, struct buffer *dst)
 {
-	struct clang  *clang;
-	struct lexer  *lx;
+	struct clang *clang;
+	struct lexer *lx;
 	struct parser *pr;
 
 	clang = clang_alloc(c->st, c->si, &c->arena, nullptr, &c->op, scope);
@@ -115,7 +115,7 @@ static void
 target(const struct buffer *bf, void *userdata)
 {
 	struct test_context *c = userdata;
-	struct buffer	    *dst, *dst2, *dst3;
+	struct buffer *dst, *dst2, *dst3;
 
 	arena_scope(c->arena.eternal, eternal_scope);
 	arena_scope(c->arena.buffer, buffer_scope);
@@ -137,7 +137,7 @@ target(const struct buffer *bf, void *userdata)
 	if (!format_once(c, dst2, &eternal_scope, dst3))
 		return;
 
-	size_t	    len2, len3;
+	size_t len2, len3;
 	const char *str2, *str3;
 
 	len2 = buffer_get_len(dst2);

@@ -18,7 +18,7 @@
 int
 main(int argc, const char *argv[])
 {
-	struct arena  *scratch;
+	struct arena *scratch;
 	struct buffer *bf;
 
 	if (argc != 2)

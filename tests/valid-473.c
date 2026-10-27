@@ -7,7 +7,7 @@ struct s {
 	int b [[deprecated]];
 };
 void
-f(int x[[maybe_unused]] )
+f(int x [[maybe_unused]])
 {
 	(void)x;
 }

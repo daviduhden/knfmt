@@ -2,8 +2,7 @@ struct arena_scope;
 struct lexer;
 struct token;
 
-struct simple_decl_proto *simple_decl_proto_enter(
-    struct lexer *, struct arena_scope *);
+struct simple_decl_proto *simple_decl_proto_enter(struct lexer *, struct arena_scope *);
 void simple_decl_proto_leave(struct simple_decl_proto *);
 void simple_decl_proto_free(struct simple_decl_proto *);
 

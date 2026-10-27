@@ -42,30 +42,30 @@
 #ifndef _NET_PFKEY_V2_H_
 #define _NET_PFKEY_V2_H_
 
-#define PF_KEY_V2			2
-#define PFKEYV2_REVISION		199806L
+#define PF_KEY_V2 2
+#define PFKEYV2_REVISION 199806L
 
 /* This should be updated whenever the API is altered.  */
-#define _OPENBSD_IPSEC_API_VERSION	2
+#define _OPENBSD_IPSEC_API_VERSION 2
 
-#define SADB_RESERVED      0
-#define SADB_GETSPI        1
-#define SADB_UPDATE        2
-#define SADB_ADD           3
-#define SADB_DELETE        4
-#define SADB_GET           5
-#define SADB_ACQUIRE       6
-#define SADB_REGISTER      7
-#define SADB_EXPIRE        8
-#define SADB_FLUSH         9
-#define SADB_DUMP          10
-#define SADB_X_PROMISC     11
-#define SADB_X_ADDFLOW     12
-#define SADB_X_DELFLOW     13
-#define SADB_X_GRPSPIS     14
-#define SADB_X_ASKPOLICY   15
-#define SADB_X_SPDDUMP     16
-#define SADB_MAX           16
+#define SADB_RESERVED 0
+#define SADB_GETSPI 1
+#define SADB_UPDATE 2
+#define SADB_ADD 3
+#define SADB_DELETE 4
+#define SADB_GET 5
+#define SADB_ACQUIRE 6
+#define SADB_REGISTER 7
+#define SADB_EXPIRE 8
+#define SADB_FLUSH 9
+#define SADB_DUMP 10
+#define SADB_X_PROMISC 11
+#define SADB_X_ADDFLOW 12
+#define SADB_X_DELFLOW 13
+#define SADB_X_GRPSPIS 14
+#define SADB_X_ASKPOLICY 15
+#define SADB_X_SPDDUMP 16
+#define SADB_MAX 16
 
 struct sadb_msg {
 	uint8_t sadb_msg_version;
@@ -187,15 +187,15 @@ struct sadb_spirange {
 struct sadb_protocol {
 	uint16_t sadb_protocol_len;
 	uint16_t sadb_protocol_exttype;
-	uint8_t  sadb_protocol_proto;
-	uint8_t  sadb_protocol_direction;
-	uint8_t  sadb_protocol_flags;
-	uint8_t  sadb_protocol_reserved2;
+	uint8_t sadb_protocol_proto;
+	uint8_t sadb_protocol_direction;
+	uint8_t sadb_protocol_flags;
+	uint8_t sadb_protocol_reserved2;
 };
 
 struct sadb_x_policy {
-	uint16_t  sadb_x_policy_len;
-	uint16_t  sadb_x_policy_exttype;
+	uint16_t sadb_x_policy_len;
+	uint16_t sadb_x_policy_exttype;
 	u_int32_t sadb_x_policy_seq;
 };
 
@@ -207,188 +207,189 @@ struct sadb_x_udpencap {
 };
 
 struct sadb_x_tag {
-	uint16_t  sadb_x_tag_len;
-	uint16_t  sadb_x_tag_exttype;
+	uint16_t sadb_x_tag_len;
+	uint16_t sadb_x_tag_exttype;
 	u_int32_t sadb_x_tag_taglen;
 };
 
 struct sadb_x_rdomain {
-	uint16_t  sadb_x_rdomain_len;
-	uint16_t  sadb_x_rdomain_exttype;
-	uint16_t  sadb_x_rdomain_dom1;
-	uint16_t  sadb_x_rdomain_dom2;
+	uint16_t sadb_x_rdomain_len;
+	uint16_t sadb_x_rdomain_exttype;
+	uint16_t sadb_x_rdomain_dom1;
+	uint16_t sadb_x_rdomain_dom2;
 };
 
 struct sadb_x_tap {
-	uint16_t  sadb_x_tap_len;
-	uint16_t  sadb_x_tap_exttype;
+	uint16_t sadb_x_tap_len;
+	uint16_t sadb_x_tap_exttype;
 	u_int32_t sadb_x_tap_unit;
 };
 
 struct sadb_x_counter {
-	uint16_t  sadb_x_counter_len;
-	uint16_t  sadb_x_counter_exttype;
-	uint32_t  sadb_x_counter_pad;
-	uint64_t  sadb_x_counter_ipackets;	/* Input IPsec packets */
-	uint64_t  sadb_x_counter_opackets;	/* Output IPsec packets */
-	uint64_t  sadb_x_counter_ibytes;	/* Input bytes */
-	uint64_t  sadb_x_counter_obytes;	/* Output bytes */
-	uint64_t  sadb_x_counter_idrops;	/* Dropped on input */
-	uint64_t  sadb_x_counter_odrops;	/* Dropped on output */
-	uint64_t  sadb_x_counter_idecompbytes;	/* Input bytes, decompressed */
-	uint64_t  sadb_x_counter_ouncompbytes;	/* Output bytes, uncompressed */
+	uint16_t sadb_x_counter_len;
+	uint16_t sadb_x_counter_exttype;
+	uint32_t sadb_x_counter_pad;
+	uint64_t sadb_x_counter_ipackets;     /* Input IPsec packets */
+	uint64_t sadb_x_counter_opackets;     /* Output IPsec packets */
+	uint64_t sadb_x_counter_ibytes;	      /* Input bytes */
+	uint64_t sadb_x_counter_obytes;	      /* Output bytes */
+	uint64_t sadb_x_counter_idrops;	      /* Dropped on input */
+	uint64_t sadb_x_counter_odrops;	      /* Dropped on output */
+	uint64_t sadb_x_counter_idecompbytes; /* Input bytes, decompressed */
+	uint64_t sadb_x_counter_ouncompbytes; /* Output bytes, uncompressed */
 };
 
 struct sadb_x_mtu {
-	uint16_t  sadb_x_mtu_len;
-	uint16_t  sadb_x_mtu_exttype;
+	uint16_t sadb_x_mtu_len;
+	uint16_t sadb_x_mtu_exttype;
 	u_int32_t sadb_x_mtu_mtu;
 };
 
 #ifdef _KERNEL
-#define SADB_X_GETSPROTO(x) \
-	( (x) == SADB_SATYPE_AH ? IPPROTO_AH :\
-	(x) == SADB_SATYPE_ESP ? IPPROTO_ESP :\
-	(x) == SADB_X_SATYPE_TCPSIGNATURE ? IPPROTO_TCP :\
-	(x) == SADB_X_SATYPE_IPCOMP ? IPPROTO_IPCOMP: IPPROTO_IPIP )
+#define SADB_X_GETSPROTO(x)                                                                        \
+	((x) == SADB_SATYPE_AH			    ? IPPROTO_AH                                   \
+		: (x) == SADB_SATYPE_ESP	    ? IPPROTO_ESP                                  \
+		: (x) == SADB_X_SATYPE_TCPSIGNATURE ? IPPROTO_TCP                                  \
+		: (x) == SADB_X_SATYPE_IPCOMP	    ? IPPROTO_IPCOMP                               \
+						    : IPPROTO_IPIP)
 #endif
 
-#define SADB_EXT_RESERVED             0
-#define SADB_EXT_SA                   1
-#define SADB_EXT_LIFETIME_CURRENT     2
-#define SADB_EXT_LIFETIME_HARD        3
-#define SADB_EXT_LIFETIME_SOFT        4
-#define SADB_EXT_ADDRESS_SRC          5
-#define SADB_EXT_ADDRESS_DST          6
-#define SADB_EXT_ADDRESS_PROXY        7
-#define SADB_EXT_KEY_AUTH             8
-#define SADB_EXT_KEY_ENCRYPT          9
-#define SADB_EXT_IDENTITY_SRC         10
-#define SADB_EXT_IDENTITY_DST         11
-#define SADB_EXT_SENSITIVITY          12
-#define SADB_EXT_PROPOSAL             13
-#define SADB_EXT_SUPPORTED_AUTH	      14
-#define SADB_EXT_SUPPORTED_ENCRYPT    15
-#define SADB_EXT_SPIRANGE             16
-#define SADB_X_EXT_SRC_MASK           17
-#define SADB_X_EXT_DST_MASK           18
-#define SADB_X_EXT_PROTOCOL           19
-#define SADB_X_EXT_FLOW_TYPE          20
-#define SADB_X_EXT_SRC_FLOW           21
-#define SADB_X_EXT_DST_FLOW           22
-#define SADB_X_EXT_SA2                23
-#define SADB_X_EXT_DST2               24
-#define SADB_X_EXT_POLICY             25
-#define SADB_X_EXT_LOCAL_CREDENTIALS  26
+#define SADB_EXT_RESERVED 0
+#define SADB_EXT_SA 1
+#define SADB_EXT_LIFETIME_CURRENT 2
+#define SADB_EXT_LIFETIME_HARD 3
+#define SADB_EXT_LIFETIME_SOFT 4
+#define SADB_EXT_ADDRESS_SRC 5
+#define SADB_EXT_ADDRESS_DST 6
+#define SADB_EXT_ADDRESS_PROXY 7
+#define SADB_EXT_KEY_AUTH 8
+#define SADB_EXT_KEY_ENCRYPT 9
+#define SADB_EXT_IDENTITY_SRC 10
+#define SADB_EXT_IDENTITY_DST 11
+#define SADB_EXT_SENSITIVITY 12
+#define SADB_EXT_PROPOSAL 13
+#define SADB_EXT_SUPPORTED_AUTH 14
+#define SADB_EXT_SUPPORTED_ENCRYPT 15
+#define SADB_EXT_SPIRANGE 16
+#define SADB_X_EXT_SRC_MASK 17
+#define SADB_X_EXT_DST_MASK 18
+#define SADB_X_EXT_PROTOCOL 19
+#define SADB_X_EXT_FLOW_TYPE 20
+#define SADB_X_EXT_SRC_FLOW 21
+#define SADB_X_EXT_DST_FLOW 22
+#define SADB_X_EXT_SA2 23
+#define SADB_X_EXT_DST2 24
+#define SADB_X_EXT_POLICY 25
+#define SADB_X_EXT_LOCAL_CREDENTIALS 26
 #define SADB_X_EXT_REMOTE_CREDENTIALS 27
-#define SADB_X_EXT_LOCAL_AUTH         28
-#define SADB_X_EXT_REMOTE_AUTH        29
-#define SADB_X_EXT_SUPPORTED_COMP     30
-#define SADB_X_EXT_UDPENCAP           31
-#define SADB_X_EXT_LIFETIME_LASTUSE   32
-#define SADB_X_EXT_TAG                33
-#define SADB_X_EXT_TAP                34
-#define SADB_X_EXT_SATYPE2            35
-#define SADB_X_EXT_COUNTER            36
-#define SADB_X_EXT_RDOMAIN            37
-#define SADB_X_EXT_MTU                38
-#define SADB_EXT_MAX                  38
+#define SADB_X_EXT_LOCAL_AUTH 28
+#define SADB_X_EXT_REMOTE_AUTH 29
+#define SADB_X_EXT_SUPPORTED_COMP 30
+#define SADB_X_EXT_UDPENCAP 31
+#define SADB_X_EXT_LIFETIME_LASTUSE 32
+#define SADB_X_EXT_TAG 33
+#define SADB_X_EXT_TAP 34
+#define SADB_X_EXT_SATYPE2 35
+#define SADB_X_EXT_COUNTER 36
+#define SADB_X_EXT_RDOMAIN 37
+#define SADB_X_EXT_MTU 38
+#define SADB_EXT_MAX 38
 
 /* Fix pfkeyv2.c struct pfkeyv2_socket if SATYPE_MAX > 31 */
-#define SADB_SATYPE_UNSPEC		 0
-#define SADB_SATYPE_AH			 1
-#define SADB_SATYPE_ESP			 2
-#define SADB_SATYPE_RSVP		 3
-#define SADB_SATYPE_OSPFV2		 4
-#define SADB_SATYPE_RIPV2		 5
-#define SADB_SATYPE_MIP			 6
-#define SADB_X_SATYPE_IPIP		 7
-#define SADB_X_SATYPE_TCPSIGNATURE	 8
-#define SADB_X_SATYPE_IPCOMP		 9
-#define SADB_SATYPE_MAX			 9
+#define SADB_SATYPE_UNSPEC 0
+#define SADB_SATYPE_AH 1
+#define SADB_SATYPE_ESP 2
+#define SADB_SATYPE_RSVP 3
+#define SADB_SATYPE_OSPFV2 4
+#define SADB_SATYPE_RIPV2 5
+#define SADB_SATYPE_MIP 6
+#define SADB_X_SATYPE_IPIP 7
+#define SADB_X_SATYPE_TCPSIGNATURE 8
+#define SADB_X_SATYPE_IPCOMP 9
+#define SADB_SATYPE_MAX 9
 
-#define SADB_SASTATE_LARVAL   0
-#define SADB_SASTATE_MATURE   1
-#define SADB_SASTATE_DYING    2
-#define SADB_SASTATE_DEAD     3
-#define SADB_SASTATE_MAX      3
+#define SADB_SASTATE_LARVAL 0
+#define SADB_SASTATE_MATURE 1
+#define SADB_SASTATE_DYING 2
+#define SADB_SASTATE_DEAD 3
+#define SADB_SASTATE_MAX 3
 
-#define SADB_AALG_NONE               0
-#define SADB_AALG_MD5HMAC            2
-#define SADB_AALG_SHA1HMAC           3
-#define SADB_X_AALG_SHA2_256         5
-#define SADB_X_AALG_SHA2_384         6
-#define SADB_X_AALG_SHA2_512         7
-#define SADB_X_AALG_RIPEMD160HMAC    8
-#define SADB_X_AALG_AES128GMAC       9
-#define SADB_X_AALG_AES192GMAC       10
-#define SADB_X_AALG_AES256GMAC       11
+#define SADB_AALG_NONE 0
+#define SADB_AALG_MD5HMAC 2
+#define SADB_AALG_SHA1HMAC 3
+#define SADB_X_AALG_SHA2_256 5
+#define SADB_X_AALG_SHA2_384 6
+#define SADB_X_AALG_SHA2_512 7
+#define SADB_X_AALG_RIPEMD160HMAC 8
+#define SADB_X_AALG_AES128GMAC 9
+#define SADB_X_AALG_AES192GMAC 10
+#define SADB_X_AALG_AES256GMAC 11
 #define SADB_X_AALG_CHACHA20POLY1305 12
-#define SADB_AALG_MAX                12
+#define SADB_AALG_MAX 12
 
-#define SADB_EALG_NONE        0
-#define SADB_EALG_3DESCBC     3
-#define SADB_X_EALG_CAST      6
-#define SADB_X_EALG_BLF       7
-#define SADB_EALG_NULL        11
-#define SADB_X_EALG_AES       12
-#define SADB_X_EALG_AESCTR    13
-#define SADB_X_EALG_AESGCM8   18
-#define SADB_X_EALG_AESGCM12  19
-#define SADB_X_EALG_AESGCM16  20
-#define SADB_X_EALG_AESGMAC   21
+#define SADB_EALG_NONE 0
+#define SADB_EALG_3DESCBC 3
+#define SADB_X_EALG_CAST 6
+#define SADB_X_EALG_BLF 7
+#define SADB_EALG_NULL 11
+#define SADB_X_EALG_AES 12
+#define SADB_X_EALG_AESCTR 13
+#define SADB_X_EALG_AESGCM8 18
+#define SADB_X_EALG_AESGCM12 19
+#define SADB_X_EALG_AESGCM16 20
+#define SADB_X_EALG_AESGMAC 21
 #define SADB_X_EALG_CHACHA20POLY1305 22
-#define SADB_EALG_MAX         22
+#define SADB_EALG_MAX 22
 
-#define SADB_X_CALG_NONE	0
-#define SADB_X_CALG_OUI		1
-#define SADB_X_CALG_DEFLATE	2
-#define SADB_X_CALG_LZS		3
-#define SADB_X_CALG_MAX		3
+#define SADB_X_CALG_NONE 0
+#define SADB_X_CALG_OUI 1
+#define SADB_X_CALG_DEFLATE 2
+#define SADB_X_CALG_LZS 3
+#define SADB_X_CALG_MAX 3
 
-#define SADB_SAFLAGS_PFS		0x001	/* perfect forward secrecy */
-#define SADB_X_SAFLAGS_TUNNEL		0x004	/* Force tunneling */
-#define SADB_X_SAFLAGS_CHAINDEL		0x008	/* Delete whole SA chain */
-#define SADB_X_SAFLAGS_UDPENCAP		0x200	/* ESP in UDP  */
-#define SADB_X_SAFLAGS_ESN		0x400	/* Extended Sequence Number */
+#define SADB_SAFLAGS_PFS 0x001	      /* perfect forward secrecy */
+#define SADB_X_SAFLAGS_TUNNEL 0x004   /* Force tunneling */
+#define SADB_X_SAFLAGS_CHAINDEL 0x008 /* Delete whole SA chain */
+#define SADB_X_SAFLAGS_UDPENCAP 0x200 /* ESP in UDP  */
+#define SADB_X_SAFLAGS_ESN 0x400      /* Extended Sequence Number */
 
-#define SADB_X_POLICYFLAGS_POLICY	0x0001	/* This is a static policy */
+#define SADB_X_POLICYFLAGS_POLICY 0x0001 /* This is a static policy */
 
-#define SADB_IDENTTYPE_RESERVED     0
-#define SADB_IDENTTYPE_PREFIX       1
-#define SADB_IDENTTYPE_FQDN         2
-#define SADB_IDENTTYPE_USERFQDN     3
-#define SADB_IDENTTYPE_ASN1_DN      4
-#define SADB_IDENTTYPE_MAX          4
+#define SADB_IDENTTYPE_RESERVED 0
+#define SADB_IDENTTYPE_PREFIX 1
+#define SADB_IDENTTYPE_FQDN 2
+#define SADB_IDENTTYPE_USERFQDN 3
+#define SADB_IDENTTYPE_ASN1_DN 4
+#define SADB_IDENTTYPE_MAX 4
 
 #define SADB_KEY_FLAGS_MAX 0
 
 #ifdef _KERNEL
-#define PFKEYV2_LIFETIME_HARD      0
-#define PFKEYV2_LIFETIME_SOFT      1
-#define PFKEYV2_LIFETIME_CURRENT   2
-#define PFKEYV2_LIFETIME_LASTUSE   3
+#define PFKEYV2_LIFETIME_HARD 0
+#define PFKEYV2_LIFETIME_SOFT 1
+#define PFKEYV2_LIFETIME_CURRENT 2
+#define PFKEYV2_LIFETIME_LASTUSE 3
 
-#define PFKEYV2_IDENTITY_SRC       0
-#define PFKEYV2_IDENTITY_DST       1
+#define PFKEYV2_IDENTITY_SRC 0
+#define PFKEYV2_IDENTITY_DST 1
 
-#define PFKEYV2_ENCRYPTION_KEY     0
+#define PFKEYV2_ENCRYPTION_KEY 0
 #define PFKEYV2_AUTHENTICATION_KEY 1
 
 #define PFKEYV2_SOCKETFLAGS_REGISTERED 1
-#define PFKEYV2_SOCKETFLAGS_PROMISC    2
+#define PFKEYV2_SOCKETFLAGS_PROMISC 2
 
-#define PFKEYV2_SENDMESSAGE_UNICAST    1
+#define PFKEYV2_SENDMESSAGE_UNICAST 1
 #define PFKEYV2_SENDMESSAGE_REGISTERED 2
-#define PFKEYV2_SENDMESSAGE_BROADCAST  3
+#define PFKEYV2_SENDMESSAGE_BROADCAST 3
 #endif /* _KERNEL */
 
-#define SADB_X_FLOW_TYPE_USE           1
-#define SADB_X_FLOW_TYPE_ACQUIRE       2
-#define SADB_X_FLOW_TYPE_REQUIRE       3
-#define SADB_X_FLOW_TYPE_BYPASS        4
-#define SADB_X_FLOW_TYPE_DENY          5
-#define SADB_X_FLOW_TYPE_DONTACQ       6
+#define SADB_X_FLOW_TYPE_USE 1
+#define SADB_X_FLOW_TYPE_ACQUIRE 2
+#define SADB_X_FLOW_TYPE_REQUIRE 3
+#define SADB_X_FLOW_TYPE_BYPASS 4
+#define SADB_X_FLOW_TYPE_DENY 5
+#define SADB_X_FLOW_TYPE_DONTACQ 6
 
 #ifdef _KERNEL
 struct tdb;
@@ -400,8 +401,8 @@ struct mbuf;
 
 int pfkeyv2_parsemessage(void *, int, void **);
 int pfkeyv2_expire(struct tdb *, u_int16_t);
-int pfkeyv2_acquire(struct ipsec_policy *, union sockaddr_union *,
-    union sockaddr_union *, u_int32_t *, struct sockaddr_encap *);
+int pfkeyv2_acquire(struct ipsec_policy *, union sockaddr_union *, union sockaddr_union *,
+    u_int32_t *, struct sockaddr_encap *);
 
 int pfkeyv2_get(struct tdb *, void **, void **, int *, int *);
 int pfkeyv2_policy(struct ipsec_acquire *, void **, void **, int *);
@@ -420,8 +421,7 @@ void export_address(void **, struct sockaddr *);
 void export_identities(void **, struct ipsec_ids *, int, void **);
 void export_lifetime(void **, struct tdb *, int);
 void export_sa(void **, struct tdb *);
-void export_flow(void **, u_int8_t, struct sockaddr_encap *,
-    struct sockaddr_encap *, void **);
+void export_flow(void **, u_int8_t, struct sockaddr_encap *, struct sockaddr_encap *, void **);
 void export_key(void **, struct tdb *, int);
 void export_udpencap(void **, struct tdb *);
 void export_tag(void **, struct tdb *);
@@ -432,21 +432,20 @@ void export_satype(void **, struct tdb *);
 void export_counter(void **, struct tdb *);
 
 void import_address(struct sockaddr *, struct sadb_address *);
-void import_identities(struct ipsec_ids **, int, struct sadb_ident *,
-    struct sadb_ident *);
+void import_identities(struct ipsec_ids **, int, struct sadb_ident *, struct sadb_ident *);
 void import_key(struct ipsecinit *, struct sadb_key *, int);
 void import_lifetime(struct tdb *, struct sadb_lifetime *, int);
 void import_sa(struct tdb *, struct sadb_sa *, struct ipsecinit *);
-int import_flow(struct sockaddr_encap *, struct sockaddr_encap *,
-    struct sadb_address *, struct sadb_address *, struct sadb_address *,
-    struct sadb_address *, struct sadb_protocol *, struct sadb_protocol *);
+int import_flow(struct sockaddr_encap *, struct sockaddr_encap *, struct sadb_address *,
+    struct sadb_address *, struct sadb_address *, struct sadb_address *, struct sadb_protocol *,
+    struct sadb_protocol *);
 void import_udpencap(struct tdb *, struct sadb_x_udpencap *);
 void import_tag(struct tdb *, struct sadb_x_tag *);
 void import_rdomain(struct tdb *, struct sadb_x_rdomain *);
 void import_tap(struct tdb *, struct sadb_x_tap *);
 
-extern const uint64_t sadb_exts_allowed_out[SADB_MAX+1];
-extern const uint64_t sadb_exts_required_out[SADB_MAX+1];
+extern const uint64_t sadb_exts_allowed_out[SADB_MAX + 1];
+extern const uint64_t sadb_exts_required_out[SADB_MAX + 1];
 
 extern struct pool ipsec_policy_pool;
 #endif /* _KERNEL */

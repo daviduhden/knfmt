@@ -109,7 +109,7 @@ path_slice(const char *path, unsigned int ncomponents, struct arena_scope *s)
 
 	VECTOR(char *) components;
 	struct buffer *bf;
-	unsigned int   i, n;
+	unsigned int i, n;
 
 	components = KS_str_split(path, &match, s);
 	n = VECTOR_LENGTH(components);

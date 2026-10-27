@@ -8,7 +8,7 @@
 
 struct error {
 	struct buffer *er_bf;
-	int	       er_flush;
+	int er_flush;
 };
 
 /*

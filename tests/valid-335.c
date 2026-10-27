@@ -6,6 +6,6 @@ int
 main(void)
 {
 	switch (0) {
-X()
+		X()
 	}
 }

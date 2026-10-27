@@ -2,5 +2,5 @@
  * AlignAfterOpenBracket: Align
  */
 
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAA(bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
-			      cccccccccccccccccccccccccccccccccccccccc)
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAA(
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccccccccccc)

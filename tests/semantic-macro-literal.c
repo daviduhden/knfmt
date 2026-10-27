@@ -4,7 +4,6 @@
  * literal).
  */
 
-#define RESOLVE_ITEM_STR(field) \
+#define RESOLVE_ITEM_STR(field)                                                                    \
 	"a\
-	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" \
-	c
+	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" c

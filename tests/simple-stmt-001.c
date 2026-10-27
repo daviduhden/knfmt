@@ -53,7 +53,8 @@ test_switch2(void)
 	if (0) {
 		switch (1) {
 		case 1: {
-			TAILQ_FOREACH_REVERSE(dc, dl, doc_stack, dc_entry) {
+			TAILQ_FOREACH_REVERSE(dc, dl, doc_stack, dc_entry)
+			{
 				TAILQ_INSERT_TAIL(&ds, dc, dc_stack);
 			}
 

@@ -33,17 +33,17 @@
  * tokenized by the normal lexer with a dedicated YAML tokenizer (so YAML
  * scalars, sequences and comments do not need a separate parser), and options
  * are dispatched through a keyword table to small parse functions. Only the
- * nearest .clang-format found by searching upward from the working directory is
- * used; there is no merge with parent files. BasedOnStyle other than OpenBSD is
- * resolved by running clang-format -dump-config, which is why pledge(2) is
- * delayed in main().
+ * nearest .knfmt or .clang-format found while searching upward from the working
+ * directory is used; .knfmt wins when both are in the same directory. There is
+ * no merge with parent files. BasedOnStyle other than OpenBSD is resolved by
+ * running clang-format -dump-config, which is why pledge(2) is delayed in
+ * main().
  *
  * Malformed configuration is non-fatal: parse errors are recorded as style
  * diagnostics and whatever was understood is kept. Unimplemented but accepted
  * options are still stored so tracing shows the effective configuration.
  */
-#define style_trace(st, fmt, ...)                                              \
-	trace_no_func(TRACE_STYLE, (st)->op, (fmt), __VA_ARGS__)
+#define style_trace(st, fmt, ...) trace_no_func(TRACE_STYLE, (st)->op, (fmt), __VA_ARGS__)
 
 /*
  * Return values for yaml parser routines. Only one of the following may be
@@ -55,13 +55,13 @@
 #define SKIP 0x00000002
 #define FAIL 0x00000004
 
-#define FOR_YAML_TYPES(OP)                                                     \
-	OP(DocumentBegin, 1)                                                   \
-	OP(DocumentEnd, 2)                                                     \
-	OP(Colon, 3)                                                           \
-	OP(Sequence, 4)                                                        \
-	OP(String, 5)                                                          \
-	OP(Integer, 6)                                                         \
+#define FOR_YAML_TYPES(OP)                                                                         \
+	OP(DocumentBegin, 1)                                                                       \
+	OP(DocumentEnd, 2)                                                                         \
+	OP(Colon, 3)                                                                               \
+	OP(Sequence, 4)                                                                            \
+	OP(String, 5)                                                                              \
+	OP(Integer, 6)                                                                             \
 	OP(Unknown, 7)
 
 /* Continuation of token types used to represent YAML primitives. */
@@ -73,16 +73,16 @@ enum yaml_type {
 
 struct style {
 	const struct options *op;
-	int		      scope;
-	int		      depth;
+	int scope;
+	int depth;
 
 	struct {
 		struct arena_scope *eternal_scope;
-		struct arena	   *scratch;
+		struct arena *scratch;
 	} arena;
 
 	struct {
-		int	     type;
+		int type;
 		unsigned int isset;
 		unsigned int val;
 	} options[Last];
@@ -95,11 +95,11 @@ struct style {
 
 struct regex {
 	const char *pattern;
-	regex_t	    r;
+	regex_t r;
 };
 
 struct include_category {
-	struct regex		regex;
+	struct regex regex;
 	struct include_priority priority;
 };
 
@@ -109,19 +109,18 @@ struct include_guard {
 };
 
 struct style_option {
-	int	    so_scope;
+	int so_scope;
 	const char *so_key;
-	size_t	    so_len;
-	int	    so_type;
-	int	    (*so_parse)(
-	    struct style *, struct lexer *, const struct style_option *);
+	size_t so_len;
+	int so_type;
+	int (*so_parse)(struct style *, struct lexer *, const struct style_option *);
 	int so_val[16];
 };
 
 struct yaml_token {
 	const struct style_option *so;
 	union {
-		int32_t	 i32;
+		int32_t i32;
 		uint32_t u32;
 	} integer;
 };
@@ -129,51 +128,35 @@ struct yaml_token {
 static void style_free(void *);
 static void style_defaults(struct style *);
 static void style_set(struct style *, int, int, unsigned int);
-static int  style_parse_yaml(
-    struct style *, const char *, const struct buffer *);
-static int  style_parse_yaml_documents(struct style *, struct lexer *, int);
+static int style_parse_yaml(struct style *, const char *, const struct buffer *);
+static int style_parse_yaml_documents(struct style *, struct lexer *, int);
 static void style_dump(const struct style *);
 static void style_dump_IncludeCategories(const struct style *);
 static void style_dump_IncludeGuards(const struct style *);
 
 static struct token *yaml_read(struct lexer *, void *);
 static struct token *yaml_read_integer(struct lexer *);
-static struct token *yaml_token_alloc(
-    struct arena_scope *, const struct token *);
-static const char *yaml_token_serialize(
-    const struct token *, struct arena_scope *);
-static const char   *yaml_token_type_serialize(int, struct arena_scope *);
+static struct token *yaml_token_alloc(struct arena_scope *, const struct token *);
+static const char *yaml_token_serialize(const struct token *, struct arena_scope *);
+static const char *yaml_token_type_serialize(int, struct arena_scope *);
 static struct token *yaml_keyword(struct lexer *, const struct lexer_state *);
 static const struct style_option *yaml_find_keyword(const char *, size_t);
 
-static int parse_bool(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_enum(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_integer(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_integer_impl(struct style *, struct lexer *,
-    const struct style_option *, struct token **, struct token **);
-static int parse_string(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_nested(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_AlignOperands(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_BasedOnStyle(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_ColumnLimit(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_IncludeCategories(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_IncludeGuards(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_PathComponents(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_Priority(
-    struct style *, struct lexer *, const struct style_option *);
-static int parse_Regex(
-    struct style *, struct lexer *, const struct style_option *);
+static int parse_bool(struct style *, struct lexer *, const struct style_option *);
+static int parse_enum(struct style *, struct lexer *, const struct style_option *);
+static int parse_integer(struct style *, struct lexer *, const struct style_option *);
+static int parse_integer_impl(
+    struct style *, struct lexer *, const struct style_option *, struct token **, struct token **);
+static int parse_string(struct style *, struct lexer *, const struct style_option *);
+static int parse_nested(struct style *, struct lexer *, const struct style_option *);
+static int parse_AlignOperands(struct style *, struct lexer *, const struct style_option *);
+static int parse_BasedOnStyle(struct style *, struct lexer *, const struct style_option *);
+static int parse_ColumnLimit(struct style *, struct lexer *, const struct style_option *);
+static int parse_IncludeCategories(struct style *, struct lexer *, const struct style_option *);
+static int parse_IncludeGuards(struct style *, struct lexer *, const struct style_option *);
+static int parse_PathComponents(struct style *, struct lexer *, const struct style_option *);
+static int parse_Priority(struct style *, struct lexer *, const struct style_option *);
+static int parse_Regex(struct style *, struct lexer *, const struct style_option *);
 static void include_categories_recompile(struct style *);
 
 static const char *yaml_type_str(enum yaml_type);
@@ -199,8 +182,7 @@ style_init(void)
 /* YAML primitive. */
 #define P(t, s) 0, (s), sizeof(s) - 1, (t), nullptr, {0}
 
-	    {S(AlignAfterOpenBracket), parse_enum,
-		{Align, DontAlign, AlwaysBreak, BlockIndent}},
+	    {S(AlignAfterOpenBracket), parse_enum, {Align, DontAlign, AlwaysBreak, BlockIndent}},
 
 	    {S(AlignEscapedNewlines), parse_enum, {DontAlign, Left, Right}},
 
@@ -213,8 +195,8 @@ style_init(void)
 	    {S(BitFieldColonSpacing), parse_enum, {Both, None, Before, After}},
 
 	    {S(BasedOnStyle), parse_BasedOnStyle,
-		{LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU,
-		    InheritParentConfig, OpenBSD}},
+		{LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, InheritParentConfig,
+		    OpenBSD}},
 
 	    {S(BraceWrapping), parse_nested, {0}},
 	    {N(BraceWrapping, AfterCaseLabel), parse_bool, {0}},
@@ -237,12 +219,10 @@ style_init(void)
 	    {N(BraceWrapping, SplitEmptyNamespace), parse_bool, {0}},
 	    {N(BraceWrapping, SplitEmptyRecord), parse_bool, {0}},
 
-	    {S(BreakBeforeBinaryOperators), parse_enum,
-		{None, NonAssignment, All}},
+	    {S(BreakBeforeBinaryOperators), parse_enum, {None, NonAssignment, All}},
 
 	    {S(BreakBeforeBraces), parse_enum,
-		{Attach, Linux, Mozilla, Stroustrup, Allman, Whitesmiths, GNU,
-		    WebKit, Custom}},
+		{Attach, Linux, Mozilla, Stroustrup, Allman, Whitesmiths, GNU, WebKit, Custom}},
 
 	    {S(BreakBeforeTernaryOperators), parse_bool, {0}},
 
@@ -265,15 +245,12 @@ style_init(void)
 	    {S(IndentWidth), parse_integer, {0}},
 
 	    {S(Language), parse_enum,
-		{Cpp, CSharp, Java, JavaScript, Json, ObjC, Proto, TableGen,
-		    TextProto, Verilog}},
+		{Cpp, CSharp, Java, JavaScript, Json, ObjC, Proto, TableGen, TextProto, Verilog}},
 
-	    {S(SortIncludes), parse_enum,
-		{Never, CaseSensitive, CaseInsensitive}},
+	    {S(SortIncludes), parse_enum, {Never, CaseSensitive, CaseInsensitive}},
 
 	    {S(UseTab), parse_enum,
-		{Never, ForIndentation, ForContinuationAndIndentation,
-		    AlignWithSpaces, Always}},
+		{Never, ForIndentation, ForContinuationAndIndentation, AlignWithSpaces, Always}},
 
 	    /* enum */
 	    {E(After)},
@@ -347,8 +324,8 @@ style_init(void)
 
 	for (i = 0; i < countof(kw); i++) {
 		const struct style_option *src = &kw[i];
-		struct style_option	  *dst;
-		unsigned char		   slot;
+		struct style_option *dst;
+		unsigned char slot;
 
 		slot = (unsigned char)src->so_key[0];
 		if (keywords[slot] == nullptr) {
@@ -385,24 +362,24 @@ style_dump_keywords(struct buffer *bf)
 		for (j = 0; j < VECTOR_LENGTH(options); j++) {
 			const struct style_option *so = &options[j];
 
-			buffer_printf(
-			    bf, "\"%.*s\"\n", (int)so->so_len, so->so_key);
+			buffer_printf(bf, "\"%.*s\"\n", (int)so->so_len, so->so_key);
 		}
 	}
 }
 
 /*
- * Load a style from path, or discover .clang-format upward from the current
- * directory when path is nullptr. An explicit file that cannot be read is an
- * error; a missing discovered file yields the built-in defaults. The style lives
- * in the eternal scope and is shared by all input files.
+ * Load a style from path, or discover the nearest .knfmt or .clang-format
+ * upward from the current directory when path is nullptr. An explicit file
+ * that cannot be read is an error; a missing discovered file yields the
+ * built-in defaults. The style lives in the eternal scope and is shared by all
+ * input files.
  */
 struct style *
-style_parse(const char *path, struct arena_scope *eternal_scope,
-    struct arena *scratch, const struct options *op)
+style_parse(const char *path, struct arena_scope *eternal_scope, struct arena *scratch,
+    const struct options *op)
 {
 	struct buffer *bf = nullptr;
-	struct style  *st;
+	struct style *st;
 
 	arena_scope(scratch, s);
 
@@ -413,10 +390,23 @@ style_parse(const char *path, struct arena_scope *eternal_scope,
 			return nullptr;
 		}
 	} else {
-		int fd;
+		int fd, knfmt_fd, clang_format_fd;
+		int knfmt_levels, clang_format_levels;
 
-		path = ".clang-format";
-		fd = searchpath(path, nullptr);
+		knfmt_fd = searchpath(".knfmt", &knfmt_levels);
+		clang_format_fd = searchpath(".clang-format", &clang_format_levels);
+		if (knfmt_fd != -1 &&
+		    (clang_format_fd == -1 || knfmt_levels <= clang_format_levels)) {
+			path = ".knfmt";
+			fd = knfmt_fd;
+			if (clang_format_fd != -1)
+				close(clang_format_fd);
+		} else {
+			path = ".clang-format";
+			fd = clang_format_fd;
+			if (knfmt_fd != -1)
+				close(knfmt_fd);
+		}
 		if (fd != -1) {
 			bf = arena_buffer_read_fd(&s, fd);
 			close(fd);
@@ -434,9 +424,8 @@ style_parse(const char *path, struct arena_scope *eternal_scope,
  * document overrides them. Parse errors are deliberately not fatal.
  */
 struct style *
-style_parse_buffer(const struct buffer *bf, const char *path,
-    struct arena_scope *eternal_scope, struct arena *scratch,
-    const struct options *op)
+style_parse_buffer(const struct buffer *bf, const char *path, struct arena_scope *eternal_scope,
+    struct arena *scratch, const struct options *op)
 {
 	struct style *st;
 
@@ -558,7 +547,7 @@ int *
 style_include_priorities(const struct style *st)
 {
 	VECTOR(int) priorities;
-	int   *dst;
+	int *dst;
 	size_t i, n;
 
 	if (VECTOR_INIT(priorities))
@@ -600,7 +589,7 @@ style_include_priority(const struct style *st, const char *include_path)
 	n = VECTOR_LENGTH(st->include_categories);
 	for (i = 0; i < n; i++) {
 		const struct include_category *ic = &st->include_categories[i];
-		int			       error;
+		int error;
 
 		error = regexec(&ic->regex.r, include_path, 0, nullptr, 0);
 		if (error == 0)
@@ -693,7 +682,7 @@ static enum style_keyword
 yaml_document_language(struct lexer *lx)
 {
 	struct lexer_state s;
-	struct token	  *tk;
+	struct token *tk;
 	enum style_keyword language = None;
 
 	lexer_peek_enter(lx, &s);
@@ -703,8 +692,8 @@ yaml_document_language(struct lexer *lx)
 		if (lexer_if(lx, DocumentBegin, nullptr))
 			break;
 
-		if (lexer_if(lx, Language, nullptr) &&
-		    lexer_if(lx, Colon, nullptr) && lexer_pop(lx, &tk)) {
+		if (lexer_if(lx, Language, nullptr) && lexer_if(lx, Colon, nullptr) &&
+		    lexer_pop(lx, &tk)) {
 			language = (enum style_keyword)tk->tk_type;
 			break;
 		}
@@ -720,8 +709,7 @@ skip_document(struct lexer *lx)
 	struct token *tk;
 
 	do {
-		if (lexer_if(lx, LEXER_EOF, nullptr) ||
-		    lexer_if(lx, DocumentBegin, nullptr))
+		if (lexer_if(lx, LEXER_EOF, nullptr) || lexer_if(lx, DocumentBegin, nullptr))
 			break;
 	} while (lexer_pop(lx, &tk));
 }
@@ -729,7 +717,7 @@ skip_document(struct lexer *lx)
 static int
 is_in_scope(const struct style *st, const struct style_option *so, int nested)
 {
-	unsigned int  i;
+	unsigned int i;
 	unsigned char slot;
 
 	if (st->scope == so->so_scope)
@@ -744,8 +732,7 @@ is_in_scope(const struct style *st, const struct style_option *so, int nested)
 	for (i = 0; i < VECTOR_LENGTH(keywords[slot]); i++) {
 		const struct style_option *candidate = &keywords[slot][i];
 
-		if (candidate->so_type == so->so_type &&
-		    st->scope == candidate->so_scope)
+		if (candidate->so_type == so->so_type && st->scope == candidate->so_scope)
 			return 1;
 	}
 
@@ -768,7 +755,7 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 
 	for (;;) {
 		const struct style_option *so;
-		struct token		  *key;
+		struct token *key;
 
 		error = 0;
 
@@ -819,14 +806,13 @@ style_parse_yaml_documents(struct style *st, struct lexer *lx, int nested)
 			(void)lexer_if(lx, Colon, nullptr);
 			if (lexer_peek_if(lx, Sequence, nullptr)) {
 				/* Ignore sequences. */
-				while (lexer_if(lx, Sequence, nullptr) &&
-				    lexer_pop(lx, &val))
+				while (lexer_if(lx, Sequence, nullptr) && lexer_pop(lx, &val))
 					continue;
 			} else {
 				(void)lexer_pop(lx, &val);
 			}
-			lexer_error(lx, key, __func__, __LINE__,
-			    "unknown option %s", lexer_serialize(lx, key));
+			lexer_error(lx, key, __func__, __LINE__, "unknown option %s",
+			    lexer_serialize(lx, key));
 		}
 	}
 
@@ -837,11 +823,11 @@ static void
 style_dump(const struct style *st)
 {
 	size_t i;
-	int    scope = 0;
+	int scope = 0;
 
 	for (i = First; i < countof(st->options); i++) {
 		const struct style_option *so;
-		const char		  *key;
+		const char *key;
 
 		if (!st->options[i].isset)
 			continue;
@@ -851,8 +837,7 @@ style_dump(const struct style *st)
 
 		if (so->so_scope != scope && so->so_scope != 0) {
 			fprintf(stderr, "[s] %s:\n",
-			    style_keyword_str(
-				(enum style_keyword)so->so_scope));
+			    style_keyword_str((enum style_keyword)so->so_scope));
 		}
 		scope = so->so_scope;
 		fprintf(stderr, "[s] ");
@@ -870,8 +855,7 @@ style_dump(const struct style *st)
 				fprintf(stderr, "%u", st->options[i].val);
 				break;
 			default:
-				fprintf(stderr, "%s",
-				    style_keyword_str(st->options[i].val));
+				fprintf(stderr, "%s", style_keyword_str(st->options[i].val));
 				break;
 			}
 			fprintf(stderr, "\n");
@@ -906,8 +890,7 @@ style_dump_IncludeGuards(const struct style *st)
 		const struct include_guard *guard = &st->include_guards[i];
 
 		fprintf(stderr, "[s] - Regex: '%s'\n", guard->regex.pattern);
-		fprintf(
-		    stderr, "[s]   PathComponents: %u\n", guard->ncomponents);
+		fprintf(stderr, "[s]   PathComponents: %u\n", guard->ncomponents);
 	}
 }
 
@@ -922,8 +905,8 @@ static struct token *
 yaml_read(struct lexer *lx, void *UNUSED(arg))
 {
 	struct lexer_state s;
-	struct token	  *tk;
-	unsigned char	   ch;
+	struct token *tk;
+	unsigned char ch;
 
 again:
 	lexer_eat_lines_and_spaces(lx, nullptr);
@@ -987,8 +970,7 @@ again:
 	}
 
 	tk = lexer_emit(lx, &s, Unknown);
-	lexer_error(lx, tk, __func__, __LINE__, "unknown token %s",
-	    lexer_serialize(lx, tk));
+	lexer_error(lx, tk, __func__, __LINE__, "unknown token %s", lexer_serialize(lx, tk));
 	token_rele(tk);
 	return nullptr;
 
@@ -1005,13 +987,13 @@ static struct token *
 yaml_read_integer(struct lexer *lx)
 {
 	struct lexer_state s;
-	struct token	  *tk;
-	int32_t		   integer = 0;
-	int		   overflow = 0;
-	int		   peek = 0;
-	int		   sign = 1;
-	int		   string = 0;
-	unsigned char	   ch;
+	struct token *tk;
+	int32_t integer = 0;
+	int overflow = 0;
+	int peek = 0;
+	int sign = 1;
+	int string = 0;
+	unsigned char ch;
 
 	s = lexer_get_state(lx);
 
@@ -1056,8 +1038,8 @@ yaml_read_integer(struct lexer *lx)
 	tk = lexer_emit(lx, &s, Integer);
 	token_priv(tk, struct yaml_token)->integer.i32 = integer;
 	if (overflow) {
-		lexer_error(lx, tk, __func__, __LINE__, "integer %s too large",
-		    lexer_serialize(lx, tk));
+		lexer_error(
+		    lx, tk, __func__, __LINE__, "integer %s too large", lexer_serialize(lx, tk));
 	}
 	return tk;
 }
@@ -1099,9 +1081,9 @@ yaml_token_type_serialize(int type, struct arena_scope *s)
 static struct token *
 yaml_keyword(struct lexer *lx, const struct lexer_state *st)
 {
-	struct lexer_buffer	   buf;
+	struct lexer_buffer buf;
 	const struct style_option *so;
-	struct token		  *tk;
+	struct token *tk;
 
 	if (!lexer_buffer_slice(lx, st, &buf))
 		goto unknown;
@@ -1121,7 +1103,7 @@ unknown:
 static const struct style_option *
 yaml_find_keyword(const char *str, size_t len)
 {
-	size_t	      i;
+	size_t i;
 	unsigned char slot;
 
 	slot = (unsigned char)str[0];
@@ -1147,9 +1129,8 @@ parse_bool(struct style *st, struct lexer *lx, const struct style_option *so)
 		return FAIL;
 	if (!lexer_if(lx, True, &val) && !lexer_if(lx, False, &val)) {
 		(void)lexer_pop(lx, &val);
-		lexer_error(lx, val, __func__, __LINE__,
-		    "unknown value %s for option %s", lexer_serialize(lx, val),
-		    lexer_serialize(lx, key));
+		lexer_error(lx, val, __func__, __LINE__, "unknown value %s for option %s",
+		    lexer_serialize(lx, val), lexer_serialize(lx, key));
 		return SKIP;
 	}
 	style_set(st, key->tk_type, None, (unsigned int)val->tk_type);
@@ -1160,7 +1141,7 @@ static int
 parse_enum(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct token *key, *val;
-	const int    *v;
+	const int *v;
 
 	if (!lexer_if(lx, so->so_type, &key))
 		return NONE;
@@ -1169,16 +1150,14 @@ parse_enum(struct style *st, struct lexer *lx, const struct style_option *so)
 
 	for (v = so->so_val; *v != 0; v++) {
 		if (lexer_if(lx, *v, &val)) {
-			style_set(
-			    st, key->tk_type, None, (unsigned int)val->tk_type);
+			style_set(st, key->tk_type, None, (unsigned int)val->tk_type);
 			return GOOD;
 		}
 	}
 
 	(void)lexer_pop(lx, &val);
-	lexer_error(lx, val, __func__, __LINE__,
-	    "unknown value %s for option %s", lexer_serialize(lx, val),
-	    lexer_serialize(lx, key));
+	lexer_error(lx, val, __func__, __LINE__, "unknown value %s for option %s",
+	    lexer_serialize(lx, val), lexer_serialize(lx, key));
 	return SKIP;
 }
 
@@ -1186,19 +1165,18 @@ static int
 parse_integer(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct token *key, *val;
-	int	      error;
+	int error;
 
 	error = parse_integer_impl(st, lx, so, &key, &val);
 	if ((error & GOOD) == 0)
 		return error;
-	style_set(st, key->tk_type, Integer,
-	    token_priv(val, struct yaml_token)->integer.u32);
+	style_set(st, key->tk_type, Integer, token_priv(val, struct yaml_token)->integer.u32);
 	return GOOD;
 }
 
 static int
-parse_integer_impl(struct style *UNUSED(st), struct lexer *lx,
-    const struct style_option *so, struct token **key, struct token **val)
+parse_integer_impl(struct style *UNUSED(st), struct lexer *lx, const struct style_option *so,
+    struct token **key, struct token **val)
 {
 	if (!lexer_if(lx, so->so_type, key))
 		return NONE;
@@ -1206,17 +1184,15 @@ parse_integer_impl(struct style *UNUSED(st), struct lexer *lx,
 		return FAIL;
 	if (!lexer_expect(lx, Integer, val)) {
 		(void)lexer_pop(lx, val);
-		lexer_error(lx, *val, __func__, __LINE__,
-		    "unknown value %s for option %s", lexer_serialize(lx, *val),
-		    lexer_serialize(lx, *key));
+		lexer_error(lx, *val, __func__, __LINE__, "unknown value %s for option %s",
+		    lexer_serialize(lx, *val), lexer_serialize(lx, *key));
 		return SKIP;
 	}
 	return GOOD;
 }
 
 static int
-parse_string(
-    struct style *UNUSED(st), struct lexer *lx, const struct style_option *so)
+parse_string(struct style *UNUSED(st), struct lexer *lx, const struct style_option *so)
 {
 	struct token *key, *val;
 
@@ -1226,9 +1202,8 @@ parse_string(
 		return FAIL;
 	if (!lexer_expect(lx, String, &val)) {
 		(void)lexer_pop(lx, &val);
-		lexer_error(lx, val, __func__, __LINE__,
-		    "unknown value %s for option %s", lexer_serialize(lx, val),
-		    lexer_serialize(lx, key));
+		lexer_error(lx, val, __func__, __LINE__, "unknown value %s for option %s",
+		    lexer_serialize(lx, val), lexer_serialize(lx, key));
 		return SKIP;
 	}
 	return GOOD;
@@ -1261,8 +1236,7 @@ parse_nested(struct style *st, struct lexer *lx, const struct style_option *so)
  * the enum values used by the layout code.
  */
 static int
-parse_AlignOperands(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_AlignOperands(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	int error;
 
@@ -1271,8 +1245,7 @@ parse_AlignOperands(
 		if (st->options[AlignOperands].val == True) {
 			style_set(st, AlignOperands, None, (unsigned int)Align);
 		} else if (st->options[AlignOperands].val == False) {
-			style_set(
-			    st, AlignOperands, None, (unsigned int)DontAlign);
+			style_set(st, AlignOperands, None, (unsigned int)DontAlign);
 		}
 	}
 	return error;
@@ -1285,13 +1258,12 @@ parse_AlignOperands(
  * dependency only for non-OpenBSD base styles.
  */
 static struct buffer *
-clang_format_dump_style(
-    struct style *st, enum style_keyword based_on_style, struct arena_scope *s)
+clang_format_dump_style(struct style *st, enum style_keyword based_on_style, struct arena_scope *s)
 {
 	struct buffer *bf;
-	pid_t	       pid;
-	int	       pip[2];
-	int	       status;
+	pid_t pid;
+	int pip[2];
+	int status;
 
 	/* NOLINTNEXTLINE(android-cloexec-pipe) */
 	if (pipe(pip) == -1)
@@ -1309,10 +1281,10 @@ clang_format_dump_style(
 		if (dup2(pip[1], 2) == -1)
 			err(1, "dup2");
 
-		clang_format_style = arena_sprintf(
-		    s, "-style=%s", style_keyword_str(based_on_style));
-		execlp("clang-format", "clang-format", "-dump-config",
-		    clang_format_style, (char *)nullptr);
+		clang_format_style =
+		    arena_sprintf(s, "-style=%s", style_keyword_str(based_on_style));
+		execlp("clang-format", "clang-format", "-dump-config", clang_format_style,
+		    (char *)nullptr);
 		_exit(1);
 	}
 
@@ -1323,12 +1295,11 @@ clang_format_dump_style(
 		err(1, "waitpid");
 	if (bf != nullptr && (!WIFEXITED(status) || WEXITSTATUS(status) != 0)) {
 		struct buffer_getline it = {0};
-		const char	     *line;
+		const char *line;
 
 		arena_scope(st->arena.scratch, scratch_scope);
 
-		while ((line = arena_buffer_getline(&scratch_scope, bf, &it)) !=
-		    nullptr)
+		while ((line = arena_buffer_getline(&scratch_scope, bf, &it)) != nullptr)
 			style_trace(st, "clang-format: %s", line);
 		return nullptr;
 	}
@@ -1342,12 +1313,11 @@ clang_format_dump_style(
  * as a nested document; a nested BasedOnStyle is ignored.
  */
 static int
-parse_BasedOnStyle(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_BasedOnStyle(struct style *st, struct lexer *lx, const struct style_option *so)
 {
-	struct buffer	  *bf;
+	struct buffer *bf;
 	enum style_keyword based_on_style;
-	int		   error;
+	int error;
 
 	arena_scope(st->arena.scratch, s);
 
@@ -1359,8 +1329,7 @@ parse_BasedOnStyle(
 		struct token *ctx = nullptr;
 
 		(void)lexer_back(lx, &ctx);
-		lexer_error(
-		    lx, ctx, __func__, __LINE__, "ignoring nested style");
+		lexer_error(lx, ctx, __func__, __LINE__, "ignoring nested style");
 		return SKIP;
 	}
 
@@ -1383,8 +1352,7 @@ parse_BasedOnStyle(
  * to UINT_MAX because knfmt compares columns against the value directly.
  */
 static int
-parse_ColumnLimit(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_ColumnLimit(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	int error;
 
@@ -1401,8 +1369,7 @@ parse_ColumnLimit(
  * CaseSensitive option can affect the final regular expressions.
  */
 static int
-parse_IncludeCategories(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_IncludeCategories(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	int error = 0;
 	int scope;
@@ -1415,8 +1382,7 @@ parse_IncludeCategories(
 	scope = st->scope;
 	st->scope = so->so_type;
 	while (lexer_if(lx, Sequence, nullptr)) {
-		struct include_category *ic =
-		    VECTOR_CALLOC(st->include_categories);
+		struct include_category *ic = VECTOR_CALLOC(st->include_categories);
 		if (ic == nullptr)
 			err(1, nullptr);
 		st->regex = &ic->regex;
@@ -1442,13 +1408,12 @@ include_categories_recompile(struct style *st)
 {
 	size_t i;
 
-	if (!st->options[CaseSensitive].isset ||
-	    st->options[CaseSensitive].val != True)
+	if (!st->options[CaseSensitive].isset || st->options[CaseSensitive].val != True)
 		return;
 
 	for (i = 0; i < VECTOR_LENGTH(st->include_categories); i++) {
 		struct include_category *ic = &st->include_categories[i];
-		regex_t			 r;
+		regex_t r;
 
 		if (ic->regex.pattern == nullptr)
 			continue;
@@ -1465,8 +1430,7 @@ include_categories_recompile(struct style *st)
  * generation. A failing item still leaves the previous items usable.
  */
 static int
-parse_IncludeGuards(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_IncludeGuards(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	int error = 0;
 	int scope;
@@ -1500,12 +1464,11 @@ parse_IncludeGuards(
  * stored on the most recently created guard rule.
  */
 static int
-parse_PathComponents(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_PathComponents(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct include_guard *guard;
-	struct token	     *key, *val;
-	int		      error, ncomponents;
+	struct token *key, *val;
+	int error, ncomponents;
 
 	error = parse_integer_impl(st, lx, so, &key, &val);
 	if ((error & GOOD) == 0)
@@ -1517,8 +1480,8 @@ parse_PathComponents(
 	ncomponents = token_priv(val, struct yaml_token)->integer.i32;
 	if (ncomponents <= 0) {
 		style_set(st, IncludeGuards, Integer, 0);
-		lexer_error(lx, val, __func__, __LINE__, "integer %s too small",
-		    lexer_serialize(lx, val));
+		lexer_error(
+		    lx, val, __func__, __LINE__, "integer %s too small", lexer_serialize(lx, val));
 		return FAIL;
 	}
 	guard->ncomponents = (unsigned int)ncomponents;
@@ -1531,12 +1494,11 @@ parse_PathComponents(
  * latter, allowing different ordering within one group.
  */
 static int
-parse_Priority(
-    struct style *st, struct lexer *lx, const struct style_option *so)
+parse_Priority(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct include_category *ic;
-	struct token		*key, *val;
-	int			 error, priority;
+	struct token *key, *val;
+	int error, priority;
 
 	assert(so->so_type == Priority || so->so_type == SortPriority);
 
@@ -1569,7 +1531,7 @@ parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct regex *regex;
 	struct token *tk;
-	int	      error;
+	int error;
 
 	error = parse_string(st, lx, so);
 	if ((error & GOOD) == 0)
@@ -1578,19 +1540,16 @@ parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 		return FAIL;
 
 	regex = st->regex;
-	regex->pattern =
-	    arena_strndup(st->arena.eternal_scope, tk->tk_str, tk->tk_len);
+	regex->pattern = arena_strndup(st->arena.eternal_scope, tk->tk_str, tk->tk_len);
 	/* Allow the pattern to be redefined. */
 	regfree(&regex->r);
-	error = regcomp(
-	    &regex->r, regex->pattern, REG_EXTENDED | REG_NOSUB | REG_ICASE);
+	error = regcomp(&regex->r, regex->pattern, REG_EXTENDED | REG_NOSUB | REG_ICASE);
 	if (error) {
 		char errbuf[128] = {0};
 
 		if (error == REG_EPAREN) {
 			/* Use platform agnostic error for testing. */
-			(void)snprintf(
-			    errbuf, sizeof(errbuf), "parentheses not balanced");
+			(void)snprintf(errbuf, sizeof(errbuf), "parentheses not balanced");
 		} else {
 			regerror(error, &regex->r, errbuf, sizeof(errbuf));
 		}
@@ -1604,8 +1563,8 @@ static const char *
 yaml_type_str(enum yaml_type type)
 {
 	switch (type) {
-#define OP(type, ...)                                                          \
-	case type:                                                             \
+#define OP(type, ...)                                                                              \
+	case type:                                                                                 \
 		return #type;
 		FOR_YAML_TYPES(OP)
 #undef OP
@@ -1619,8 +1578,8 @@ const char *
 style_keyword_str(enum style_keyword keyword)
 {
 	switch (keyword) {
-#define OP(style)                                                              \
-	case style:                                                            \
+#define OP(style)                                                                                  \
+	case style:                                                                                \
 		return #style;
 		FOR_STYLES(OP)
 #undef OP

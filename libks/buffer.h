@@ -27,34 +27,34 @@ struct buffer_callbacks {
 	void *(*alloc)(size_t, void *);
 	/* realloc receives both the old and requested allocation sizes. */
 	void *(*realloc)(void *, size_t, size_t, void *);
-	void  (*free)(void *, size_t, void *);
+	void (*free)(void *, size_t, void *);
 	void *arg;
 };
 
 /* getline owns reusable storage; returned text lasts until its next call. */
 struct buffer_getline {
 	struct buffer *bf;
-	size_t	       off;
+	size_t off;
 };
 
 /* Allocate a growable byte buffer with the default allocator callbacks. */
 struct buffer *buffer_alloc(size_t);
 /* Allocate with caller callbacks; overshoot enables geometric growth. */
 struct buffer *buffer_alloc_impl(size_t, int, const struct buffer_callbacks *);
-void	       buffer_free(struct buffer *);
+void buffer_free(struct buffer *);
 
 /* Read a file or descriptor from its current offset through EOF. */
 struct buffer *buffer_read(const char *);
 struct buffer *buffer_read_fd(int);
 /* Append descriptor bytes; return zero on success, one on error. */
-int	       buffer_read_fd_impl(struct buffer *, int);
+int buffer_read_fd_impl(struct buffer *, int);
 
 /* Transfer the backing allocation to the caller and reset the buffer. */
 char *buffer_release(struct buffer *);
 /* Return a NUL-terminated transferred string, adding NUL when needed. */
 char *buffer_str(struct buffer *);
 /* Discard the contents while retaining allocated capacity. */
-void  buffer_reset(struct buffer *);
+void buffer_reset(struct buffer *);
 
 /* Remove up to n trailing bytes and return the number removed. */
 size_t buffer_pop(struct buffer *, size_t);
@@ -65,19 +65,17 @@ int buffer_cmp(const struct buffer *, const struct buffer *);
 /* Append len bytes (no NUL termination is implied); return -1 on failure. */
 int buffer_puts(struct buffer *, const char *, size_t);
 int buffer_putc(struct buffer *, char);
-int buffer_printf(struct buffer *, const char *, ...)
-    __attribute__((format(printf, 2, 3)));
-int buffer_vprintf(struct buffer *, const char *, va_list)
-    __attribute__((format(printf, 2, 0)));
+int buffer_printf(struct buffer *, const char *, ...) __attribute__((format(printf, 2, 3)));
+int buffer_vprintf(struct buffer *, const char *, va_list) __attribute__((format(printf, 2, 0)));
 
 /* Return a line without its newline; NULL marks EOF or allocation error. */
 const char *buffer_getline(const struct buffer *, struct buffer_getline *);
 const char *buffer_getline_impl(const struct buffer *, struct buffer_getline *);
 /* Release getline's reusable scratch buffer and reset its cursor. */
-void	    buffer_getline_free(struct buffer_getline *);
+void buffer_getline_free(struct buffer_getline *);
 
 const char *buffer_get_ptr(const struct buffer *);
-size_t	    buffer_get_len(const struct buffer *);
-size_t	    buffer_get_size(const struct buffer *);
+size_t buffer_get_len(const struct buffer *);
+size_t buffer_get_size(const struct buffer *);
 
 #endif /* !LIBKS_BUFFER_H */

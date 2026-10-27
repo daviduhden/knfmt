@@ -25,9 +25,7 @@ doc_asm_operand(struct parser *pr, struct doc *dc)
 	struct lexer *lx = pr->pr_lx;
 
 	dc = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
-	doc_alloc(
-	    lexer_back_if(lx, TOKEN_COLON, nullptr) ? DOC_LINE : DOC_SOFTLINE,
-	    dc);
+	doc_alloc(lexer_back_if(lx, TOKEN_COLON, nullptr) ? DOC_LINE : DOC_SOFTLINE, dc);
 	return doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
 }
 
@@ -35,10 +33,10 @@ static int
 parser_stmt_asm_operand_cpp(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc   *expr;
+	struct doc *expr;
 	struct token *stop = nullptr;
 	struct token *comma;
-	int	      error;
+	int error;
 
 	dc = doc_asm_operand(pr, dc);
 
@@ -64,7 +62,7 @@ static int
 parser_stmt_asm_operand(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc   *expr;
+	struct doc *expr;
 	struct token *comma, *tk;
 
 	if (!lexer_peek_if(lx, TOKEN_LSQUARE, nullptr) &&
@@ -143,10 +141,10 @@ parser_decl_asm(struct parser *pr, struct doc *dc)
 int
 parser_stmt_asm(struct parser *pr, struct doc *dc)
 {
-	struct doc   *out;
+	struct doc *out;
 	struct lexer *lx = pr->pr_lx;
 	struct token *semi;
-	int	      error;
+	int error;
 
 	error = parser_asm(pr, dc, &out);
 	if ((error & GOOD) == 0)
@@ -166,13 +164,13 @@ static int
 parser_asm(struct parser *pr, struct doc *dc, struct doc **out)
 {
 	struct lexer *lx = pr->pr_lx;
-	struct doc   *concat, *opt;
+	struct doc *concat, *opt;
 	struct token *colon = nullptr;
 	struct token *qualifier = nullptr;
 	struct token *assembly, *lparen, *rparen;
-	int	      ninputs = 0;
-	int	      noutputs = 0;
-	int	      error;
+	int ninputs = 0;
+	int noutputs = 0;
+	int error;
 
 	if (!lexer_peek_if(lx, TOKEN_ASSEMBLY, nullptr))
 		return parser_none(pr);
@@ -181,8 +179,7 @@ parser_asm(struct parser *pr, struct doc *dc, struct doc **out)
 	if (lexer_expect(lx, TOKEN_ASSEMBLY, &assembly))
 		parser_doc_token(pr, assembly, concat);
 
-	while (lexer_if(lx, TOKEN_VOLATILE, &qualifier) ||
-	    lexer_if(lx, TOKEN_INLINE, &qualifier) ||
+	while (lexer_if(lx, TOKEN_VOLATILE, &qualifier) || lexer_if(lx, TOKEN_INLINE, &qualifier) ||
 	    lexer_if(lx, TOKEN_GOTO, &qualifier)) {
 		doc_alloc(DOC_LINE, concat);
 		parser_doc_token(pr, qualifier, concat);
@@ -190,10 +187,9 @@ parser_asm(struct parser *pr, struct doc *dc, struct doc **out)
 	if (qualifier != nullptr && token_has_spaces(qualifier))
 		doc_alloc(DOC_LINE, concat);
 
-	opt = concat = doc_indent(style(pr->pr_st, ContinuationIndentWidth),
-	    doc_alloc(DOC_OPTIONAL, dc));
-	if (lexer_peek_if_pair(
-		lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
+	opt = concat =
+	    doc_indent(style(pr->pr_st, ContinuationIndentWidth), doc_alloc(DOC_OPTIONAL, dc));
+	if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
 		parser_token_trim_before(pr, rparen);
 	if (lexer_expect(lx, TOKEN_LPAREN, nullptr))
 		parser_doc_token(pr, lparen, opt);

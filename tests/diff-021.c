@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/param.h>	/* DEV_BSIZE */
+#include <sys/param.h> /* DEV_BSIZE */
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/dkio.h>
@@ -32,22 +32,22 @@
 #include "mbr.h"
 #include "gpt.h"
 
-struct mbr		initial_mbr;
+struct mbr initial_mbr;
 
-static int		gpt_chk_mbr(struct dos_partition *, uint64_t);
+static int gpt_chk_mbr(struct dos_partition *, uint64_t);
 
 int
 MBR_protective_mbr(struct mbr *mbr)
 {
-	struct dos_partition	dp[NDOSPART], dos_partition;
-	int			i;
+	struct dos_partition dp[NDOSPART], dos_partition;
+	int i;
 
 	if (mbr->mbr_lba_self != 0)
 		return -1;
 
 	for (i = 0; i < NDOSPART; i++) {
-		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self,
-		    mbr->mbr_lba_firstembr, &dos_partition);
+		PRT_make(
+		    &mbr->mbr_prt[i], mbr->mbr_lba_self, mbr->mbr_lba_firstembr, &dos_partition);
 		memcpy(&dp[i], &dos_partition, sizeof(dp[i]));
 	}
 
@@ -77,10 +77,10 @@ MBR_init_GPT(struct mbr *mbr)
 void
 MBR_init(struct mbr *mbr)
 {
-	extern uint32_t		b_sectors, b_offset;
-	extern uint8_t		b_type;
-	uint64_t		adj;
-	daddr_t			daddr;
+	extern uint32_t b_sectors, b_offset;
+	extern uint8_t b_type;
+	uint64_t adj;
+	daddr_t daddr;
 
 	memset(&gh, 0, sizeof(gh));
 	memset(&gp, 0, sizeof(gp));
@@ -119,7 +119,7 @@ MBR_init(struct mbr *mbr)
 
 #if defined(__powerpc__) || defined(__mips__)
 	/* Now fix up for the MS-DOS boot partition on PowerPC. */
-	mbr->mbr_prt[0].flag = DOSACTIVE;	/* Boot from dos part */
+	mbr->mbr_prt[0].flag = DOSACTIVE; /* Boot from dos part */
 	mbr->mbr_prt[3].flag = 0;
 	mbr->mbr_prt[3].ns += mbr->mbr_prt[3].bs;
 	mbr->mbr_prt[3].bs = mbr->mbr_prt[0].bs + mbr->mbr_prt[0].ns;
@@ -157,11 +157,10 @@ MBR_init(struct mbr *mbr)
 }
 
 void
-MBR_parse(struct dos_mbr *dos_mbr, off_t lba_self, off_t lba_firstembr,
-    struct mbr *mbr)
+MBR_parse(struct dos_mbr *dos_mbr, off_t lba_self, off_t lba_firstembr, struct mbr *mbr)
 {
-	struct dos_partition	dos_parts[NDOSPART];
-	int			i;
+	struct dos_partition dos_parts[NDOSPART];
+	int i;
 
 	memcpy(mbr->mbr_code, dos_mbr->dmbr_boot, sizeof(mbr->mbr_code));
 	mbr->mbr_lba_self = lba_self;
@@ -171,31 +170,29 @@ MBR_parse(struct dos_mbr *dos_mbr, off_t lba_self, off_t lba_firstembr,
 	memcpy(dos_parts, dos_mbr->dmbr_parts, sizeof(dos_parts));
 
 	for (i = 0; i < NDOSPART; i++)
-		PRT_parse(&dos_parts[i], lba_self, lba_firstembr,
-		    &mbr->mbr_prt[i]);
+		PRT_parse(&dos_parts[i], lba_self, lba_firstembr, &mbr->mbr_prt[i]);
 }
 
 void
 MBR_make(struct mbr *mbr, struct dos_mbr *dos_mbr)
 {
-	struct dos_partition	dos_partition;
-	int			i;
+	struct dos_partition dos_partition;
+	int i;
 
 	memcpy(dos_mbr->dmbr_boot, mbr->mbr_code, sizeof(dos_mbr->dmbr_boot));
 	dos_mbr->dmbr_sign = htole16(DOSMBR_SIGNATURE);
 
 	for (i = 0; i < NDOSPART; i++) {
-		PRT_make(&mbr->mbr_prt[i], mbr->mbr_lba_self,
-		    mbr->mbr_lba_firstembr, &dos_partition);
-		memcpy(&dos_mbr->dmbr_parts[i], &dos_partition,
-		    sizeof(dos_mbr->dmbr_parts[i]));
+		PRT_make(
+		    &mbr->mbr_prt[i], mbr->mbr_lba_self, mbr->mbr_lba_firstembr, &dos_partition);
+		memcpy(&dos_mbr->dmbr_parts[i], &dos_partition, sizeof(dos_mbr->dmbr_parts[i]));
 	}
 }
 
 void
 MBR_print(struct mbr *mbr, char *units)
 {
-	int			i;
+	int i;
 
 	DISK_printgeometry(NULL);
 
@@ -212,7 +209,7 @@ MBR_print(struct mbr *mbr, char *units)
 int
 MBR_read(off_t where, struct dos_mbr *dos_mbr)
 {
-	char			*secbuf;
+	char *secbuf;
 
 	secbuf = DISK_readsector(where);
 	if (secbuf == NULL)
@@ -227,7 +224,7 @@ MBR_read(off_t where, struct dos_mbr *dos_mbr)
 int
 MBR_write(off_t where, struct dos_mbr *dos_mbr)
 {
-	char			*secbuf;
+	char *secbuf;
 
 	secbuf = DISK_readsector(where);
 	if (secbuf == NULL)
@@ -258,9 +255,9 @@ MBR_write(off_t where, struct dos_mbr *dos_mbr)
 int
 gpt_chk_mbr(struct dos_partition *dp, u_int64_t dsize)
 {
-	struct dos_partition	*dp2;
-	int			 efi, eficnt, found, i;
-	uint32_t		 psize;
+	struct dos_partition *dp2;
+	int efi, eficnt, found, i;
+	uint32_t psize;
 
 	found = efi = eficnt = 0;
 	for (dp2 = dp, i = 0; i < NDOSPART; i++, dp2++) {

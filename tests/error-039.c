@@ -11,5 +11,4 @@ main(void)
 	    1
 #endif
 	a b(});
-
-	}
+}

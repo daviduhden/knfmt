@@ -24,7 +24,7 @@ enum simple_state {
 struct simple {
 	struct {
 		enum simple_state state;
-		unsigned int	  flags;
+		unsigned int flags;
 	} passes[SIMPLE_LAST];
 	int enable;
 };
@@ -53,8 +53,8 @@ simple_alloc(struct arena_scope *eternal_scope, const struct options *op)
  * a re-entry into the same pass all suppress execution.
  */
 int
-simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
-    struct simple_cookie *cookie)
+simple_enter(
+    struct simple *si, enum simple_pass pass, unsigned int flags, struct simple_cookie *cookie)
 {
 	*cookie = (struct simple_cookie){
 	    .si = si,
@@ -71,16 +71,14 @@ simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
 		unsigned int i;
 
 		for (i = 0; i < SIMPLE_LAST; i++) {
-			if (i != pass &&
-			    si->passes[i].state != SIMPLE_STATE_DISABLE) {
+			if (i != pass && si->passes[i].state != SIMPLE_STATE_DISABLE) {
 				si->passes[pass].state = SIMPLE_STATE_DISABLE;
 				return 0;
 			}
 		}
 	}
 
-	if ((flags & SIMPLE_IGNORE) ||
-	    si->passes[pass].state != SIMPLE_STATE_DISABLE) {
+	if ((flags & SIMPLE_IGNORE) || si->passes[pass].state != SIMPLE_STATE_DISABLE) {
 		si->passes[pass].state = SIMPLE_STATE_IGNORE;
 		return 0;
 	}
@@ -97,8 +95,8 @@ simple_enter(struct simple *si, enum simple_pass pass, unsigned int flags,
 void
 simple_leave(struct simple_cookie *cookie)
 {
-	struct simple	 *si = cookie->si;
-	enum simple_pass  pass = cookie->pass;
+	struct simple *si = cookie->si;
+	enum simple_pass pass = cookie->pass;
 	enum simple_state state = cookie->state;
 
 	if (si == nullptr)
@@ -187,8 +185,7 @@ is_pass_mutually_exclusive(const struct simple *si, enum simple_pass pass)
 			continue;
 
 		for (j = 0; j < countof(exceptions); j++) {
-			if (exceptions[j].parent == i &&
-			    exceptions[j].nested == pass)
+			if (exceptions[j].parent == i && exceptions[j].nested == pass)
 				return 0;
 		}
 	}

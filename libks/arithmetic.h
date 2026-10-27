@@ -54,21 +54,18 @@ int KS_size_mul_overflow0(size_t, size_t, size_t *);
  * The C23 macros return bool; the wrappers preserve the historical int
  * interface used throughout knfmt.
  */
-#define KS_OVERFLOW_FUNCS(tag, type)                                           \
-	[[nodiscard]] static inline int KS_##tag##_add_overflow(               \
-	    type a, type b, type *c)                                           \
-	{                                                                      \
-		return ckd_add(c, a, b);                                       \
-	}                                                                      \
-	[[nodiscard]] static inline int KS_##tag##_sub_overflow(               \
-	    type a, type b, type *c)                                           \
-	{                                                                      \
-		return ckd_sub(c, a, b);                                       \
-	}                                                                      \
-	[[nodiscard]] static inline int KS_##tag##_mul_overflow(               \
-	    type a, type b, type *c)                                           \
-	{                                                                      \
-		return ckd_mul(c, a, b);                                       \
+#define KS_OVERFLOW_FUNCS(tag, type)                                                               \
+	[[nodiscard]] static inline int KS_##tag##_add_overflow(type a, type b, type *c)           \
+	{                                                                                          \
+		return ckd_add(c, a, b);                                                           \
+	}                                                                                          \
+	[[nodiscard]] static inline int KS_##tag##_sub_overflow(type a, type b, type *c)           \
+	{                                                                                          \
+		return ckd_sub(c, a, b);                                                           \
+	}                                                                                          \
+	[[nodiscard]] static inline int KS_##tag##_mul_overflow(type a, type b, type *c)           \
+	{                                                                                          \
+		return ckd_mul(c, a, b);                                                           \
 	}
 
 KS_OVERFLOW_FUNCS(i32, int32_t)

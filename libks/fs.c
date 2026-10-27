@@ -31,9 +31,9 @@
 static int
 construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 {
-	char	    prefix[PATH_MAX];
+	char prefix[PATH_MAX];
 	const char *p, *suffix;
-	int	    n;
+	int n;
 
 	/* Keep the temporary beside the target so rename stays on one filesystem. */
 	p = strrchr(path, '/');
@@ -63,9 +63,9 @@ construct_hidden_path(const char *path, char *buf, size_t bufsiz)
 static int
 open_parent_directory(const char *path)
 {
-	char       dir[PATH_MAX];
+	char dir[PATH_MAX];
 	const char *slash;
-	size_t     len;
+	size_t len;
 
 	slash = strrchr(path, '/');
 	if (slash == nullptr)
@@ -106,8 +106,7 @@ inherit_ownership_and_permissions(int srcfd, int dstfd)
 	if (fstat(dstfd, &dstsb) == -1)
 		return -1;
 
-	if (srcsb.st_mode != dstsb.st_mode &&
-	    fchmod(dstfd, srcsb.st_mode) == -1)
+	if (srcsb.st_mode != dstsb.st_mode && fchmod(dstfd, srcsb.st_mode) == -1)
 		return -1;
 	if ((srcsb.st_uid != dstsb.st_uid || srcsb.st_gid != dstsb.st_gid) &&
 	    fchown(dstfd, srcsb.st_uid, srcsb.st_gid) == -1)
@@ -119,13 +118,13 @@ inherit_ownership_and_permissions(int srcfd, int dstfd)
 int
 KS_fs_replace(const char *path, const char *buf, size_t buflen)
 {
-	char   tmppath[PATH_MAX] = {0};
+	char tmppath[PATH_MAX] = {0};
 	mode_t old_umask;
-	int    dirfd = -1;
-	int    tmpfd = -1;
-	int    error = -1;
-	int    srcfd = -1;
-	int    saved_errno;
+	int dirfd = -1;
+	int tmpfd = -1;
+	int error = -1;
+	int srcfd = -1;
+	int saved_errno;
 
 	/* Open the target so the temporary file can inherit its mode and owner. */
 	srcfd = open(path, O_RDONLY | O_CLOEXEC);
@@ -187,11 +186,11 @@ out:
 int
 KS_fs_tmpfd(const char *buf, size_t buflen, char *path, size_t pathsiz)
 {
-	char   tmppath[PATH_MAX];
+	char tmppath[PATH_MAX];
 	size_t siz = sizeof(tmppath);
 	mode_t old_umask;
-	int    fd = -1;
-	int    n;
+	int fd = -1;
+	int n;
 
 	n = snprintf(tmppath, siz, "/tmp/libks.XXXXXXXX");
 	if (n < 0 || (size_t)n >= siz) {

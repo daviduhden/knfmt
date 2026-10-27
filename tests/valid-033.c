@@ -4,6 +4,6 @@
 
 struct s {
 	struct {
-		int	s_x;
+		int s_x;
 	} s_s;
 };

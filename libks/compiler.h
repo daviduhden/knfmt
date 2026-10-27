@@ -46,36 +46,31 @@
 #elif __has_attribute(fallthrough)
 #define FALLTHROUGH __attribute__((fallthrough))
 #else
-#define FALLTHROUGH                                                            \
-	do {                                                                   \
+#define FALLTHROUGH                                                                                \
+	do {                                                                                       \
 	} while (0) /* FALLTHROUGH */
 #endif
 
-#define UNSAFE_CAST(type, ptr)                                                 \
-	__extension__({                                                        \
-		union {                                                        \
-			__typeof__(ptr) src;                                   \
-			type		dst;                                   \
-		} _u = {.src = (ptr)};                                         \
-		_u.dst;                                                        \
+#define UNSAFE_CAST(type, ptr)                                                                     \
+	__extension__({                                                                            \
+		union {                                                                            \
+			__typeof__(ptr) src;                                                       \
+			type dst;                                                                  \
+		} _u = {.src = (ptr)};                                                             \
+		_u.dst;                                                                            \
 	})
 
-#if defined(__clang__) && defined(__has_attribute) &&                          \
-    __has_attribute(no_sanitize)
+#if defined(__clang__) && defined(__has_attribute) && __has_attribute(no_sanitize)
 #define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
 #define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
-#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW                                    \
-	no_sanitize("signed-integer-overflow")
-#define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW                                  \
-	no_sanitize("unsigned-integer-overflow")
+#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW no_sanitize("signed-integer-overflow")
+#define NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW no_sanitize("unsigned-integer-overflow")
 #endif
 
-#if defined(__GNUC__) && defined(__has_attribute) &&                           \
-    __has_attribute(no_sanitize)
+#if defined(__GNUC__) && defined(__has_attribute) && __has_attribute(no_sanitize)
 #define NO_SANITIZE_ALIGNMENT no_sanitize("alignment")
 #define NO_SANITIZE_UNDEFINED no_sanitize("undefined")
-#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW                                    \
-	no_sanitize("signed-integer-overflow")
+#define NO_SANITIZE_SIGNED_INTEGER_OVERFLOW no_sanitize("signed-integer-overflow")
 #endif
 
 #if !defined(NO_SANITIZE_ALIGNMENT)

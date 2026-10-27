@@ -27,20 +27,20 @@
 struct cpp_include {
 	VECTOR(struct include) includes;
 	MAP(int, , struct include_group) groups;
-	struct token_list    *prefixes;
-	struct token	     *after;
-	const struct style   *st;
-	struct simple	     *si;
-	struct simple_cookie  cookie;
-	struct arena	     *scratch;
+	struct token_list *prefixes;
+	struct token *after;
+	const struct style *st;
+	struct simple *si;
+	struct simple_cookie cookie;
+	struct arena *scratch;
 	const struct options *op;
-	int		      ignore;
-	int		      regroup;
-	int		      merge;
+	int ignore;
+	int regroup;
+	int merge;
 };
 
 struct include {
-	struct token	       *tk;
+	struct token *tk;
 	struct include_priority priority;
 };
 
@@ -52,8 +52,7 @@ static void cpp_include_free(void *);
 static void cpp_include_exec(struct cpp_include *, struct lexer *);
 static void cpp_include_reset(struct cpp_include *);
 
-static struct token *add_line(
-    struct cpp_include *, struct lexer *, struct token *);
+static struct token *add_line(struct cpp_include *, struct lexer *, struct token *);
 
 static const char *findpath(const char *, size_t, struct arena_scope *);
 
@@ -66,13 +65,12 @@ static void token_trim_verbatim_line(struct token *);
  * by cpp_include_done().
  */
 struct cpp_include *
-cpp_include_alloc(const struct style *st, struct simple *si,
-    struct token_list *prefixes, struct arena *scratch,
-    const struct options *op, struct arena_scope *eternal_scope)
+cpp_include_alloc(const struct style *st, struct simple *si, struct token_list *prefixes,
+    struct arena *scratch, const struct options *op, struct arena_scope *eternal_scope)
 {
 	struct cpp_include *ci;
 	VECTOR(int) priorities;
-	size_t	     i;
+	size_t i;
 	unsigned int simple_flags;
 
 	ci = arena_calloc(eternal_scope, 1, sizeof(*ci));
@@ -105,8 +103,7 @@ cpp_include_alloc(const struct style *st, struct simple *si,
 	}
 	VECTOR_FREE(priorities);
 
-	simple_flags =
-	    style(st, SortIncludes) == CaseSensitive ? SIMPLE_FORCE : 0;
+	simple_flags = style(st, SortIncludes) == CaseSensitive ? SIMPLE_FORCE : 0;
 	simple_enter(si, SIMPLE_CPP_SORT_INCLUDES, simple_flags, &ci->cookie);
 
 	return ci;
@@ -187,7 +184,7 @@ static void
 add_to_include_group(struct cpp_include *ci, struct include *include)
 {
 	struct include_group *group;
-	struct include	    **dst;
+	struct include **dst;
 
 	group = MAP_FIND(ci->groups, include->priority.group);
 	dst = VECTOR_ALLOC(group->includes);
@@ -226,11 +223,10 @@ split_on_slash(const char *str, struct arena_scope *s)
 }
 
 static int
-is_main_include(
-    const char *include_path, const char *path, struct arena *scratch)
+is_main_include(const char *include_path, const char *path, struct arena *scratch)
 {
 	const char *basename, *filename, *include_main;
-	char	  **str;
+	char **str;
 
 	arena_scope(scratch, s);
 
@@ -263,8 +259,7 @@ static int
 has_trailing_comment(const struct token *tk)
 {
 	const struct token *nx = token_next(tk);
-	return nx && nx->tk_type == TOKEN_COMMENT &&
-	    (nx->tk_lno - tk->tk_lno) == 1;
+	return nx && nx->tk_type == TOKEN_COMMENT && (nx->tk_lno - tk->tk_lno) == 1;
 }
 
 /*
@@ -283,11 +278,11 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 {
 	MAP_ITERATOR(ci->groups) it = {0};
 	struct token *after = ci->after;
-	const char   *path = lexer_get_path(lx);
-	size_t	      i, nincludes;
-	unsigned int  nbrackets = 0;
-	unsigned int  nquotes = 0;
-	unsigned int  nslashes = 0;
+	const char *path = lexer_get_path(lx);
+	size_t i, nincludes;
+	unsigned int nbrackets = 0;
+	unsigned int nquotes = 0;
+	unsigned int nslashes = 0;
 
 	if (ci->ignore)
 		return;
@@ -300,9 +295,9 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 
 	for (i = 0; i < nincludes; i++) {
 		struct include_priority priority = {0};
-		struct include	       *include = &ci->includes[i];
-		const struct token     *tk = include->tk;
-		const char	       *include_path;
+		struct include *include = &ci->includes[i];
+		const struct token *tk = include->tk;
+		const char *include_path;
 
 		include_path = findpath(tk->tk_str, tk->tk_len, &s);
 		if (include_path == nullptr)
@@ -310,8 +305,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 
 		if (ci->regroup) {
 			if (!is_main_include(include_path, path, ci->scratch)) {
-				priority = style_include_priority(
-				    ci->st, include_path);
+				priority = style_include_priority(ci->st, include_path);
 			}
 		} else {
 			if (include_path[0] == '<')
@@ -320,13 +314,11 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 				nquotes++;
 			if (strchr(include_path, '/') != nullptr)
 				nslashes++;
-			if ((nbrackets > 0 && nquotes > 0) ||
-			    (nbrackets > 0 && nslashes > 0))
+			if ((nbrackets > 0 && nquotes > 0) || (nbrackets > 0 && nslashes > 0))
 				return;
 
 			/* Allow the main include to come first. */
-			if (i == 0 &&
-			    is_main_include(include_path, path, ci->scratch))
+			if (i == 0 && is_main_include(include_path, path, ci->scratch))
 				priority.sort = -1;
 		}
 		include->priority = priority;
@@ -336,15 +328,14 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 	struct include *last = nullptr;
 	while (MAP_ITERATE(ci->groups, &it)) {
 		struct include_group *group = it.val;
-		struct include	    **p;
-		int		      doline;
+		struct include **p;
+		int doline;
 
 		p = VECTOR_LAST(group->includes);
 		if (p == nullptr)
 			continue;
 		last = *p;
-		doline = !ci->merge &&
-		    (ci->regroup || token_has_verbatim_line(last->tk, 2));
+		doline = !ci->merge && (ci->regroup || token_has_verbatim_line(last->tk, 2));
 
 		VECTOR_SORT(group->includes, include_cmp);
 
@@ -356,8 +347,7 @@ cpp_include_exec(struct cpp_include *ci, struct lexer *lx)
 			token_list_remove(ci->prefixes, include->tk);
 			token_ref(include->tk);
 			if (after != nullptr) {
-				token_list_append_after(
-				    ci->prefixes, after, include->tk);
+				token_list_append_after(ci->prefixes, after, include->tk);
 			} else {
 				token_list_prepend(ci->prefixes, include->tk);
 			}
@@ -413,7 +403,7 @@ static const char *
 findpath(const char *str, size_t len, struct arena_scope *s)
 {
 	const char *eo, *so;
-	char	    c;
+	char c;
 
 	so = memchr(str, '"', len);
 	if (so == nullptr)

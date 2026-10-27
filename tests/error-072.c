@@ -7,11 +7,11 @@ int foo i({ vinh({} }) N;
 x,
 
 #if
-r
+    r
 #else
 #endif
 
 #if
-r
+    r
 #else
 #endif

@@ -5,10 +5,7 @@
 int
 main(void)
 {
-	*mod &= (rp_modifier_info.meta_mod_mask
-	    | rp_modifier_info.alt_mod_mask
-	    | rp_modifier_info.hyper_mod_mask
-	    | rp_modifier_info.super_mod_mask
-	    | ControlMask
-	    | shift);
+	*mod &= (rp_modifier_info.meta_mod_mask | rp_modifier_info.alt_mod_mask |
+	    rp_modifier_info.hyper_mod_mask | rp_modifier_info.super_mod_mask | ControlMask |
+	    shift);
 }

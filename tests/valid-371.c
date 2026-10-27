@@ -5,5 +5,5 @@
 int
 main(void)
 {
-	return f(1,, 2);
+	return f(1, , 2);
 }

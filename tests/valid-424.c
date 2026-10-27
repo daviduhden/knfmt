@@ -5,6 +5,5 @@
 int
 main(void)
 {
-	return 0 /* zero */ |
-	    1;
+	return 0 /* zero */ | 1;
 }

@@ -8,8 +8,8 @@ main(void)
 #if 0
 	f
 #else
-ÿelS40
+	ÿelS40
 #else
 #endif
-:
+	    :
 }

@@ -29,15 +29,15 @@ enum vector_type {
 };
 
 struct vector_public {
-	size_t		 len;
-	size_t		 stride;
+	size_t len;
+	size_t stride;
 	enum vector_type type;
 };
 
 struct vector_callbacks {
 	void *(*calloc)(size_t, size_t, void *);
 	void *(*realloc)(void *, size_t, size_t, void *);
-	void  (*free)(void *, size_t, void *);
+	void (*free)(void *, size_t, void *);
 	void *arg;
 };
 
@@ -45,8 +45,7 @@ struct vector_callbacks {
 
 #define VECTOR_INIT(vc) vector_init((void **)&(vc), sizeof(__typeof__(*(vc))))
 int vector_init(void **, size_t);
-int vector_init_impl(
-    enum vector_type, void **, size_t, const struct vector_callbacks *);
+int vector_init_impl(enum vector_type, void **, size_t, const struct vector_callbacks *);
 
 #define VECTOR_FREE(vc) vector_free((void **)&(vc))
 void vector_free(void **);
@@ -57,54 +56,52 @@ void *vector_copy(void *);
 #define VECTOR_RESERVE(vc, n) vector_reserve((void **)&(vc), (n))
 int vector_reserve(void **, size_t);
 
-#define VECTOR_ALLOC(vc)                                                       \
-	__extension__({                                                        \
-		size_t _i = vector_alloc((void **)&(vc), 0);                   \
-		_i == ULONG_MAX ? nullptr : (vc) + _i;                         \
+#define VECTOR_ALLOC(vc)                                                                           \
+	__extension__({                                                                            \
+		size_t _i = vector_alloc((void **)&(vc), 0);                                       \
+		_i == ULONG_MAX ? nullptr : (vc) + _i;                                             \
 	})
-#define VECTOR_CALLOC(vc)                                                      \
-	__extension__({                                                        \
-		size_t _i = vector_alloc((void **)&(vc), 1);                   \
-		_i == ULONG_MAX ? nullptr : (vc) + _i;                         \
+#define VECTOR_CALLOC(vc)                                                                          \
+	__extension__({                                                                            \
+		size_t _i = vector_alloc((void **)&(vc), 1);                                       \
+		_i == ULONG_MAX ? nullptr : (vc) + _i;                                             \
 	})
 size_t vector_alloc(void **, int);
 
-#define VECTOR_POP(vc)                                                         \
-	__extension__({                                                        \
-		size_t _i = vector_pop((void *)(vc));                          \
-		_i == ULONG_MAX ? nullptr : (vc) + _i;                         \
+#define VECTOR_POP(vc)                                                                             \
+	__extension__({                                                                            \
+		size_t _i = vector_pop((void *)(vc));                                              \
+		_i == ULONG_MAX ? nullptr : (vc) + _i;                                             \
 	})
 size_t vector_pop(void *);
 
 #define VECTOR_CLEAR(vc) vector_clear((void *)(vc))
 void vector_clear(void *);
 
-#define VECTOR_SORT(vc, c)                                                     \
-	__extension__({                                                        \
-		int (*_c)(const __typeof__(*(vc)) *,                           \
-		    const __typeof__(*(vc)) *) = (c);                          \
-		vector_sort(                                                   \
-		    (void *)(vc), (int (*)(const void *, const void *))_c);    \
+#define VECTOR_SORT(vc, c)                                                                         \
+	__extension__({                                                                            \
+		int (*_c)(const __typeof__(*(vc)) *, const __typeof__(*(vc)) *) = (c);             \
+		vector_sort((void *)(vc), (int (*)(const void *, const void *))_c);                \
 	})
 void vector_sort(void *, int (*)(const void *, const void *));
 
-#define VECTOR_SEARCH(vc, cmp, needle)                                         \
-	__extension__({                                                        \
-		size_t _n = VECTOR_LENGTH(vc);                                 \
-		KS_binary_search((vc), _n, (cmp), (needle));                   \
+#define VECTOR_SEARCH(vc, cmp, needle)                                                             \
+	__extension__({                                                                            \
+		size_t _n = VECTOR_LENGTH(vc);                                                     \
+		KS_binary_search((vc), _n, (cmp), (needle));                                       \
 	})
 
-#define VECTOR_FIRST(vc)                                                       \
-	__extension__({                                                        \
-		size_t _i = vector_first((void *)(vc));                        \
-		_i == ULONG_MAX ? nullptr : (vc) + _i;                         \
+#define VECTOR_FIRST(vc)                                                                           \
+	__extension__({                                                                            \
+		size_t _i = vector_first((void *)(vc));                                            \
+		_i == ULONG_MAX ? nullptr : (vc) + _i;                                             \
 	})
 size_t vector_first(void *);
 
-#define VECTOR_LAST(vc)                                                        \
-	__extension__({                                                        \
-		size_t _i = vector_last((void *)(vc));                         \
-		_i == ULONG_MAX ? nullptr : (vc) + _i;                         \
+#define VECTOR_LAST(vc)                                                                            \
+	__extension__({                                                                            \
+		size_t _i = vector_last((void *)(vc));                                             \
+		_i == ULONG_MAX ? nullptr : (vc) + _i;                                             \
 	})
 size_t vector_last(void *);
 

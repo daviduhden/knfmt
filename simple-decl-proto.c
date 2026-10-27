@@ -19,7 +19,7 @@ struct simple_decl_proto {
 	VECTOR(struct argument) arguments;
 	struct lexer *lx;
 	struct {
-		unsigned int ignore:1;
+		unsigned int ignore : 1;
 	} flags;
 };
 
@@ -111,13 +111,12 @@ void
 simple_decl_proto_arg_ident(struct simple_decl_proto *sp, struct token *tk)
 {
 	struct argument *arg;
-	struct token	*pv;
+	struct token *pv;
 
 	arg = VECTOR_LAST(sp->arguments);
 	assert(arg != nullptr);
 	pv = token_prev(tk);
-	if (pv->tk_type == TOKEN_STAR || (pv->tk_flags & TOKEN_FLAG_TYPE) ||
-	    is_qualifier(pv))
+	if (pv->tk_type == TOKEN_STAR || (pv->tk_flags & TOKEN_FLAG_TYPE) || is_qualifier(pv))
 		arg->tk = tk;
 	else
 		sp->flags.ignore = 1;

@@ -96,35 +96,27 @@
 #include <net/pfvar.h>
 #endif
 
-#define	PFKEYSNDQ	8192
-#define	PFKEYRCVQ	8192
+#define PFKEYSNDQ 8192
+#define PFKEYRCVQ 8192
 
-static const struct sadb_alg ealgs[] = {
-	{ SADB_EALG_NULL, 0, 0, 0 },
-	{ SADB_EALG_3DESCBC, 64, 192, 192 },
-	{ SADB_X_EALG_BLF, 64, 40, BLF_MAXKEYLEN * 8},
-	{ SADB_X_EALG_CAST, 64, 40, 128},
-	{ SADB_X_EALG_AES, 128, 128, 256},
-	{ SADB_X_EALG_AESCTR, 128, 128 + 32, 256 + 32}
-};
+static const struct sadb_alg ealgs[] = {{SADB_EALG_NULL, 0, 0, 0},
+    {SADB_EALG_3DESCBC, 64, 192, 192}, {SADB_X_EALG_BLF, 64, 40, BLF_MAXKEYLEN * 8},
+    {SADB_X_EALG_CAST, 64, 40, 128}, {SADB_X_EALG_AES, 128, 128, 256},
+    {SADB_X_EALG_AESCTR, 128, 128 + 32, 256 + 32}};
 
-static const struct sadb_alg aalgs[] = {
-	{ SADB_AALG_SHA1HMAC, 0, 160, 160 },
-	{ SADB_AALG_MD5HMAC, 0, 128, 128 },
-	{ SADB_X_AALG_RIPEMD160HMAC, 0, 160, 160 },
-	{ SADB_X_AALG_SHA2_256, 0, 256, 256 },
-	{ SADB_X_AALG_SHA2_384, 0, 384, 384 },
-	{ SADB_X_AALG_SHA2_512, 0, 512, 512 }
-};
+static const struct sadb_alg aalgs[] = {{SADB_AALG_SHA1HMAC, 0, 160, 160},
+    {SADB_AALG_MD5HMAC, 0, 128, 128}, {SADB_X_AALG_RIPEMD160HMAC, 0, 160, 160},
+    {SADB_X_AALG_SHA2_256, 0, 256, 256}, {SADB_X_AALG_SHA2_384, 0, 384, 384},
+    {SADB_X_AALG_SHA2_512, 0, 512, 512}};
 
-static const struct sadb_alg calgs[] = {
-	{ SADB_X_CALG_DEFLATE, 0, 0, 0},
-	{ SADB_X_CALG_LZS, 0, 0, 0}
-};
+static const struct sadb_alg calgs[] = {{SADB_X_CALG_DEFLATE, 0, 0, 0}, {SADB_X_CALG_LZS, 0, 0, 0}};
 
 struct pool pkpcb_pool;
 #define PFKEY_MSG_MAXSZ 4096
-const struct sockaddr pfkey_addr = { 2, PF_KEY, };
+const struct sockaddr pfkey_addr = {
+    2,
+    PF_KEY,
+};
 const struct domain pfkeydomain;
 
 /*
@@ -137,19 +129,18 @@ const struct domain pfkeydomain;
  *	s	socket lock
  */
 struct pkpcb {
-	struct socket		*kcb_socket;	/* [I] associated socket */
+	struct socket *kcb_socket; /* [I] associated socket */
 
-	SRPL_ENTRY(pkpcb)	kcb_list;	/* [l] */
-	struct refcnt		kcb_refcnt;	/* [a] */
-	int			kcb_flags;	/* [s] */
-	uint32_t		kcb_reg;	/* [s] Inc if SATYPE_MAX > 31 */
-	uint32_t		kcb_pid;	/* [I] */
-	unsigned int		kcb_rdomain;	/* [I] routing domain */
+	SRPL_ENTRY(pkpcb) kcb_list; /* [l] */
+	struct refcnt kcb_refcnt;   /* [a] */
+	int kcb_flags;		    /* [s] */
+	uint32_t kcb_reg;	    /* [s] Inc if SATYPE_MAX > 31 */
+	uint32_t kcb_pid;	    /* [I] */
+	unsigned int kcb_rdomain;   /* [I] routing domain */
 };
-#define sotokeycb(so)		((struct pkpcb *)(so)->so_pcb)
-#define keylock(kp)		solock((kp)->kcb_socket)
-#define keyunlock(kp, s)	sounlock((kp)->kcb_socket, s)
-
+#define sotokeycb(so) ((struct pkpcb *)(so)->so_pcb)
+#define keylock(kp) solock((kp)->kcb_socket)
+#define keyunlock(kp, s) sounlock((kp)->kcb_socket, s)
 
 struct dump_state {
 	struct sadb_msg *sadb_msg;
@@ -157,9 +148,9 @@ struct dump_state {
 };
 
 struct pkptable {
-	SRPL_HEAD(, pkpcb)	pkp_list;
-	struct srpl_rc		pkp_rc;
-	struct rwlock		pkp_lk;
+	SRPL_HEAD(, pkpcb) pkp_list;
+	struct srpl_rc pkp_rc;
+	struct rwlock pkp_lk;
 };
 
 struct pkptable pkptable;
@@ -172,17 +163,16 @@ void pfkey_init(void);
 
 int pfkeyv2_attach(struct socket *, int);
 int pfkeyv2_detach(struct socket *);
-int pfkeyv2_usrreq(struct socket *, int, struct mbuf *, struct mbuf *,
-    struct mbuf *, struct proc *);
-int pfkeyv2_output(struct mbuf *, struct socket *, struct sockaddr *,
-    struct mbuf *);
+int pfkeyv2_usrreq(
+    struct socket *, int, struct mbuf *, struct mbuf *, struct mbuf *, struct proc *);
+int pfkeyv2_output(struct mbuf *, struct socket *, struct sockaddr *, struct mbuf *);
 int pfkey_sendup(struct pkpcb *, struct mbuf *, int);
 int pfkeyv2_sa_flush(struct tdb *, void *, int);
 int pfkeyv2_policy_flush(struct ipsec_policy *, void *, unsigned int);
 int pfkeyv2_sysctl_policydumper(struct ipsec_policy *, void *, unsigned int);
 
-void	keycb_ref(void *, void *);
-void	keycb_unref(void *, void *);
+void keycb_ref(void *, void *);
+void keycb_unref(void *, void *);
 
 /*
  * Wrapper around m_devget(); copy data from contiguous buffer to mbuf
@@ -200,26 +190,24 @@ pfdatatopacket(void *data, int len, struct mbuf **packet)
 	return (0);
 }
 
-const struct protosw pfkeysw[] = {
-{
-  .pr_type      = SOCK_RAW,
-  .pr_domain    = &pfkeydomain,
-  .pr_protocol  = PF_KEY_V2,
-  .pr_flags     = PR_ATOMIC | PR_ADDR,
-  .pr_output    = pfkeyv2_output,
-  .pr_usrreq    = pfkeyv2_usrreq,
-  .pr_attach    = pfkeyv2_attach,
-  .pr_detach    = pfkeyv2_detach,
-  .pr_sysctl    = pfkeyv2_sysctl,
-}
-};
+const struct protosw pfkeysw[] = {{
+    .pr_type = SOCK_RAW,
+    .pr_domain = &pfkeydomain,
+    .pr_protocol = PF_KEY_V2,
+    .pr_flags = PR_ATOMIC | PR_ADDR,
+    .pr_output = pfkeyv2_output,
+    .pr_usrreq = pfkeyv2_usrreq,
+    .pr_attach = pfkeyv2_attach,
+    .pr_detach = pfkeyv2_detach,
+    .pr_sysctl = pfkeyv2_sysctl,
+}};
 
 const struct domain pfkeydomain = {
-  .dom_family = PF_KEY,
-  .dom_name = "PF_KEY",
-  .dom_init = pfkey_init,
-  .dom_protosw = pfkeysw,
-  .dom_protoswNPROTOSW = &pfkeysw[nitems(pfkeysw)],
+    .dom_family = PF_KEY,
+    .dom_name = "PF_KEY",
+    .dom_init = pfkey_init,
+    .dom_protosw = pfkeysw,
+    .dom_protoswNPROTOSW = &pfkeysw[nitems(pfkeysw)],
 };
 
 void
@@ -245,12 +233,10 @@ pfkey_init(void)
 	srpl_rc_init(&pkptable.pkp_rc, keycb_ref, keycb_unref, NULL);
 	rw_init(&pkptable.pkp_lk, "pfkey");
 	SRPL_INIT(&pkptable.pkp_list);
-	pool_init(&pkpcb_pool, sizeof(struct pkpcb), 0,
-	    IPL_SOFTNET, PR_WAITOK, "pkpcb", NULL);
-	pool_init(&ipsec_policy_pool, sizeof(struct ipsec_policy), 0,
-	    IPL_SOFTNET, 0, "ipsec policy", NULL);
+	pool_init(&pkpcb_pool, sizeof(struct pkpcb), 0, IPL_SOFTNET, PR_WAITOK, "pkpcb", NULL);
+	pool_init(&ipsec_policy_pool, sizeof(struct ipsec_policy), 0, IPL_SOFTNET, 0,
+	    "ipsec policy", NULL);
 }
-
 
 /*
  * Attach a new PF_KEYv2 socket.
@@ -268,7 +254,7 @@ pfkeyv2_attach(struct socket *so, int proto)
 	if (error)
 		return (error);
 
-	kp = pool_get(&pkpcb_pool, PR_WAITOK|PR_ZERO);
+	kp = pool_get(&pkpcb_pool, PR_WAITOK | PR_ZERO);
 	so->so_pcb = kp;
 	refcnt_init(&kp->kcb_refcnt);
 	kp->kcb_socket = so;
@@ -299,8 +285,7 @@ pfkeyv2_detach(struct socket *so)
 	if (kp == NULL)
 		return ENOTCONN;
 
-	if (kp->kcb_flags &
-	    (PFKEYV2_SOCKETFLAGS_REGISTERED|PFKEYV2_SOCKETFLAGS_PROMISC)) {
+	if (kp->kcb_flags & (PFKEYV2_SOCKETFLAGS_REGISTERED | PFKEYV2_SOCKETFLAGS_PROMISC)) {
 		mtx_enter(&pfkeyv2_mtx);
 		if (kp->kcb_flags & PFKEYV2_SOCKETFLAGS_REGISTERED)
 			nregistered--;
@@ -311,8 +296,7 @@ pfkeyv2_detach(struct socket *so)
 	}
 
 	rw_enter(&pkptable.pkp_lk, RW_WRITE);
-	SRPL_REMOVE_LOCKED(&pkptable.pkp_rc, &pkptable.pkp_list, kp, pkpcb,
-	    kcb_list);
+	SRPL_REMOVE_LOCKED(&pkptable.pkp_rc, &pkptable.pkp_list, kp, pkpcb, kcb_list);
 	rw_exit(&pkptable.pkp_lk);
 
 	sounlock(so, SL_LOCKED);
@@ -328,8 +312,8 @@ pfkeyv2_detach(struct socket *so)
 }
 
 int
-pfkeyv2_usrreq(struct socket *so, int req, struct mbuf *m,
-    struct mbuf *nam, struct mbuf *control, struct proc *p)
+pfkeyv2_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *control,
+    struct proc *p)
 {
 	struct pkpcb *kp;
 	int error = 0;
@@ -397,7 +381,7 @@ pfkeyv2_usrreq(struct socket *so, int req, struct mbuf *m,
 		panic("pfkeyv2_usrreq");
 	}
 
- release:
+release:
 	if (req != PRU_RCVD && req != PRU_RCVOOB && req != PRU_SENSE) {
 		m_freem(control);
 		m_freem(m);
@@ -406,8 +390,7 @@ pfkeyv2_usrreq(struct socket *so, int req, struct mbuf *m,
 }
 
 int
-pfkeyv2_output(struct mbuf *mbuf, struct socket *so,
-    struct sockaddr *dstaddr, struct mbuf *control)
+pfkeyv2_output(struct mbuf *mbuf, struct socket *so, struct sockaddr *dstaddr, struct mbuf *control)
 {
 	void *message;
 	int error = 0;
@@ -424,8 +407,7 @@ pfkeyv2_output(struct mbuf *mbuf, struct socket *so,
 		goto ret;
 	}
 
-	if (!(message = malloc((unsigned long) mbuf->m_pkthdr.len,
-	    M_PFKEY, M_DONTWAIT))) {
+	if (!(message = malloc((unsigned long)mbuf->m_pkthdr.len, M_PFKEY, M_DONTWAIT))) {
 		error = ENOMEM;
 		goto ret;
 	}
@@ -475,8 +457,8 @@ pfkey_sendup(struct pkpcb *kp, struct mbuf *m0, int more)
  * third argument.
  */
 int
-pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
-    u_int8_t satype, int count, u_int rdomain)
+pfkeyv2_sendmessage(
+    void **headers, int mode, struct socket *so, u_int8_t satype, int count, u_int rdomain)
 {
 	int i, j, rval, s;
 	void *p, *buffer = NULL;
@@ -490,31 +472,28 @@ pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
 
 	for (i = 1; i <= SADB_EXT_MAX; i++)
 		if (headers[i])
-			j += ((struct sadb_ext *)headers[i])->sadb_ext_len *
-			    sizeof(uint64_t);
+			j += ((struct sadb_ext *)headers[i])->sadb_ext_len * sizeof(uint64_t);
 
 	/* ...and allocate it */
-	if (!(buffer = malloc(j + sizeof(struct sadb_msg), M_PFKEY,
-	    M_NOWAIT))) {
+	if (!(buffer = malloc(j + sizeof(struct sadb_msg), M_PFKEY, M_NOWAIT))) {
 		rval = ENOMEM;
 		goto ret;
 	}
 
 	p = buffer + sizeof(struct sadb_msg);
 	bcopy(headers[0], p, sizeof(struct sadb_msg));
-	((struct sadb_msg *) p)->sadb_msg_len = j / sizeof(uint64_t);
+	((struct sadb_msg *)p)->sadb_msg_len = j / sizeof(uint64_t);
 	p += sizeof(struct sadb_msg);
 
 	/* Copy payloads in the packet */
 	for (i = 1; i <= SADB_EXT_MAX; i++)
 		if (headers[i]) {
-			((struct sadb_ext *) headers[i])->sadb_ext_type = i;
+			((struct sadb_ext *)headers[i])->sadb_ext_type = i;
 			bcopy(headers[i], p, EXTLEN(headers[i]));
 			p += EXTLEN(headers[i]);
 		}
 
-	if ((rval = pfdatatopacket(buffer + sizeof(struct sadb_msg),
-	    j, &packet)) != 0)
+	if ((rval = pfdatatopacket(buffer + sizeof(struct sadb_msg), j, &packet)) != 0)
 		goto ret;
 
 	switch (mode) {
@@ -532,23 +511,22 @@ pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
 		 * encapsulated in another sadb_msg header.
 		 */
 		bzero(buffer, sizeof(struct sadb_msg));
-		smsg = (struct sadb_msg *) buffer;
+		smsg = (struct sadb_msg *)buffer;
 		smsg->sadb_msg_version = PF_KEY_V2;
 		smsg->sadb_msg_type = SADB_X_PROMISC;
-		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + j) /
-		    sizeof(uint64_t);
+		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + j) / sizeof(uint64_t);
 		smsg->sadb_msg_seq = 0;
 
 		/* Copy to mbuf chain */
-		if ((rval = pfdatatopacket(buffer, sizeof(struct sadb_msg) + j,
-		    &packet)) != 0)
+		if ((rval = pfdatatopacket(buffer, sizeof(struct sadb_msg) + j, &packet)) != 0)
 			goto ret;
 
 		/*
 		 * Search for promiscuous listeners, skipping the
 		 * original destination.
 		 */
-		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list) {
+		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list)
+		{
 			if (kp->kcb_socket == so || kp->kcb_rdomain != rdomain)
 				continue;
 
@@ -566,7 +544,8 @@ pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
 		 * Send the message to all registered sockets that match
 		 * the specified satype (e.g., all IPSEC-ESP negotiators)
 		 */
-		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list) {
+		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list)
+		{
 			if (kp->kcb_rdomain != rdomain)
 				continue;
 
@@ -589,20 +568,19 @@ pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
 
 		/* Encapsulate the original message "inside" an sadb_msg header */
 		bzero(buffer, sizeof(struct sadb_msg));
-		smsg = (struct sadb_msg *) buffer;
+		smsg = (struct sadb_msg *)buffer;
 		smsg->sadb_msg_version = PF_KEY_V2;
 		smsg->sadb_msg_type = SADB_X_PROMISC;
-		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + j) /
-		    sizeof(uint64_t);
+		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + j) / sizeof(uint64_t);
 		smsg->sadb_msg_seq = 0;
 
 		/* Convert to mbuf chain */
-		if ((rval = pfdatatopacket(buffer, sizeof(struct sadb_msg) + j,
-		    &packet)) != 0)
+		if ((rval = pfdatatopacket(buffer, sizeof(struct sadb_msg) + j, &packet)) != 0)
 			goto ret;
 
 		/* Send to all registered promiscuous listeners */
-		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list) {
+		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list)
+		{
 			if (kp->kcb_rdomain != rdomain)
 				continue;
 
@@ -618,7 +596,8 @@ pfkeyv2_sendmessage(void **headers, int mode, struct socket *so,
 
 	case PFKEYV2_SENDMESSAGE_BROADCAST:
 		/* Send message to all sockets */
-		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list) {
+		SRPL_FOREACH(kp, &sr, &pkptable.pkp_list, kcb_list)
+		{
 			if (kp->kcb_rdomain != rdomain)
 				continue;
 
@@ -646,8 +625,7 @@ ret:
  * SPD rule was for incoming or outgoing packets).
  */
 int
-pfkeyv2_policy(struct ipsec_acquire *ipa, void **headers, void **buffer,
-    int *bufferlen)
+pfkeyv2_policy(struct ipsec_acquire *ipa, void **headers, void **buffer, int *bufferlen)
 {
 	union sockaddr_union sunion;
 	struct sadb_protocol *sp;
@@ -765,8 +743,7 @@ pfkeyv2_policy(struct ipsec_acquire *ipa, void **headers, void **buffer,
 
 	headers[SADB_X_EXT_FLOW_TYPE] = p;
 	sp = p;
-	sp->sadb_protocol_len = sizeof(struct sadb_protocol) /
-	    sizeof(u_int64_t);
+	sp->sadb_protocol_len = sizeof(struct sadb_protocol) / sizeof(u_int64_t);
 	switch (sunion.sa.sa_family) {
 	case AF_INET:
 		if (ipa->ipa_mask.sen_proto)
@@ -793,22 +770,20 @@ ret:
  * Get all the information contained in an SA to a PFKEYV2 message.
  */
 int
-pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
-    int *lenused)
+pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp, int *lenused)
 {
 	int rval, i;
 	void *p;
 
 	/* Find how much space we need */
-	i = sizeof(struct sadb_sa) + sizeof(struct sadb_lifetime) +
-	    sizeof(struct sadb_x_counter);
+	i = sizeof(struct sadb_sa) + sizeof(struct sadb_lifetime) + sizeof(struct sadb_x_counter);
 
-	if (tdb->tdb_soft_allocations || tdb->tdb_soft_bytes ||
-	    tdb->tdb_soft_timeout || tdb->tdb_soft_first_use)
+	if (tdb->tdb_soft_allocations || tdb->tdb_soft_bytes || tdb->tdb_soft_timeout ||
+	    tdb->tdb_soft_first_use)
 		i += sizeof(struct sadb_lifetime);
 
-	if (tdb->tdb_exp_allocations || tdb->tdb_exp_bytes ||
-	    tdb->tdb_exp_timeout || tdb->tdb_exp_first_use)
+	if (tdb->tdb_exp_allocations || tdb->tdb_exp_bytes || tdb->tdb_exp_timeout ||
+	    tdb->tdb_exp_first_use)
 		i += sizeof(struct sadb_lifetime);
 
 	if (tdb->tdb_last_used)
@@ -851,8 +826,7 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 
 	if (tdb->tdb_onext) {
 		i += sizeof(struct sadb_sa);
-		i += sizeof(struct sadb_address) +
-		    PADUP(tdb->tdb_onext->tdb_dst.sa.sa_len);
+		i += sizeof(struct sadb_address) + PADUP(tdb->tdb_onext->tdb_dst.sa.sa_len);
 		i += sizeof(struct sadb_protocol);
 	}
 
@@ -860,7 +834,7 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 		i += sizeof(struct sadb_x_udpencap);
 
 	if (tdb->tdb_mtu > 0)
-		i+= sizeof(struct sadb_x_mtu);
+		i += sizeof(struct sadb_x_mtu);
 
 	if (tdb->tdb_rdomain != tdb->tdb_rdomain_post)
 		i += sizeof(struct sadb_x_rdomain);
@@ -888,20 +862,20 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 
 	headers[SADB_EXT_SA] = p;
 
-	export_sa(&p, tdb);  /* Export SA information (mostly flags) */
+	export_sa(&p, tdb); /* Export SA information (mostly flags) */
 
 	/* Export lifetimes where applicable */
 	headers[SADB_EXT_LIFETIME_CURRENT] = p;
 	export_lifetime(&p, tdb, PFKEYV2_LIFETIME_CURRENT);
 
-	if (tdb->tdb_soft_allocations || tdb->tdb_soft_bytes ||
-	    tdb->tdb_soft_first_use || tdb->tdb_soft_timeout) {
+	if (tdb->tdb_soft_allocations || tdb->tdb_soft_bytes || tdb->tdb_soft_first_use ||
+	    tdb->tdb_soft_timeout) {
 		headers[SADB_EXT_LIFETIME_SOFT] = p;
 		export_lifetime(&p, tdb, PFKEYV2_LIFETIME_SOFT);
 	}
 
-	if (tdb->tdb_exp_allocations || tdb->tdb_exp_bytes ||
-	    tdb->tdb_exp_first_use || tdb->tdb_exp_timeout) {
+	if (tdb->tdb_exp_allocations || tdb->tdb_exp_bytes || tdb->tdb_exp_first_use ||
+	    tdb->tdb_exp_timeout) {
 		headers[SADB_EXT_LIFETIME_HARD] = p;
 		export_lifetime(&p, tdb, PFKEYV2_LIFETIME_HARD);
 	}
@@ -937,8 +911,7 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 
 	/* Export flow/filter, if present */
 	if (tdb->tdb_filter.sen_type)
-		export_flow(&p, IPSP_IPSEC_USE, &tdb->tdb_filter,
-		    &tdb->tdb_filtermask, headers);
+		export_flow(&p, IPSP_IPSEC_USE, &tdb->tdb_filter, &tdb->tdb_filtermask, headers);
 
 	if (tdb->tdb_onext) {
 		headers[SADB_X_EXT_SA2] = p;
@@ -987,7 +960,7 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 		*lenused = p - *buffer;
 	rval = 0;
 
- ret:
+ret:
 	return (rval);
 }
 
@@ -997,8 +970,8 @@ pfkeyv2_get(struct tdb *tdb, void **headers, void **buffer, int *lenp,
 int
 pfkeyv2_dump_walker(struct tdb *tdb, void *state, int last)
 {
-	struct dump_state *dump_state = (struct dump_state *) state;
-	void *headers[SADB_EXT_MAX+1], *buffer;
+	struct dump_state *dump_state = (struct dump_state *)state;
+	void *headers[SADB_EXT_MAX + 1], *buffer;
 	int buflen;
 	int rval;
 
@@ -1006,7 +979,7 @@ pfkeyv2_dump_walker(struct tdb *tdb, void *state, int last)
 	if (!dump_state->sadb_msg->sadb_msg_satype ||
 	    (tdb->tdb_satype == dump_state->sadb_msg->sadb_msg_satype)) {
 		bzero(headers, sizeof(headers));
-		headers[0] = (void *) dump_state->sadb_msg;
+		headers[0] = (void *)dump_state->sadb_msg;
 
 		/* Get the information from the TDB to a PFKEYv2 message */
 		if ((rval = pfkeyv2_get(tdb, headers, &buffer, &buflen, NULL)) != 0)
@@ -1016,9 +989,8 @@ pfkeyv2_dump_walker(struct tdb *tdb, void *state, int last)
 			((struct sadb_msg *)headers[0])->sadb_msg_seq = 0;
 
 		/* Send the message to the specified socket */
-		rval = pfkeyv2_sendmessage(headers,
-		    PFKEYV2_SENDMESSAGE_UNICAST, dump_state->socket, 0, 0,
-		    tdb->tdb_rdomain);
+		rval = pfkeyv2_sendmessage(headers, PFKEYV2_SENDMESSAGE_UNICAST, dump_state->socket,
+		    0, 0, tdb->tdb_rdomain);
 
 		explicit_bzero(buffer, buflen);
 		free(buffer, M_PFKEY, buflen);
@@ -1035,8 +1007,7 @@ pfkeyv2_dump_walker(struct tdb *tdb, void *state, int last)
 int
 pfkeyv2_sa_flush(struct tdb *tdb, void *satype_vp, int last)
 {
-	if (!(*((u_int8_t *) satype_vp)) ||
-	    tdb->tdb_satype == *((u_int8_t *) satype_vp))
+	if (!(*((u_int8_t *)satype_vp)) || tdb->tdb_satype == *((u_int8_t *)satype_vp))
 		tdb_delete(tdb);
 	return (0);
 }
@@ -1057,7 +1028,7 @@ pfkeyv2_get_proto_alg(u_int8_t satype, u_int8_t *sproto, int *alg)
 
 		*sproto = IPPROTO_AH;
 
-		if(alg != NULL)
+		if (alg != NULL)
 			*alg = satype = XF_AH;
 
 		break;
@@ -1068,7 +1039,7 @@ pfkeyv2_get_proto_alg(u_int8_t satype, u_int8_t *sproto, int *alg)
 
 		*sproto = IPPROTO_ESP;
 
-		if(alg != NULL)
+		if (alg != NULL)
 			*alg = satype = XF_ESP;
 
 		break;
@@ -1087,7 +1058,7 @@ pfkeyv2_get_proto_alg(u_int8_t satype, u_int8_t *sproto, int *alg)
 
 		*sproto = IPPROTO_IPCOMP;
 
-		if(alg != NULL)
+		if (alg != NULL)
 			*alg = satype = XF_IPCOMP;
 
 		break;
@@ -1166,11 +1137,10 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 		/* Initialize encapsulating header */
 		bzero(freeme, sizeof(struct sadb_msg));
-		smsg = (struct sadb_msg *) freeme;
+		smsg = (struct sadb_msg *)freeme;
 		smsg->sadb_msg_version = PF_KEY_V2;
 		smsg->sadb_msg_type = SADB_X_PROMISC;
-		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + len) /
-		    sizeof(uint64_t);
+		smsg->sadb_msg_len = (sizeof(struct sadb_msg) + len) / sizeof(uint64_t);
 		smsg->sadb_msg_seq = curproc->p_p->ps_pid;
 
 		bcopy(message, freeme + sizeof(struct sadb_msg), len);
@@ -1180,7 +1150,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			goto ret;
 
 		/* Send to all promiscuous listeners */
-		SRPL_FOREACH(bkp, &sr, &pkptable.pkp_list, kcb_list) {
+		SRPL_FOREACH(bkp, &sr, &pkptable.pkp_list, kcb_list)
+		{
 			if (bkp->kcb_rdomain != kp->kcb_rdomain)
 				continue;
 
@@ -1205,7 +1176,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		goto ret;
 
 	/* use specified rdomain */
-	srdomain = (struct sadb_x_rdomain *) headers[SADB_X_EXT_RDOMAIN];
+	srdomain = (struct sadb_x_rdomain *)headers[SADB_X_EXT_RDOMAIN];
 	if (srdomain) {
 		if (!rtable_exists(srdomain->sadb_x_rdomain_dom1) ||
 		    !rtable_exists(srdomain->sadb_x_rdomain_dom2)) {
@@ -1215,29 +1186,27 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		rdomain = srdomain->sadb_x_rdomain_dom1;
 	}
 
-	smsg = (struct sadb_msg *) headers[0];
+	smsg = (struct sadb_msg *)headers[0];
 	switch (smsg->sadb_msg_type) {
-	case SADB_GETSPI:  /* Reserve an SPI */
-		sa1 = malloc(sizeof (*sa1), M_PFKEY, M_NOWAIT | M_ZERO);
+	case SADB_GETSPI: /* Reserve an SPI */
+		sa1 = malloc(sizeof(*sa1), M_PFKEY, M_NOWAIT | M_ZERO);
 		if (sa1 == NULL) {
 			rval = ENOMEM;
 			goto ret;
 		}
 
 		sa1->tdb_satype = smsg->sadb_msg_satype;
-		if ((rval = pfkeyv2_get_proto_alg(sa1->tdb_satype,
-		    &sa1->tdb_sproto, 0)))
+		if ((rval = pfkeyv2_get_proto_alg(sa1->tdb_satype, &sa1->tdb_sproto, 0)))
 			goto ret;
 
 		import_address(&sa1->tdb_src.sa, headers[SADB_EXT_ADDRESS_SRC]);
 		import_address(&sa1->tdb_dst.sa, headers[SADB_EXT_ADDRESS_DST]);
 
 		/* Find an unused SA identifier */
-		sprng = (struct sadb_spirange *) headers[SADB_EXT_SPIRANGE];
+		sprng = (struct sadb_spirange *)headers[SADB_EXT_SPIRANGE];
 		NET_LOCK();
-		sa1->tdb_spi = reserve_spi(rdomain,
-		    sprng->sadb_spirange_min, sprng->sadb_spirange_max,
-		    &sa1->tdb_src, &sa1->tdb_dst, sa1->tdb_sproto, &rval);
+		sa1->tdb_spi = reserve_spi(rdomain, sprng->sadb_spirange_min,
+		    sprng->sadb_spirange_max, &sa1->tdb_src, &sa1->tdb_dst, sa1->tdb_sproto, &rval);
 		if (sa1->tdb_spi == 0) {
 			NET_UNLOCK();
 			goto ret;
@@ -1256,36 +1225,29 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		bckptr = freeme;
 
 		/* We really only care about the SPI, but we'll export the SA */
-		export_sa((void **) &bckptr, sa1);
+		export_sa((void **)&bckptr, sa1);
 		NET_UNLOCK();
 		break;
 
 	case SADB_UPDATE:
-		ssa = (struct sadb_sa *) headers[SADB_EXT_SA];
-		sunionp = (union sockaddr_union *) (headers[SADB_EXT_ADDRESS_DST] +
+		ssa = (struct sadb_sa *)headers[SADB_EXT_SA];
+		sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
 		    sizeof(struct sadb_address));
 
 		/* Either all or none of the flow must be included */
-		if ((headers[SADB_X_EXT_SRC_FLOW] ||
-		    headers[SADB_X_EXT_PROTOCOL] ||
-		    headers[SADB_X_EXT_FLOW_TYPE] ||
-		    headers[SADB_X_EXT_DST_FLOW] ||
-		    headers[SADB_X_EXT_SRC_MASK] ||
-		    headers[SADB_X_EXT_DST_MASK]) &&
-		    !(headers[SADB_X_EXT_SRC_FLOW] &&
-		    headers[SADB_X_EXT_PROTOCOL] &&
-		    headers[SADB_X_EXT_FLOW_TYPE] &&
-		    headers[SADB_X_EXT_DST_FLOW] &&
-		    headers[SADB_X_EXT_SRC_MASK] &&
-		    headers[SADB_X_EXT_DST_MASK])) {
+		if ((headers[SADB_X_EXT_SRC_FLOW] || headers[SADB_X_EXT_PROTOCOL] ||
+			headers[SADB_X_EXT_FLOW_TYPE] || headers[SADB_X_EXT_DST_FLOW] ||
+			headers[SADB_X_EXT_SRC_MASK] || headers[SADB_X_EXT_DST_MASK]) &&
+		    !(headers[SADB_X_EXT_SRC_FLOW] && headers[SADB_X_EXT_PROTOCOL] &&
+			headers[SADB_X_EXT_FLOW_TYPE] && headers[SADB_X_EXT_DST_FLOW] &&
+			headers[SADB_X_EXT_SRC_MASK] && headers[SADB_X_EXT_DST_MASK])) {
 			rval = EINVAL;
 			goto ret;
 		}
 #ifdef IPSEC
 		/* UDP encap has to be enabled and is only supported for ESP */
 		if (headers[SADB_X_EXT_UDPENCAP] &&
-		    (!udpencap_enable ||
-		    smsg->sadb_msg_satype != SADB_SATYPE_ESP)) {
+		    (!udpencap_enable || smsg->sadb_msg_satype != SADB_SATYPE_ESP)) {
 			rval = EINVAL;
 			goto ret;
 		}
@@ -1293,8 +1255,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 		/* Find TDB */
 		NET_LOCK();
-		sa2 = gettdb(rdomain, ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(smsg->sadb_msg_satype));
+		sa2 = gettdb(
+		    rdomain, ssa->sadb_sa_spi, sunionp, SADB_X_GETSPROTO(smsg->sadb_msg_satype));
 
 		/* If there's no such SA, we're done */
 		if (sa2 == NULL) {
@@ -1314,11 +1276,11 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			freeme = tdb_alloc(rdomain);
 			bzero(&ii, sizeof(struct ipsecinit));
 
-			newsa = (struct tdb *) freeme;
+			newsa = (struct tdb *)freeme;
 			newsa->tdb_satype = smsg->sadb_msg_satype;
 
-			if ((rval = pfkeyv2_get_proto_alg(newsa->tdb_satype,
-			    &newsa->tdb_sproto, &alg))) {
+			if ((rval = pfkeyv2_get_proto_alg(
+				 newsa->tdb_satype, &newsa->tdb_sproto, &alg))) {
 				tdb_free(freeme);
 				freeme = NULL;
 				NET_UNLOCK();
@@ -1327,34 +1289,23 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 			/* Initialize SA */
 			import_sa(newsa, headers[SADB_EXT_SA], &ii);
-			import_address(&newsa->tdb_src.sa,
-			    headers[SADB_EXT_ADDRESS_SRC]);
-			import_address(&newsa->tdb_dst.sa,
-			    headers[SADB_EXT_ADDRESS_DST]);
-			import_lifetime(newsa,
-			    headers[SADB_EXT_LIFETIME_CURRENT],
-			    PFKEYV2_LIFETIME_CURRENT);
-			import_lifetime(newsa, headers[SADB_EXT_LIFETIME_SOFT],
-			    PFKEYV2_LIFETIME_SOFT);
-			import_lifetime(newsa, headers[SADB_EXT_LIFETIME_HARD],
-			    PFKEYV2_LIFETIME_HARD);
-			import_key(&ii, headers[SADB_EXT_KEY_AUTH],
-			    PFKEYV2_AUTHENTICATION_KEY);
-			import_key(&ii, headers[SADB_EXT_KEY_ENCRYPT],
-			    PFKEYV2_ENCRYPTION_KEY);
+			import_address(&newsa->tdb_src.sa, headers[SADB_EXT_ADDRESS_SRC]);
+			import_address(&newsa->tdb_dst.sa, headers[SADB_EXT_ADDRESS_DST]);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_CURRENT], PFKEYV2_LIFETIME_CURRENT);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_SOFT], PFKEYV2_LIFETIME_SOFT);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_HARD], PFKEYV2_LIFETIME_HARD);
+			import_key(&ii, headers[SADB_EXT_KEY_AUTH], PFKEYV2_AUTHENTICATION_KEY);
+			import_key(&ii, headers[SADB_EXT_KEY_ENCRYPT], PFKEYV2_ENCRYPTION_KEY);
 			newsa->tdb_ids_swapped = 1; /* only on TDB_UPDATE */
-			import_identities(&newsa->tdb_ids,
-			    newsa->tdb_ids_swapped,
-			    headers[SADB_EXT_IDENTITY_SRC],
-			    headers[SADB_EXT_IDENTITY_DST]);
-			if ((rval = import_flow(&newsa->tdb_filter,
-			    &newsa->tdb_filtermask,
-			    headers[SADB_X_EXT_SRC_FLOW],
-			    headers[SADB_X_EXT_SRC_MASK],
-			    headers[SADB_X_EXT_DST_FLOW],
-			    headers[SADB_X_EXT_DST_MASK],
-			    headers[SADB_X_EXT_PROTOCOL],
-			    headers[SADB_X_EXT_FLOW_TYPE]))) {
+			import_identities(&newsa->tdb_ids, newsa->tdb_ids_swapped,
+			    headers[SADB_EXT_IDENTITY_SRC], headers[SADB_EXT_IDENTITY_DST]);
+			if ((rval = import_flow(&newsa->tdb_filter, &newsa->tdb_filtermask,
+				 headers[SADB_X_EXT_SRC_FLOW], headers[SADB_X_EXT_SRC_MASK],
+				 headers[SADB_X_EXT_DST_FLOW], headers[SADB_X_EXT_DST_MASK],
+				 headers[SADB_X_EXT_PROTOCOL], headers[SADB_X_EXT_FLOW_TYPE]))) {
 				tdb_free(freeme);
 				freeme = NULL;
 				NET_UNLOCK();
@@ -1388,7 +1339,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 			/* Delete old version of the SA, insert new one */
 			tdb_delete(sa2);
-			puttdb((struct tdb *) freeme);
+			puttdb((struct tdb *)freeme);
 			sa2 = freeme = NULL;
 		} else {
 			/*
@@ -1396,10 +1347,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			 * change lifetimes and some other information; we're
 			 * not allowed to change keys, addresses or identities.
 			 */
-			if (headers[SADB_EXT_KEY_AUTH] ||
-			    headers[SADB_EXT_KEY_ENCRYPT] ||
-			    headers[SADB_EXT_IDENTITY_SRC] ||
-			    headers[SADB_EXT_IDENTITY_DST] ||
+			if (headers[SADB_EXT_KEY_AUTH] || headers[SADB_EXT_KEY_ENCRYPT] ||
+			    headers[SADB_EXT_IDENTITY_SRC] || headers[SADB_EXT_IDENTITY_DST] ||
 			    headers[SADB_EXT_SENSITIVITY]) {
 				rval = EINVAL;
 				NET_UNLOCK();
@@ -1407,20 +1356,18 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			}
 
 			import_sa(sa2, headers[SADB_EXT_SA], NULL);
-			import_lifetime(sa2,
-			    headers[SADB_EXT_LIFETIME_CURRENT],
-			    PFKEYV2_LIFETIME_CURRENT);
-			import_lifetime(sa2, headers[SADB_EXT_LIFETIME_SOFT],
-			    PFKEYV2_LIFETIME_SOFT);
-			import_lifetime(sa2, headers[SADB_EXT_LIFETIME_HARD],
-			    PFKEYV2_LIFETIME_HARD);
+			import_lifetime(
+			    sa2, headers[SADB_EXT_LIFETIME_CURRENT], PFKEYV2_LIFETIME_CURRENT);
+			import_lifetime(
+			    sa2, headers[SADB_EXT_LIFETIME_SOFT], PFKEYV2_LIFETIME_SOFT);
+			import_lifetime(
+			    sa2, headers[SADB_EXT_LIFETIME_HARD], PFKEYV2_LIFETIME_HARD);
 			import_udpencap(sa2, headers[SADB_X_EXT_UDPENCAP]);
 #if NPF > 0
 			import_tag(sa2, headers[SADB_X_EXT_TAG]);
 			import_tap(sa2, headers[SADB_X_EXT_TAP]);
 #endif
-			if (headers[SADB_EXT_ADDRESS_SRC] ||
-			    headers[SADB_EXT_ADDRESS_PROXY]) {
+			if (headers[SADB_EXT_ADDRESS_SRC] || headers[SADB_EXT_ADDRESS_PROXY]) {
 				tdb_unlink(sa2);
 				import_address((struct sockaddr *)&sa2->tdb_src,
 				    headers[SADB_EXT_ADDRESS_SRC]);
@@ -1433,39 +1380,32 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 		break;
 	case SADB_ADD:
-		ssa = (struct sadb_sa *) headers[SADB_EXT_SA];
-		sunionp = (union sockaddr_union *) (headers[SADB_EXT_ADDRESS_DST] +
+		ssa = (struct sadb_sa *)headers[SADB_EXT_SA];
+		sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
 		    sizeof(struct sadb_address));
 
 		/* Either all or none of the flow must be included */
-		if ((headers[SADB_X_EXT_SRC_FLOW] ||
-		    headers[SADB_X_EXT_PROTOCOL] ||
-		    headers[SADB_X_EXT_FLOW_TYPE] ||
-		    headers[SADB_X_EXT_DST_FLOW] ||
-		    headers[SADB_X_EXT_SRC_MASK] ||
-		    headers[SADB_X_EXT_DST_MASK]) &&
-		    !(headers[SADB_X_EXT_SRC_FLOW] &&
-		    headers[SADB_X_EXT_PROTOCOL] &&
-		    headers[SADB_X_EXT_FLOW_TYPE] &&
-		    headers[SADB_X_EXT_DST_FLOW] &&
-		    headers[SADB_X_EXT_SRC_MASK] &&
-		    headers[SADB_X_EXT_DST_MASK])) {
+		if ((headers[SADB_X_EXT_SRC_FLOW] || headers[SADB_X_EXT_PROTOCOL] ||
+			headers[SADB_X_EXT_FLOW_TYPE] || headers[SADB_X_EXT_DST_FLOW] ||
+			headers[SADB_X_EXT_SRC_MASK] || headers[SADB_X_EXT_DST_MASK]) &&
+		    !(headers[SADB_X_EXT_SRC_FLOW] && headers[SADB_X_EXT_PROTOCOL] &&
+			headers[SADB_X_EXT_FLOW_TYPE] && headers[SADB_X_EXT_DST_FLOW] &&
+			headers[SADB_X_EXT_SRC_MASK] && headers[SADB_X_EXT_DST_MASK])) {
 			rval = EINVAL;
 			goto ret;
 		}
 #ifdef IPSEC
 		/* UDP encap has to be enabled and is only supported for ESP */
 		if (headers[SADB_X_EXT_UDPENCAP] &&
-		    (!udpencap_enable ||
-		    smsg->sadb_msg_satype != SADB_SATYPE_ESP)) {
+		    (!udpencap_enable || smsg->sadb_msg_satype != SADB_SATYPE_ESP)) {
 			rval = EINVAL;
 			goto ret;
 		}
 #endif /* IPSEC */
 
 		NET_LOCK();
-		sa2 = gettdb(rdomain, ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(smsg->sadb_msg_satype));
+		sa2 = gettdb(
+		    rdomain, ssa->sadb_sa_spi, sunionp, SADB_X_GETSPROTO(smsg->sadb_msg_satype));
 
 		/* We can't add an existing SA! */
 		if (sa2 != NULL) {
@@ -1486,15 +1426,15 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		freeme = tdb_alloc(rdomain);
 
 		{
-			struct tdb *newsa = (struct tdb *) freeme;
+			struct tdb *newsa = (struct tdb *)freeme;
 			struct ipsecinit ii;
 			int alg;
 
 			bzero(&ii, sizeof(struct ipsecinit));
 
 			newsa->tdb_satype = smsg->sadb_msg_satype;
-			if ((rval = pfkeyv2_get_proto_alg(newsa->tdb_satype,
-			    &newsa->tdb_sproto, &alg))) {
+			if ((rval = pfkeyv2_get_proto_alg(
+				 newsa->tdb_satype, &newsa->tdb_sproto, &alg))) {
 				tdb_free(freeme);
 				freeme = NULL;
 				NET_UNLOCK();
@@ -1502,37 +1442,26 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			}
 
 			import_sa(newsa, headers[SADB_EXT_SA], &ii);
-			import_address(&newsa->tdb_src.sa,
-			    headers[SADB_EXT_ADDRESS_SRC]);
-			import_address(&newsa->tdb_dst.sa,
-			    headers[SADB_EXT_ADDRESS_DST]);
+			import_address(&newsa->tdb_src.sa, headers[SADB_EXT_ADDRESS_SRC]);
+			import_address(&newsa->tdb_dst.sa, headers[SADB_EXT_ADDRESS_DST]);
 
-			import_lifetime(newsa,
-			    headers[SADB_EXT_LIFETIME_CURRENT],
-			    PFKEYV2_LIFETIME_CURRENT);
-			import_lifetime(newsa, headers[SADB_EXT_LIFETIME_SOFT],
-			    PFKEYV2_LIFETIME_SOFT);
-			import_lifetime(newsa, headers[SADB_EXT_LIFETIME_HARD],
-			    PFKEYV2_LIFETIME_HARD);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_CURRENT], PFKEYV2_LIFETIME_CURRENT);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_SOFT], PFKEYV2_LIFETIME_SOFT);
+			import_lifetime(
+			    newsa, headers[SADB_EXT_LIFETIME_HARD], PFKEYV2_LIFETIME_HARD);
 
-			import_key(&ii, headers[SADB_EXT_KEY_AUTH],
-			    PFKEYV2_AUTHENTICATION_KEY);
-			import_key(&ii, headers[SADB_EXT_KEY_ENCRYPT],
-			    PFKEYV2_ENCRYPTION_KEY);
+			import_key(&ii, headers[SADB_EXT_KEY_AUTH], PFKEYV2_AUTHENTICATION_KEY);
+			import_key(&ii, headers[SADB_EXT_KEY_ENCRYPT], PFKEYV2_ENCRYPTION_KEY);
 
-			import_identities(&newsa->tdb_ids,
-			    newsa->tdb_ids_swapped,
-			    headers[SADB_EXT_IDENTITY_SRC],
-			    headers[SADB_EXT_IDENTITY_DST]);
+			import_identities(&newsa->tdb_ids, newsa->tdb_ids_swapped,
+			    headers[SADB_EXT_IDENTITY_SRC], headers[SADB_EXT_IDENTITY_DST]);
 
-			if ((rval = import_flow(&newsa->tdb_filter,
-			    &newsa->tdb_filtermask,
-			    headers[SADB_X_EXT_SRC_FLOW],
-			    headers[SADB_X_EXT_SRC_MASK],
-			    headers[SADB_X_EXT_DST_FLOW],
-			    headers[SADB_X_EXT_DST_MASK],
-			    headers[SADB_X_EXT_PROTOCOL],
-			    headers[SADB_X_EXT_FLOW_TYPE]))) {
+			if ((rval = import_flow(&newsa->tdb_filter, &newsa->tdb_filtermask,
+				 headers[SADB_X_EXT_SRC_FLOW], headers[SADB_X_EXT_SRC_MASK],
+				 headers[SADB_X_EXT_DST_FLOW], headers[SADB_X_EXT_DST_MASK],
+				 headers[SADB_X_EXT_PROTOCOL], headers[SADB_X_EXT_FLOW_TYPE]))) {
 				tdb_free(freeme);
 				freeme = NULL;
 				NET_UNLOCK();
@@ -1564,21 +1493,20 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		}
 
 		/* Add TDB in table */
-		puttdb((struct tdb *) freeme);
+		puttdb((struct tdb *)freeme);
 		NET_UNLOCK();
 
 		freeme = NULL;
 		break;
 
 	case SADB_DELETE:
-		ssa = (struct sadb_sa *) headers[SADB_EXT_SA];
-		sunionp =
-		    (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
-			sizeof(struct sadb_address));
+		ssa = (struct sadb_sa *)headers[SADB_EXT_SA];
+		sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
+		    sizeof(struct sadb_address));
 
 		NET_LOCK();
-		sa2 = gettdb(rdomain, ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(smsg->sadb_msg_satype));
+		sa2 = gettdb(
+		    rdomain, ssa->sadb_sa_spi, sunionp, SADB_X_GETSPROTO(smsg->sadb_msg_satype));
 		if (sa2 == NULL) {
 			rval = ESRCH;
 			NET_UNLOCK();
@@ -1594,7 +1522,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 	case SADB_X_ASKPOLICY:
 		/* Get the relevant policy */
 		NET_LOCK();
-		ipa = ipsec_get_acquire(((struct sadb_x_policy *) headers[SADB_X_EXT_POLICY])->sadb_x_policy_seq);
+		ipa = ipsec_get_acquire(
+		    ((struct sadb_x_policy *)headers[SADB_X_EXT_POLICY])->sadb_x_policy_seq);
 		if (ipa == NULL) {
 			rval = ESRCH;
 			NET_UNLOCK();
@@ -1609,14 +1538,13 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		break;
 
 	case SADB_GET:
-		ssa = (struct sadb_sa *) headers[SADB_EXT_SA];
-		sunionp =
-		    (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
-			sizeof(struct sadb_address));
+		ssa = (struct sadb_sa *)headers[SADB_EXT_SA];
+		sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
+		    sizeof(struct sadb_address));
 
 		NET_LOCK();
-		sa2 = gettdb(rdomain, ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(smsg->sadb_msg_satype));
+		sa2 = gettdb(
+		    rdomain, ssa->sadb_sa_spi, sunionp, SADB_X_GETSPROTO(smsg->sadb_msg_satype));
 		if (sa2 == NULL) {
 			rval = ESRCH;
 			NET_UNLOCK();
@@ -1646,7 +1574,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			goto ret;
 		}
 
-		ssup = (struct sadb_supported *) freeme;
+		ssup = (struct sadb_supported *)freeme;
 		ssup->sadb_supported_len = freeme_sz / sizeof(uint64_t);
 
 		{
@@ -1658,19 +1586,17 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		headers[SADB_EXT_SUPPORTED_ENCRYPT] = freeme;
 
 		freeme2_sz = sizeof(struct sadb_supported) + sizeof(aalgs);
-		if (!(freeme2 = malloc(freeme2_sz, M_PFKEY,
-		    M_NOWAIT | M_ZERO))) {
+		if (!(freeme2 = malloc(freeme2_sz, M_PFKEY, M_NOWAIT | M_ZERO))) {
 			rval = ENOMEM;
 			goto ret;
 		}
 
 		/* Keep track what this socket has registered for */
 		s = keylock(kp);
-		kp->kcb_reg |=
-		    (1 << ((struct sadb_msg *)message)->sadb_msg_satype);
+		kp->kcb_reg |= (1 << ((struct sadb_msg *)message)->sadb_msg_satype);
 		keyunlock(kp, s);
 
-		ssup = (struct sadb_supported *) freeme2;
+		ssup = (struct sadb_supported *)freeme2;
 		ssup->sadb_supported_len = freeme2_sz / sizeof(uint64_t);
 
 		{
@@ -1682,13 +1608,12 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		headers[SADB_EXT_SUPPORTED_AUTH] = freeme2;
 
 		freeme3_sz = sizeof(struct sadb_supported) + sizeof(calgs);
-		if (!(freeme3 = malloc(freeme3_sz, M_PFKEY,
-		    M_NOWAIT | M_ZERO))) {
+		if (!(freeme3 = malloc(freeme3_sz, M_PFKEY, M_NOWAIT | M_ZERO))) {
 			rval = ENOMEM;
 			goto ret;
 		}
 
-		ssup = (struct sadb_supported *) freeme3;
+		ssup = (struct sadb_supported *)freeme3;
 		ssup->sadb_supported_len = freeme3_sz / sizeof(uint64_t);
 
 		{
@@ -1722,8 +1647,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 #ifdef TCP_SIGNATURE
 		case SADB_X_SATYPE_TCPSIGNATURE:
 #endif /* TCP_SIGNATURE */
-			tdb_walk(rdomain, pfkeyv2_sa_flush,
-			    (u_int8_t *) &(smsg->sadb_msg_satype));
+			tdb_walk(rdomain, pfkeyv2_sa_flush, (u_int8_t *)&(smsg->sadb_msg_satype));
 
 			break;
 
@@ -1734,10 +1658,9 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 		break;
 
-	case SADB_DUMP:
-	{
+	case SADB_DUMP: {
 		struct dump_state dump_state;
-		dump_state.sadb_msg = (struct sadb_msg *) headers[0];
+		dump_state.sadb_msg = (struct sadb_msg *)headers[0];
 		dump_state.socket = so;
 
 		NET_LOCK();
@@ -1747,36 +1670,33 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			goto realret;
 		if ((rval == ENOMEM) || (rval == ENOBUFS))
 			rval = 0;
-	}
-	break;
+	} break;
 
-	case SADB_X_GRPSPIS:
-	{
+	case SADB_X_GRPSPIS: {
 		struct tdb *tdb1, *tdb2, *tdb3;
 		struct sadb_protocol *sa_proto;
 
-		ssa = (struct sadb_sa *) headers[SADB_EXT_SA];
-		sunionp = (union sockaddr_union *) (headers[SADB_EXT_ADDRESS_DST] +
+		ssa = (struct sadb_sa *)headers[SADB_EXT_SA];
+		sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
 		    sizeof(struct sadb_address));
 
 		NET_LOCK();
-		tdb1 = gettdb(rdomain, ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(smsg->sadb_msg_satype));
+		tdb1 = gettdb(
+		    rdomain, ssa->sadb_sa_spi, sunionp, SADB_X_GETSPROTO(smsg->sadb_msg_satype));
 		if (tdb1 == NULL) {
 			rval = ESRCH;
 			NET_UNLOCK();
 			goto ret;
 		}
 
-		ssa = (struct sadb_sa *) headers[SADB_X_EXT_SA2];
-		sunionp = (union sockaddr_union *) (headers[SADB_X_EXT_DST2] +
+		ssa = (struct sadb_sa *)headers[SADB_X_EXT_SA2];
+		sunionp = (union sockaddr_union *)(headers[SADB_X_EXT_DST2] +
 		    sizeof(struct sadb_address));
-		sa_proto = (struct sadb_protocol *) headers[SADB_X_EXT_SATYPE2];
+		sa_proto = (struct sadb_protocol *)headers[SADB_X_EXT_SATYPE2];
 
 		/* optionally fetch tdb2 from rdomain2 */
-		tdb2 = gettdb(srdomain ? srdomain->sadb_x_rdomain_dom2 : rdomain,
-		    ssa->sadb_sa_spi, sunionp,
-		    SADB_X_GETSPROTO(sa_proto->sadb_protocol_proto));
+		tdb2 = gettdb(srdomain ? srdomain->sadb_x_rdomain_dom2 : rdomain, ssa->sadb_sa_spi,
+		    sunionp, SADB_X_GETSPROTO(sa_proto->sadb_protocol_proto));
 		if (tdb2 == NULL) {
 			rval = ESRCH;
 			NET_UNLOCK();
@@ -1792,26 +1712,22 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			}
 
 		/* Maintenance */
-		if ((tdb1->tdb_onext) &&
-		    (tdb1->tdb_onext->tdb_inext == tdb1))
+		if ((tdb1->tdb_onext) && (tdb1->tdb_onext->tdb_inext == tdb1))
 			tdb1->tdb_onext->tdb_inext = NULL;
 
-		if ((tdb2->tdb_inext) &&
-		    (tdb2->tdb_inext->tdb_onext == tdb2))
+		if ((tdb2->tdb_inext) && (tdb2->tdb_inext->tdb_onext == tdb2))
 			tdb2->tdb_inext->tdb_onext = NULL;
 
 		/* Link them */
 		tdb1->tdb_onext = tdb2;
 		tdb2->tdb_inext = tdb1;
 		NET_UNLOCK();
-	}
-	break;
+	} break;
 
 	case SADB_X_DELFLOW:
 		delflag = 1;
 		/*FALLTHROUGH*/
-	case SADB_X_ADDFLOW:
-	{
+	case SADB_X_ADDFLOW: {
 		struct sadb_protocol *sab;
 		union sockaddr_union *ssrc;
 		int exists = 0;
@@ -1823,7 +1739,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			goto ret;
 		}
 
-		sab = (struct sadb_protocol *) headers[SADB_X_EXT_FLOW_TYPE];
+		sab = (struct sadb_protocol *)headers[SADB_X_EXT_FLOW_TYPE];
 
 		if ((sab->sadb_protocol_direction != IPSP_DIRECTION_IN) &&
 		    (sab->sadb_protocol_direction != IPSP_DIRECTION_OUT)) {
@@ -1837,24 +1753,21 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			smsg->sadb_msg_satype = SADB_SATYPE_ESP;
 
 		if (headers[SADB_EXT_ADDRESS_DST])
-			sunionp = (union sockaddr_union *)
-			    (headers[SADB_EXT_ADDRESS_DST] +
-				sizeof(struct sadb_address));
+			sunionp = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_DST] +
+			    sizeof(struct sadb_address));
 		else
 			sunionp = NULL;
 
 		if (headers[SADB_EXT_ADDRESS_SRC])
-			ssrc = (union sockaddr_union *)
-			    (headers[SADB_EXT_ADDRESS_SRC] +
-				sizeof(struct sadb_address));
+			ssrc = (union sockaddr_union *)(headers[SADB_EXT_ADDRESS_SRC] +
+			    sizeof(struct sadb_address));
 		else
 			ssrc = NULL;
 
-		if ((rval = import_flow(&encapdst, &encapnetmask,
-		    headers[SADB_X_EXT_SRC_FLOW], headers[SADB_X_EXT_SRC_MASK],
-		    headers[SADB_X_EXT_DST_FLOW], headers[SADB_X_EXT_DST_MASK],
-		    headers[SADB_X_EXT_PROTOCOL],
-		    headers[SADB_X_EXT_FLOW_TYPE]))) {
+		if ((rval = import_flow(&encapdst, &encapnetmask, headers[SADB_X_EXT_SRC_FLOW],
+			 headers[SADB_X_EXT_SRC_MASK], headers[SADB_X_EXT_DST_FLOW],
+			 headers[SADB_X_EXT_DST_MASK], headers[SADB_X_EXT_PROTOCOL],
+			 headers[SADB_X_EXT_FLOW_TYPE]))) {
 			NET_UNLOCK();
 			goto ret;
 		}
@@ -1864,10 +1777,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			ipo = (struct ipsec_policy *)rn;
 
 			/* Verify that the entry is identical */
-			if (bcmp(&ipo->ipo_addr, &encapdst,
-				sizeof(struct sockaddr_encap)) ||
-			    bcmp(&ipo->ipo_mask, &encapnetmask,
-				sizeof(struct sockaddr_encap)))
+			if (bcmp(&ipo->ipo_addr, &encapdst, sizeof(struct sockaddr_encap)) ||
+			    bcmp(&ipo->ipo_mask, &encapnetmask, sizeof(struct sockaddr_encap)))
 				ipo = NULL; /* Fall through */
 			else
 				exists = 1;
@@ -1879,8 +1790,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		 * it if the new one is also static.
 		 */
 		if (exists && (ipo->ipo_flags & IPSP_POLICY_STATIC)) {
-			if (!(sab->sadb_protocol_flags &
-				SADB_X_POLICYFLAGS_POLICY)) {
+			if (!(sab->sadb_protocol_flags & SADB_X_POLICYFLAGS_POLICY)) {
 				NET_UNLOCK();
 				goto ret;
 			}
@@ -1902,7 +1812,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 		if (!exists) {
 			/* Allocate policy entry */
-			ipo = pool_get(&ipsec_policy_pool, PR_NOWAIT|PR_ZERO);
+			ipo = pool_get(&ipsec_policy_pool, PR_NOWAIT | PR_ZERO);
 			if (ipo == NULL) {
 				rval = ENOMEM;
 				NET_UNLOCK();
@@ -1950,14 +1860,12 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			ipo->ipo_flags |= IPSP_POLICY_STATIC;
 
 		if (sunionp)
-			bcopy(sunionp, &ipo->ipo_dst,
-			    sizeof(union sockaddr_union));
+			bcopy(sunionp, &ipo->ipo_dst, sizeof(union sockaddr_union));
 		else
 			bzero(&ipo->ipo_dst, sizeof(union sockaddr_union));
 
 		if (ssrc)
-			bcopy(ssrc, &ipo->ipo_src,
-			    sizeof(union sockaddr_union));
+			bcopy(ssrc, &ipo->ipo_src, sizeof(union sockaddr_union));
 		else
 			bzero(&ipo->ipo_src, sizeof(union sockaddr_union));
 
@@ -1985,10 +1893,8 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 		/* Flow type */
 		if (!exists) {
 			/* Initialize policy entry */
-			bcopy(&encapdst, &ipo->ipo_addr,
-			    sizeof(struct sockaddr_encap));
-			bcopy(&encapnetmask, &ipo->ipo_mask,
-			    sizeof(struct sockaddr_encap));
+			bcopy(&encapdst, &ipo->ipo_addr, sizeof(struct sockaddr_encap));
+			bcopy(&encapnetmask, &ipo->ipo_mask, sizeof(struct sockaddr_encap));
 
 			TAILQ_INIT(&ipo->ipo_acquires);
 			ipo->ipo_rdomain = rdomain;
@@ -1996,13 +1902,12 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 
 			/* Add SPD entry */
 			if ((rnh = spd_table_get(rdomain)) == NULL ||
-			    (rn = rn_addroute((caddr_t)&ipo->ipo_addr,
-				(caddr_t)&ipo->ipo_mask, rnh,
-				ipo->ipo_nodes, 0)) == NULL) {
+			    (rn = rn_addroute((caddr_t)&ipo->ipo_addr, (caddr_t)&ipo->ipo_mask, rnh,
+				 ipo->ipo_nodes, 0)) == NULL) {
 				/* Remove from linked list of policies on TDB */
 				if (ipo->ipo_tdb)
-					TAILQ_REMOVE(&ipo->ipo_tdb->tdb_policy_head,
-					    ipo, ipo_tdb_next);
+					TAILQ_REMOVE(
+					    &ipo->ipo_tdb->tdb_policy_head, ipo, ipo_tdb_next);
 
 				if (ipo->ipo_ids)
 					ipsp_ids_free(ipo->ipo_ids);
@@ -2024,8 +1929,7 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			ipo->ipo_last_searched = ipo->ipo_flags = 0;
 		}
 		NET_UNLOCK();
-	}
-	break;
+	} break;
 
 	case SADB_X_PROMISC:
 		if (len >= 2 * sizeof(struct sadb_msg)) {
@@ -2034,12 +1938,12 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			if ((rval = pfdatatopacket(message, len, &packet)) != 0)
 				goto ret;
 
-			SRPL_FOREACH(bkp, &sr, &pkptable.pkp_list, kcb_list) {
+			SRPL_FOREACH(bkp, &sr, &pkptable.pkp_list, kcb_list)
+			{
 				if (bkp == kp || bkp->kcb_rdomain != kp->kcb_rdomain)
 					continue;
 
-				if (!smsg->sadb_msg_seq ||
-				    (smsg->sadb_msg_seq == kp->kcb_pid)) {
+				if (!smsg->sadb_msg_seq || (smsg->sadb_msg_seq == kp->kcb_pid)) {
 					s = keylock(bkp);
 					pfkey_sendup(bkp, packet, 1);
 					keyunlock(bkp, s);
@@ -2055,20 +1959,17 @@ pfkeyv2_send(struct socket *so, void *message, int len)
 			}
 
 			s = keylock(kp);
-			i = (kp->kcb_flags &
-			    PFKEYV2_SOCKETFLAGS_PROMISC) ? 1 : 0;
+			i = (kp->kcb_flags & PFKEYV2_SOCKETFLAGS_PROMISC) ? 1 : 0;
 			j = smsg->sadb_msg_satype ? 1 : 0;
 
 			if (i ^ j) {
 				if (j) {
-					kp->kcb_flags |=
-					    PFKEYV2_SOCKETFLAGS_PROMISC;
+					kp->kcb_flags |= PFKEYV2_SOCKETFLAGS_PROMISC;
 					mtx_enter(&pfkeyv2_mtx);
 					npromisc++;
 					mtx_leave(&pfkeyv2_mtx);
 				} else {
-					kp->kcb_flags &=
-					    ~PFKEYV2_SOCKETFLAGS_PROMISC;
+					kp->kcb_flags &= ~PFKEYV2_SOCKETFLAGS_PROMISC;
 					mtx_enter(&pfkeyv2_mtx);
 					npromisc--;
 					mtx_leave(&pfkeyv2_mtx);
@@ -2100,15 +2001,14 @@ ret:
 			if (headers[i])
 				seen |= (1LL << i);
 
-		if ((seen & sadb_exts_allowed_out[smsg->sadb_msg_type])
-		    != seen) {
-		    	rval = EPERM;
+		if ((seen & sadb_exts_allowed_out[smsg->sadb_msg_type]) != seen) {
+			rval = EPERM;
 			goto realret;
 		}
 
 		if ((seen & sadb_exts_required_out[smsg->sadb_msg_type]) !=
 		    sadb_exts_required_out[smsg->sadb_msg_type]) {
-		    	rval = EPERM;
+			rval = EPERM;
 			goto realret;
 		}
 	}
@@ -2135,8 +2035,8 @@ realret:
  * Send an ACQUIRE message to key management, to get a new SA.
  */
 int
-pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
-    union sockaddr_union *laddr, u_int32_t *seq, struct sockaddr_encap *ddst)
+pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw, union sockaddr_union *laddr,
+    u_int32_t *seq, struct sockaddr_encap *ddst)
 {
 	void *p, *headers[SADB_EXT_MAX + 1], *buffer = NULL;
 	struct sadb_comb *sadb_comb;
@@ -2159,10 +2059,9 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 
 	/* How large a buffer do we need... XXX we only do one proposal for now */
 	i = sizeof(struct sadb_msg) +
-	    (laddr == NULL ? 0 : sizeof(struct sadb_address) +
-		PADUP(ipo->ipo_src.sa.sa_len)) +
-	    sizeof(struct sadb_address) + PADUP(gw->sa.sa_len) +
-	    sizeof(struct sadb_prop) + 1 * sizeof(struct sadb_comb);
+	    (laddr == NULL ? 0 : sizeof(struct sadb_address) + PADUP(ipo->ipo_src.sa.sa_len)) +
+	    sizeof(struct sadb_address) + PADUP(gw->sa.sa_len) + sizeof(struct sadb_prop) +
+	    1 * sizeof(struct sadb_comb);
 
 	if (ipo->ipo_ids) {
 		i += sizeof(struct sadb_ident) + PADUP(ipo->ipo_ids->id_local->len);
@@ -2182,7 +2081,7 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 	headers[0] = p;
 	p += sizeof(struct sadb_msg);
 
-	smsg = (struct sadb_msg *) headers[0];
+	smsg = (struct sadb_msg *)headers[0];
 	smsg->sadb_msg_version = PF_KEY_V2;
 	smsg->sadb_msg_type = SADB_ACQUIRE;
 	smsg->sadb_msg_len = i / sizeof(uint64_t);
@@ -2198,31 +2097,30 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 	if (laddr) {
 		headers[SADB_EXT_ADDRESS_SRC] = p;
 		p += sizeof(struct sadb_address) + PADUP(laddr->sa.sa_len);
-		sadd = (struct sadb_address *) headers[SADB_EXT_ADDRESS_SRC];
-		sadd->sadb_address_len = (sizeof(struct sadb_address) +
-		    laddr->sa.sa_len + sizeof(uint64_t) - 1) /
+		sadd = (struct sadb_address *)headers[SADB_EXT_ADDRESS_SRC];
+		sadd->sadb_address_len =
+		    (sizeof(struct sadb_address) + laddr->sa.sa_len + sizeof(uint64_t) - 1) /
 		    sizeof(uint64_t);
-		bcopy(laddr, headers[SADB_EXT_ADDRESS_SRC] +
-		    sizeof(struct sadb_address), laddr->sa.sa_len);
+		bcopy(laddr, headers[SADB_EXT_ADDRESS_SRC] + sizeof(struct sadb_address),
+		    laddr->sa.sa_len);
 	}
 
 	headers[SADB_EXT_ADDRESS_DST] = p;
 	p += sizeof(struct sadb_address) + PADUP(gw->sa.sa_len);
-	sadd = (struct sadb_address *) headers[SADB_EXT_ADDRESS_DST];
-	sadd->sadb_address_len = (sizeof(struct sadb_address) +
-	    gw->sa.sa_len + sizeof(uint64_t) - 1) / sizeof(uint64_t);
-	bcopy(gw, headers[SADB_EXT_ADDRESS_DST] + sizeof(struct sadb_address),
-	    gw->sa.sa_len);
+	sadd = (struct sadb_address *)headers[SADB_EXT_ADDRESS_DST];
+	sadd->sadb_address_len =
+	    (sizeof(struct sadb_address) + gw->sa.sa_len + sizeof(uint64_t) - 1) / sizeof(uint64_t);
+	bcopy(gw, headers[SADB_EXT_ADDRESS_DST] + sizeof(struct sadb_address), gw->sa.sa_len);
 
 	if (ipo->ipo_ids)
 		export_identities(&p, ipo->ipo_ids, 0, headers);
 
 	headers[SADB_EXT_PROPOSAL] = p;
 	p += sizeof(struct sadb_prop);
-	sa_prop = (struct sadb_prop *) headers[SADB_EXT_PROPOSAL];
+	sa_prop = (struct sadb_prop *)headers[SADB_EXT_PROPOSAL];
 	sa_prop->sadb_prop_num = 1; /* XXX One proposal only */
-	sa_prop->sadb_prop_len = (sizeof(struct sadb_prop) +
-	    (sizeof(struct sadb_comb) * sa_prop->sadb_prop_num)) /
+	sa_prop->sadb_prop_len =
+	    (sizeof(struct sadb_prop) + (sizeof(struct sadb_comb) * sa_prop->sadb_prop_num)) /
 	    sizeof(uint64_t);
 
 	sadb_comb = p;
@@ -2236,41 +2134,34 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 
 		/* Set the encryption algorithm */
 		if (ipo->ipo_sproto == IPPROTO_ESP) {
-			if (!strncasecmp(ipsec_def_enc, "aes",
-			    sizeof("aes"))) {
+			if (!strncasecmp(ipsec_def_enc, "aes", sizeof("aes"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_EALG_AES;
 				sadb_comb->sadb_comb_encrypt_minbits = 128;
 				sadb_comb->sadb_comb_encrypt_maxbits = 256;
-			} else if (!strncasecmp(ipsec_def_enc, "aesctr",
-			    sizeof("aesctr"))) {
+			} else if (!strncasecmp(ipsec_def_enc, "aesctr", sizeof("aesctr"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_EALG_AESCTR;
-				sadb_comb->sadb_comb_encrypt_minbits = 128+32;
-				sadb_comb->sadb_comb_encrypt_maxbits = 256+32;
-			} else if (!strncasecmp(ipsec_def_enc, "3des",
-			    sizeof("3des"))) {
+				sadb_comb->sadb_comb_encrypt_minbits = 128 + 32;
+				sadb_comb->sadb_comb_encrypt_maxbits = 256 + 32;
+			} else if (!strncasecmp(ipsec_def_enc, "3des", sizeof("3des"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_EALG_3DESCBC;
 				sadb_comb->sadb_comb_encrypt_minbits = 192;
 				sadb_comb->sadb_comb_encrypt_maxbits = 192;
-			} else if (!strncasecmp(ipsec_def_enc, "blowfish",
-			    sizeof("blowfish"))) {
+			} else if (!strncasecmp(ipsec_def_enc, "blowfish", sizeof("blowfish"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_EALG_BLF;
 				sadb_comb->sadb_comb_encrypt_minbits = 40;
 				sadb_comb->sadb_comb_encrypt_maxbits = BLF_MAXKEYLEN * 8;
-			} else if (!strncasecmp(ipsec_def_enc, "cast128",
-			    sizeof("cast128"))) {
+			} else if (!strncasecmp(ipsec_def_enc, "cast128", sizeof("cast128"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_EALG_CAST;
 				sadb_comb->sadb_comb_encrypt_minbits = 40;
 				sadb_comb->sadb_comb_encrypt_maxbits = 128;
 			}
 		} else if (ipo->ipo_sproto == IPPROTO_IPCOMP) {
 			/* Set the compression algorithm */
-			if (!strncasecmp(ipsec_def_comp, "deflate",
-			    sizeof("deflate"))) {
+			if (!strncasecmp(ipsec_def_comp, "deflate", sizeof("deflate"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_CALG_DEFLATE;
 				sadb_comb->sadb_comb_encrypt_minbits = 0;
 				sadb_comb->sadb_comb_encrypt_maxbits = 0;
-			} else if (!strncasecmp(ipsec_def_comp, "lzs",
-			    sizeof("lzs"))) {
+			} else if (!strncasecmp(ipsec_def_comp, "lzs", sizeof("lzs"))) {
 				sadb_comb->sadb_comb_encrypt = SADB_X_CALG_LZS;
 				sadb_comb->sadb_comb_encrypt_minbits = 0;
 				sadb_comb->sadb_comb_encrypt_maxbits = 0;
@@ -2278,33 +2169,28 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 		}
 
 		/* Set the authentication algorithm */
-		if (!strncasecmp(ipsec_def_auth, "hmac-sha1",
-		    sizeof("hmac-sha1"))) {
+		if (!strncasecmp(ipsec_def_auth, "hmac-sha1", sizeof("hmac-sha1"))) {
 			sadb_comb->sadb_comb_auth = SADB_AALG_SHA1HMAC;
 			sadb_comb->sadb_comb_auth_minbits = 160;
 			sadb_comb->sadb_comb_auth_maxbits = 160;
-		} else if (!strncasecmp(ipsec_def_auth, "hmac-ripemd160",
-		    sizeof("hmac_ripemd160"))) {
+		} else if (!strncasecmp(
+			       ipsec_def_auth, "hmac-ripemd160", sizeof("hmac_ripemd160"))) {
 			sadb_comb->sadb_comb_auth = SADB_X_AALG_RIPEMD160HMAC;
 			sadb_comb->sadb_comb_auth_minbits = 160;
 			sadb_comb->sadb_comb_auth_maxbits = 160;
-		} else if (!strncasecmp(ipsec_def_auth, "hmac-md5",
-		    sizeof("hmac-md5"))) {
+		} else if (!strncasecmp(ipsec_def_auth, "hmac-md5", sizeof("hmac-md5"))) {
 			sadb_comb->sadb_comb_auth = SADB_AALG_MD5HMAC;
 			sadb_comb->sadb_comb_auth_minbits = 128;
 			sadb_comb->sadb_comb_auth_maxbits = 128;
-		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-256",
-		    sizeof("hmac-sha2-256"))) {
+		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-256", sizeof("hmac-sha2-256"))) {
 			sadb_comb->sadb_comb_auth = SADB_X_AALG_SHA2_256;
 			sadb_comb->sadb_comb_auth_minbits = 256;
 			sadb_comb->sadb_comb_auth_maxbits = 256;
-		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-384",
-		    sizeof("hmac-sha2-384"))) {
+		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-384", sizeof("hmac-sha2-384"))) {
 			sadb_comb->sadb_comb_auth = SADB_X_AALG_SHA2_384;
 			sadb_comb->sadb_comb_auth_minbits = 384;
 			sadb_comb->sadb_comb_auth_maxbits = 384;
-		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-512",
-		    sizeof("hmac-sha2-512"))) {
+		} else if (!strncasecmp(ipsec_def_auth, "hmac-sha2-512", sizeof("hmac-sha2-512"))) {
 			sadb_comb->sadb_comb_auth = SADB_X_AALG_SHA2_512;
 			sadb_comb->sadb_comb_auth_minbits = 512;
 			sadb_comb->sadb_comb_auth_maxbits = 512;
@@ -2326,9 +2212,8 @@ pfkeyv2_acquire(struct ipsec_policy *ipo, union sockaddr_union *gw,
 	}
 
 	/* Send the ACQUIRE message to all compliant registered listeners. */
-	if ((rval = pfkeyv2_sendmessage(headers,
-	    PFKEYV2_SENDMESSAGE_REGISTERED, NULL, smsg->sadb_msg_satype, 0,
-	    ipo->ipo_rdomain)) != 0)
+	if ((rval = pfkeyv2_sendmessage(headers, PFKEYV2_SENDMESSAGE_REGISTERED, NULL,
+		 smsg->sadb_msg_satype, 0, ipo->ipo_rdomain)) != 0)
 		goto ret;
 
 	rval = 0;
@@ -2348,7 +2233,7 @@ ret:
 int
 pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 {
-	void *p, *headers[SADB_EXT_MAX+1], *buffer = NULL;
+	void *p, *headers[SADB_EXT_MAX + 1], *buffer = NULL;
 	struct sadb_msg *smsg;
 	int rval = 0;
 	int i;
@@ -2368,8 +2253,7 @@ pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 		goto ret;
 	}
 
-	i = sizeof(struct sadb_msg) + sizeof(struct sadb_sa) +
-	    2 * sizeof(struct sadb_lifetime) +
+	i = sizeof(struct sadb_msg) + sizeof(struct sadb_sa) + 2 * sizeof(struct sadb_lifetime) +
 	    sizeof(struct sadb_address) + PADUP(tdb->tdb_src.sa.sa_len) +
 	    sizeof(struct sadb_address) + PADUP(tdb->tdb_dst.sa.sa_len);
 
@@ -2385,7 +2269,7 @@ pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 	headers[0] = p;
 	p += sizeof(struct sadb_msg);
 
-	smsg = (struct sadb_msg *) headers[0];
+	smsg = (struct sadb_msg *)headers[0];
 	smsg->sadb_msg_version = PF_KEY_V2;
 	smsg->sadb_msg_type = SADB_EXPIRE;
 	smsg->sadb_msg_satype = tdb->tdb_satype;
@@ -2402,8 +2286,8 @@ pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 	export_lifetime(&p, tdb, PFKEYV2_LIFETIME_CURRENT);
 
 	headers[type] = p;
-	export_lifetime(&p, tdb, type == SADB_EXT_LIFETIME_SOFT ?
-	    PFKEYV2_LIFETIME_SOFT : PFKEYV2_LIFETIME_HARD);
+	export_lifetime(&p, tdb,
+	    type == SADB_EXT_LIFETIME_SOFT ? PFKEYV2_LIFETIME_SOFT : PFKEYV2_LIFETIME_HARD);
 
 	headers[SADB_EXT_ADDRESS_SRC] = p;
 	export_address(&p, &tdb->tdb_src.sa);
@@ -2411,19 +2295,18 @@ pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 	headers[SADB_EXT_ADDRESS_DST] = p;
 	export_address(&p, &tdb->tdb_dst.sa);
 
-	if ((rval = pfkeyv2_sendmessage(headers, PFKEYV2_SENDMESSAGE_BROADCAST,
-	    NULL, 0, 0, tdb->tdb_rdomain)) != 0)
+	if ((rval = pfkeyv2_sendmessage(
+		 headers, PFKEYV2_SENDMESSAGE_BROADCAST, NULL, 0, 0, tdb->tdb_rdomain)) != 0)
 		goto ret;
 	/* XXX */
 	if (tdb->tdb_rdomain != tdb->tdb_rdomain_post)
-		if ((rval = pfkeyv2_sendmessage(headers,
-		    PFKEYV2_SENDMESSAGE_BROADCAST, NULL, 0, 0,
-		    tdb->tdb_rdomain_post)) != 0)
+		if ((rval = pfkeyv2_sendmessage(headers, PFKEYV2_SENDMESSAGE_BROADCAST, NULL, 0, 0,
+			 tdb->tdb_rdomain_post)) != 0)
 			goto ret;
 
 	rval = 0;
 
- ret:
+ret:
 	if (buffer != NULL) {
 		explicit_bzero(buffer, i);
 		free(buffer, M_PFKEY, i);
@@ -2433,10 +2316,10 @@ pfkeyv2_expire(struct tdb *tdb, u_int16_t type)
 }
 
 struct pfkeyv2_sysctl_walk {
-	void		*w_where;
-	size_t		 w_len;
-	int		 w_op;
-	u_int8_t	 w_satype;
+	void *w_where;
+	size_t w_len;
+	int w_op;
+	u_int8_t w_satype;
 };
 
 int
@@ -2447,17 +2330,15 @@ pfkeyv2_sysctl_walker(struct tdb *tdb, void *arg, int last)
 	int error = 0;
 	int usedlen, buflen, i;
 
-	if (w->w_satype != SADB_SATYPE_UNSPEC &&
-	    w->w_satype != tdb->tdb_satype)
+	if (w->w_satype != SADB_SATYPE_UNSPEC && w->w_satype != tdb->tdb_satype)
 		return (0);
 
 	if (w->w_where) {
-		void *headers[SADB_EXT_MAX+1];
+		void *headers[SADB_EXT_MAX + 1];
 		struct sadb_msg msg;
 
 		bzero(headers, sizeof(headers));
-		if ((error = pfkeyv2_get(tdb, headers, &buffer, &buflen,
-		    &usedlen)) != 0)
+		if ((error = pfkeyv2_get(tdb, headers, &buffer, &buflen, &usedlen)) != 0)
 			goto done;
 		if (w->w_len < sizeof(msg) + usedlen) {
 			error = ENOMEM;
@@ -2476,8 +2357,7 @@ pfkeyv2_sysctl_walker(struct tdb *tdb, void *arg, int last)
 		/* set extension type */
 		for (i = 1; i <= SADB_EXT_MAX; i++)
 			if (headers[i])
-				((struct sadb_ext *)
-				    headers[i])->sadb_ext_type = i;
+				((struct sadb_ext *)headers[i])->sadb_ext_type = i;
 		if ((error = copyout(buffer, w->w_where, usedlen)) != 0)
 			goto done;
 		w->w_where += usedlen;
@@ -2498,8 +2378,7 @@ done:
 }
 
 int
-pfkeyv2_dump_policy(struct ipsec_policy *ipo, void **headers, void **buffer,
-    int *lenp)
+pfkeyv2_dump_policy(struct ipsec_policy *ipo, void **headers, void **buffer, int *lenp)
 {
 	int i, rval, perm;
 	void *p;
@@ -2591,8 +2470,7 @@ pfkeyv2_dump_policy(struct ipsec_policy *ipo, void **headers, void **buffer,
 	}
 
 	/* Get actual flow. */
-	export_flow(&p, ipo->ipo_type, &ipo->ipo_addr, &ipo->ipo_mask,
-	    headers);
+	export_flow(&p, ipo->ipo_type, &ipo->ipo_addr, &ipo->ipo_mask, headers);
 
 	/* Add ids only when we are root. */
 	perm = suser(curproc);
@@ -2605,8 +2483,7 @@ ret:
 }
 
 int
-pfkeyv2_sysctl_policydumper(struct ipsec_policy *ipo, void *arg,
-    unsigned int tableid)
+pfkeyv2_sysctl_policydumper(struct ipsec_policy *ipo, void *arg, unsigned int tableid)
 {
 	struct pfkeyv2_sysctl_walk *w = (struct pfkeyv2_sysctl_walk *)arg;
 	void *buffer = 0;
@@ -2617,8 +2494,7 @@ pfkeyv2_sysctl_policydumper(struct ipsec_policy *ipo, void *arg,
 		struct sadb_msg msg;
 
 		bzero(headers, sizeof(headers));
-		if ((error = pfkeyv2_dump_policy(ipo, headers, &buffer,
-		    &buflen)) != 0)
+		if ((error = pfkeyv2_dump_policy(ipo, headers, &buffer, &buflen)) != 0)
 			goto done;
 		if (w->w_len < buflen) {
 			error = ENOMEM;
@@ -2644,15 +2520,13 @@ pfkeyv2_sysctl_policydumper(struct ipsec_policy *ipo, void *arg,
 		/* set extension type */
 		for (i = 1; i <= SADB_EXT_MAX; i++)
 			if (headers[i])
-				((struct sadb_ext *)
-				    headers[i])->sadb_ext_type = i;
+				((struct sadb_ext *)headers[i])->sadb_ext_type = i;
 		if ((error = copyout(buffer, w->w_where, buflen)) != 0)
 			goto done;
 		w->w_where += buflen;
 		w->w_len -= buflen;
 	} else {
-		if ((error = pfkeyv2_dump_policy(ipo, NULL, NULL,
-		    &buflen)) != 0)
+		if ((error = pfkeyv2_dump_policy(ipo, NULL, NULL, &buflen)) != 0)
 			goto done;
 		w->w_len += buflen;
 		w->w_len += sizeof(struct sadb_msg);
@@ -2677,8 +2551,7 @@ pfkeyv2_policy_flush(struct ipsec_policy *ipo, void *arg, unsigned int tableid)
 }
 
 int
-pfkeyv2_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
-    void *new, size_t newlen)
+pfkeyv2_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *new, size_t newlen)
 {
 	struct pfkeyv2_sysctl_walk w;
 	int error = EINVAL;
@@ -2702,7 +2575,7 @@ pfkeyv2_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		tableid = curproc->p_p->ps_rtableid;
 	rdomain = rtable_l2(tableid);
 
-	switch(w.w_op) {
+	switch (w.w_op) {
 	case NET_KEY_SADB_DUMP:
 		if ((error = suser(curproc)) != 0)
 			return (error);
@@ -2717,8 +2590,7 @@ pfkeyv2_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
 
 	case NET_KEY_SPD_DUMP:
 		NET_LOCK();
-		error = spd_table_walk(rdomain,
-		    pfkeyv2_sysctl_policydumper, &w);
+		error = spd_table_walk(rdomain, pfkeyv2_sysctl_policydumper, &w);
 		NET_UNLOCK();
 		if (oldp)
 			*oldlenp = w.w_where - oldp;

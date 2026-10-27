@@ -25,8 +25,7 @@
 static struct doc *expr_recover(const struct expr_exec_arg *, void *);
 static struct doc *expr_recover_cast(const struct expr_exec_arg *, void *);
 static struct doc *expr_recover_generic(const struct expr_exec_arg *, void *);
-static struct doc *expr_doc_token(
-    struct token *, struct doc *, const char *, int, void *);
+static struct doc *expr_doc_token(struct token *, struct doc *, const char *, int, void *);
 
 /*
  * A preprocessor branch can interrupt a recovery construct before it is
@@ -129,10 +128,10 @@ static struct doc *
 expr_recover(const struct expr_exec_arg *ea, void *arg)
 {
 	struct parser_type type;
-	struct doc	  *dc = nullptr;
-	struct parser	  *pr = arg;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *lbrace, *tk;
+	struct doc *dc = nullptr;
+	struct parser *pr = arg;
+	struct lexer *lx = pr->pr_lx;
+	struct token *lbrace, *tk;
 
 	if (parser_type_peek(pr, &type, PARSER_TYPE_EXPR)) {
 		struct token *nx;
@@ -142,8 +141,7 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		    ((lexer_back_if(lx, TOKEN_LPAREN, nullptr) ||
 			 lexer_back_if(lx, TOKEN_COMMA, nullptr)) &&
 			((nx = token_next(type.end)) != nullptr &&
-			    (nx->tk_type == TOKEN_RPAREN ||
-				nx->tk_type == TOKEN_COMMA ||
+			    (nx->tk_type == TOKEN_RPAREN || nx->tk_type == TOKEN_COMMA ||
 				nx->tk_type == LEXER_EOF)))) {
 			dc = doc_root(pr->pr_arena_scope.doc);
 			if (parser_type(pr, dc, &type, nullptr) & GOOD)
@@ -153,9 +151,7 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		struct token *pv;
 
 		pv = token_prev(tk);
-		if (pv != nullptr &&
-		    (pv->tk_type == TOKEN_LPAREN ||
-			pv->tk_type == TOKEN_COMMA)) {
+		if (pv != nullptr && (pv->tk_type == TOKEN_LPAREN || pv->tk_type == TOKEN_COMMA)) {
 			(void)lexer_pop(lx, &tk);
 			dc = doc_root(pr->pr_arena_scope.doc);
 			parser_doc_token(pr, tk, dc);
@@ -165,8 +161,8 @@ expr_recover(const struct expr_exec_arg *ea, void *arg)
 		int error;
 
 		dc = doc_root(pr->pr_arena_scope.doc);
-		error = parser_braces(pr, dc, dc, ea->indent,
-		    PARSER_BRACES_DEDENT | PARSER_BRACES_INDENT_MAYBE);
+		error = parser_braces(
+		    pr, dc, dc, ea->indent, PARSER_BRACES_DEDENT | PARSER_BRACES_INDENT_MAYBE);
 		if (error & GOOD)
 			return dc;
 		if (error & BRCH)
@@ -206,8 +202,7 @@ peek_binary_operator(struct lexer *lx, const struct token *rparen)
 {
 	struct token *op;
 
-	return lexer_peek_if_flags(lx, TOKEN_FLAG_BINARY, &op) &&
-	    token_has_spaces(rparen) &&
+	return lexer_peek_if_flags(lx, TOKEN_FLAG_BINARY, &op) && token_has_spaces(rparen) &&
 	    (token_has_spaces(op) || token_has_line(op, 1));
 }
 
@@ -221,22 +216,18 @@ static struct doc *
 expr_recover_cast(const struct expr_exec_arg *UNUSED(ea), void *arg)
 {
 	struct parser_type type;
-	struct doc	  *dc = nullptr;
+	struct doc *dc = nullptr;
 	struct lexer_state s;
-	struct parser	  *pr = arg;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *rparen;
-	int		   peek = 0;
+	struct parser *pr = arg;
+	struct lexer *lx = pr->pr_lx;
+	struct token *rparen;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (parser_type_peek(pr, &type, PARSER_TYPE_CAST) &&
-	    lexer_seek_after(lx, type.end) &&
-	    lexer_if(lx, TOKEN_RPAREN, &rparen) &&
-	    !lexer_if(lx, TOKEN_RPAREN, nullptr) &&
-	    !lexer_if(lx, TOKEN_COMMA, nullptr) &&
-	    !peek_binary_operator(lx, rparen) &&
-	    !(lexer_if(lx, TOKEN_AMP, nullptr) &&
-		lexer_if(lx, TOKEN_TILDE, nullptr)) &&
+	if (parser_type_peek(pr, &type, PARSER_TYPE_CAST) && lexer_seek_after(lx, type.end) &&
+	    lexer_if(lx, TOKEN_RPAREN, &rparen) && !lexer_if(lx, TOKEN_RPAREN, nullptr) &&
+	    !lexer_if(lx, TOKEN_COMMA, nullptr) && !peek_binary_operator(lx, rparen) &&
+	    !(lexer_if(lx, TOKEN_AMP, nullptr) && lexer_if(lx, TOKEN_TILDE, nullptr)) &&
 	    !lexer_if(lx, LEXER_EOF, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
@@ -261,10 +252,10 @@ static struct doc *
 expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 {
 	struct parser *pr = arg;
-	struct lexer  *lx = pr->pr_lx;
-	struct doc    *dc, *expr;
-	struct token  *tk, *lparen, *rparen, *comma, *stop;
-	int	       error, nassoc = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct doc *dc, *expr;
+	struct token *tk, *lparen, *rparen, *comma, *stop;
+	int error, nassoc = 0;
 
 	if (!lexer_back(lx, &tk) || tk->tk_type != TOKEN_GENERIC)
 		return nullptr;
@@ -273,8 +264,7 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 	parser_doc_token(pr, tk, dc);
 
 	/* Find the matching right parenthesis to bound the construct. */
-	if (!lexer_peek_if_pair(
-		lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
+	if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen))
 		return nullptr;
 	if (!lexer_if(lx, TOKEN_LPAREN, &lparen))
 		return nullptr;
@@ -354,8 +344,7 @@ expr_recover_generic(const struct expr_exec_arg *UNUSED(ea), void *arg)
 }
 
 static struct doc *
-expr_doc_token(
-    struct token *tk, struct doc *dc, const char *fun, int lno, void *arg)
+expr_doc_token(struct token *tk, struct doc *dc, const char *fun, int lno, void *arg)
 {
 	struct parser *pr = arg;
 

@@ -33,29 +33,28 @@
  * saving and restoring the complete cursor state; while peeking, a preprocessor
  * branch is treated as taken instead of halting the parse.
  */
-#define lexer_trace(lx, fmt, ...)                                              \
-	trace(TRACE_LEXER, (lx)->lx_op, (fmt), __VA_ARGS__)
+#define lexer_trace(lx, fmt, ...) trace(TRACE_LEXER, (lx)->lx_op, (fmt), __VA_ARGS__)
 
 struct lexer {
-	struct lexer_state     lx_st;
+	struct lexer_state lx_st;
 	struct lexer_callbacks lx_callbacks;
-	const char	      *lx_path;
-	struct error	      *lx_er;
-	const struct options  *lx_op;
+	const char *lx_path;
+	struct error *lx_er;
+	const struct options *lx_op;
 
 	struct {
 		struct arena_scope *eternal_scope;
-		struct arena	   *scratch;
+		struct arena *scratch;
 	} lx_arena;
 
 	struct {
 		const struct buffer *bf;
-		const char	    *ptr;
-		size_t		     len;
+		const char *ptr;
+		size_t len;
 		/* Physical source and logical-to-physical offset mapping. */
-		const char	   *phys;
-		size_t		    phys_len;
-		const size_t	   *map;
+		const char *phys;
+		size_t phys_len;
+		const size_t *map;
 		const unsigned int *pline;
 	} lx_input;
 
@@ -77,18 +76,14 @@ static void lexer_apply_splices(struct lexer *);
 
 static unsigned int lexer_line_of(const struct lexer *, size_t);
 
-static void lexer_expect_error(
-    struct lexer *, int, const struct token *, const char *, int);
+static void lexer_expect_error(struct lexer *, int, const struct token *, const char *, int);
 
 static int lexer_until(struct lexer *, int, struct token **);
-static int lexer_peek_until_not_nested(
-    struct lexer *, int, struct token *, struct token **);
+static int lexer_peek_until_not_nested(struct lexer *, int, struct token *, struct token **);
 
-static void lexer_copy_token_list(
-    struct lexer *, const struct token_list *, struct token_list *);
+static void lexer_copy_token_list(struct lexer *, const struct token_list *, struct token_list *);
 
-static const char *lexer_serialize_impl(
-    struct lexer *, const struct token *, struct arena_scope *);
+static const char *lexer_serialize_impl(struct lexer *, const struct token *, struct arena_scope *);
 
 /*
  * Tokenize the whole input through the backend callback and return the lexer.
@@ -223,7 +218,7 @@ lexer_get_arena_scope(const struct lexer *lx)
 int
 lexer_getc(struct lexer *lx, unsigned char *ch)
 {
-	size_t	      off;
+	size_t off;
 	unsigned char c;
 
 	if (lexer_eof(lx)) {
@@ -278,8 +273,7 @@ lexer_emit(struct lexer *lx, const struct lexer_state *st, int token_type)
  * used. The token text is not NUL terminated.
  */
 struct token *
-lexer_emit_template(
-    struct lexer *lx, const struct lexer_state *st, const struct token *tk)
+lexer_emit_template(struct lexer *lx, const struct lexer_state *st, const struct token *tk)
 {
 	struct token *t;
 
@@ -318,14 +312,14 @@ has_line(const char *str, size_t len)
  * is enabled, and a best-effort source line with a caret highlighting the token.
  */
 void
-lexer_error(struct lexer *lx, const struct token *ctx, const char *fun, int lno,
-    const char *fmt, ...)
+lexer_error(
+    struct lexer *lx, const struct token *ctx, const char *fun, int lno, const char *fmt, ...)
 {
-	va_list	       ap;
+	va_list ap;
 	struct buffer *bf;
-	const char    *line;
-	size_t	       linelen;
-	unsigned int   l = ctx->tk_lno;
+	const char *line;
+	size_t linelen;
+	unsigned int l = ctx->tk_lno;
 
 	lx->lx_st.st_flags.error = 1;
 
@@ -348,8 +342,7 @@ lexer_error(struct lexer *lx, const struct token *ctx, const char *fun, int lno,
 	 * Include best effort line context. However, do not bother with
 	 * verbatim hard lines(s) as the column calculation becomes trickier.
 	 */
-	if (lexer_get_lines(lx, l, l + 1, &line, &linelen) &&
-	    !has_line(ctx->tk_str, ctx->tk_len)) {
+	if (lexer_get_lines(lx, l, l + 1, &line, &linelen) && !has_line(ctx->tk_str, ctx->tk_len)) {
 		unsigned int cno = ctx->tk_cno;
 		unsigned int w;
 
@@ -401,12 +394,12 @@ lexer_get_error(const struct lexer *lx)
  * line continuations exactly as written.
  */
 int
-lexer_get_lines(const struct lexer *lx, unsigned int beg, unsigned int end,
-    const char **str, size_t *len)
+lexer_get_lines(
+    const struct lexer *lx, unsigned int beg, unsigned int end, const char **str, size_t *len)
 {
 	const char *buf = lx->lx_input.phys;
-	size_t	    nlines = VECTOR_LENGTH(lx->lx_lines);
-	size_t	    bo, eo;
+	size_t nlines = VECTOR_LENGTH(lx->lx_lines);
+	size_t bo, eo;
 
 	/*
 	 * Line numbers are 1-based; beg == 0 would index lx_lines[-1].
@@ -479,13 +472,12 @@ lexer_pop(struct lexer *lx, struct token **tk)
 	if (st->st_tk->tk_flags & TOKEN_FLAG_BRANCH) {
 		if (lx->lx_peek == 0) {
 			/* While not peeking, instruct the parser to halt. */
-			lexer_trace(
-			    lx, "halt %s", lexer_serialize(lx, st->st_tk));
+			lexer_trace(lx, "halt %s", lexer_serialize(lx, st->st_tk));
 			return 0;
 		} else {
 			/* While peeking, act as taking the current branch. */
-			st->st_tk = lx->lx_callbacks.end_of_branch(
-			    lx, st->st_tk, lx->lx_callbacks.arg);
+			st->st_tk =
+			    lx->lx_callbacks.end_of_branch(lx, st->st_tk, lx->lx_callbacks.arg);
 		}
 	}
 
@@ -531,8 +523,7 @@ lexer_copy_after(struct lexer *lx, struct token *after, const struct token *src)
 }
 
 struct token *
-lexer_insert_after(
-    struct lexer *lx, struct token *after, const struct token *def)
+lexer_insert_after(struct lexer *lx, struct token *after, const struct token *def)
 {
 	struct token *tk;
 
@@ -598,8 +589,7 @@ lexer_move_prefixes(struct lexer *lx, struct token *src, struct token *dst)
 }
 
 int
-lexer_expect_impl(
-    struct lexer *lx, int type, struct token **tk, const char *fun, int lno)
+lexer_expect_impl(struct lexer *lx, int type, struct token **tk, const char *fun, int lno)
 {
 	struct token *t = nullptr;
 
@@ -637,8 +627,8 @@ int
 lexer_peek(struct lexer *lx, struct token **tk)
 {
 	struct lexer_state s;
-	struct token	  *t = nullptr;
-	int		   pop;
+	struct token *t = nullptr;
+	int pop;
 
 	lexer_peek_enter(lx, &s);
 	pop = lexer_pop(lx, &t);
@@ -675,7 +665,7 @@ int
 lexer_if(struct lexer *lx, int type, struct token **tk)
 {
 	struct lexer_state s;
-	struct token	  *t;
+	struct token *t;
 
 	/* Must use lexer_pop() without peeking to not cross branches. */
 	s = lexer_get_state(lx);
@@ -727,12 +717,12 @@ lexer_if_flags(struct lexer *lx, unsigned int flags, struct token **tk)
  * Returns non-zero if such tokens was found.
  */
 int
-lexer_peek_if_pair(struct lexer *lx, int lhs_type, int rhs_type,
-    struct token **lhs, struct token **rhs)
+lexer_peek_if_pair(
+    struct lexer *lx, int lhs_type, int rhs_type, struct token **lhs, struct token **rhs)
 {
 	struct lexer_state s;
-	struct token	  *t = nullptr;
-	int		   pair = 0;
+	struct token *t = nullptr;
+	int pair = 0;
 
 	if (!lexer_peek_if(lx, lhs_type, lhs))
 		return 0;
@@ -764,8 +754,7 @@ lexer_peek_if_pair(struct lexer *lx, int lhs_type, int rhs_type,
  * the closing token; nested pairs of the same kind are counted.
  */
 int
-lexer_if_pair(struct lexer *lx, int lhs_type, int rhs_type, struct token **lhs,
-    struct token **rhs)
+lexer_if_pair(struct lexer *lx, int lhs_type, int rhs_type, struct token **lhs, struct token **rhs)
 {
 	struct token *end;
 
@@ -783,8 +772,7 @@ lexer_if_pair(struct lexer *lx, int lhs_type, int rhs_type, struct token **lhs,
  * if any prefix has the given flags.
  */
 int
-lexer_peek_if_prefix_flags(
-    struct lexer *lx, unsigned int flags, struct token **tk)
+lexer_peek_if_prefix_flags(struct lexer *lx, unsigned int flags, struct token **tk)
 {
 	struct token *px, *t;
 
@@ -813,7 +801,7 @@ int
 lexer_peek_until(struct lexer *lx, int type, struct token **tk)
 {
 	struct lexer_state s;
-	int		   peek;
+	int peek;
 
 	lexer_peek_enter(lx, &s);
 	peek = lexer_until(lx, type, tk);
@@ -830,13 +818,12 @@ lexer_peek_until(struct lexer *lx, int type, struct token **tk)
  * token.
  */
 static int
-lexer_peek_until_not_nested(
-    struct lexer *lx, int type, struct token *stop, struct token **tk)
+lexer_peek_until_not_nested(struct lexer *lx, int type, struct token *stop, struct token **tk)
 {
 	struct lexer_state s;
-	struct token	  *t = nullptr;
-	int		   nest = 0;
-	int		   peek = 0;
+	struct token *t = nullptr;
+	int nest = 0;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	for (;;) {
@@ -844,8 +831,7 @@ lexer_peek_until_not_nested(
 			break;
 		if (t->tk_type == TOKEN_LPAREN || t->tk_type == TOKEN_LBRACE)
 			nest++;
-		else if (t->tk_type == TOKEN_RPAREN ||
-		    t->tk_type == TOKEN_RBRACE)
+		else if (t->tk_type == TOKEN_RPAREN || t->tk_type == TOKEN_RBRACE)
 			nest--;
 		if (t->tk_type == type && !nest) {
 			peek = 1;
@@ -905,7 +891,7 @@ void
 lexer_dump(struct lexer *lx)
 {
 	struct token *tk;
-	unsigned int  i = 0;
+	unsigned int i = 0;
 
 	arena_scope(lx->lx_arena.scratch, s);
 
@@ -914,7 +900,7 @@ lexer_dump(struct lexer *lx)
 	LIST_FOREACH(tk, &lx->lx_tokens)
 	{
 		struct token *prefix, *suffix;
-		const char   *str;
+		const char *str;
 
 		i++;
 
@@ -976,8 +962,8 @@ int
 lexer_eat_lines(struct lexer *lx, int threshold, struct token **tk)
 {
 	struct lexer_state oldst, st;
-	int		   nlines = 0;
-	unsigned char	   ch;
+	int nlines = 0;
+	unsigned char ch;
 
 	oldst = st = lx->lx_st;
 
@@ -1013,13 +999,13 @@ int
 lexer_eat_spaces(struct lexer *lx, struct token **tk)
 {
 	static struct KS_str_match match;
-	struct lexer_state	   st = lx->lx_st;
-	size_t			   nspaces;
+	struct lexer_state st = lx->lx_st;
+	size_t nspaces;
 
 	KS_str_match_init_once("  \f\f\t\t", &match);
 
-	nspaces = KS_str_match(&lx->lx_input.ptr[lx->lx_st.st_off],
-	    lx->lx_input.len - lx->lx_st.st_off, &match);
+	nspaces = KS_str_match(
+	    &lx->lx_input.ptr[lx->lx_st.st_off], lx->lx_input.len - lx->lx_st.st_off, &match);
 	if (nspaces == 0)
 		return 0;
 	lx->lx_st.st_off += nspaces;
@@ -1055,7 +1041,7 @@ static size_t
 splice_len(const char *p, size_t len, size_t off)
 {
 	const char *s = &p[off];
-	size_t	    n = len - off;
+	size_t n = len - off;
 
 	if (n >= 2 && s[0] == '\\') {
 		if (s[1] == '\n')
@@ -1087,14 +1073,14 @@ splice_len(const char *p, size_t len, size_t off)
 static void
 lexer_input_init(struct lexer *lx, const struct buffer *bf)
 {
-	const char   *p = buffer_get_ptr(bf);
-	size_t	      n = buffer_get_len(bf);
-	char	     *lg;
-	size_t	     *map;
+	const char *p = buffer_get_ptr(bf);
+	size_t n = buffer_get_len(bf);
+	char *lg;
+	size_t *map;
 	unsigned int *pline;
-	size_t	      i, j;
-	size_t	      nbytes, mapsize, plinesize;
-	unsigned int  lno = 1;
+	size_t i, j;
+	size_t nbytes, mapsize, plinesize;
+	unsigned int lno = 1;
 
 	/* Physical line table, mapping line number to physical offset. */
 	{
@@ -1219,7 +1205,7 @@ static void
 lexer_apply_splices(struct lexer *lx)
 {
 	struct token *pv = nullptr, *tk;
-	size_t	      i;
+	size_t i;
 
 	if (VECTOR_EMPTY(lx->lx_splices))
 		return;
@@ -1285,8 +1271,7 @@ lexer_buffer_peek(const struct lexer *lx, struct lexer_buffer *buf)
 }
 
 int
-lexer_buffer_slice(const struct lexer *lx, const struct lexer_state *st,
-    struct lexer_buffer *buf)
+lexer_buffer_slice(const struct lexer *lx, const struct lexer_state *st, struct lexer_buffer *buf)
 {
 	buf->len = lx->lx_st.st_off - st->st_off;
 	if (buf->len == 0)
@@ -1304,13 +1289,11 @@ lexer_buffer_seek(struct lexer *lx, size_t off)
 static const char *
 lexer_serialize_token_type(struct lexer *lx, int type)
 {
-	return lx->lx_callbacks.serialize_token_type(
-	    type, lx->lx_arena.eternal_scope);
+	return lx->lx_callbacks.serialize_token_type(type, lx->lx_arena.eternal_scope);
 }
 
 static void
-lexer_expect_error(struct lexer *lx, int type, const struct token *tk,
-    const char *fun, int lno)
+lexer_expect_error(struct lexer *lx, int type, const struct token *tk, const char *fun, int lno)
 {
 	struct token *t;
 
@@ -1330,8 +1313,7 @@ lexer_expect_error(struct lexer *lx, int type, const struct token *tk,
 }
 
 static void
-lexer_copy_token_list(
-    struct lexer *lx, const struct token_list *src, struct token_list *dst)
+lexer_copy_token_list(struct lexer *lx, const struct token_list *src, struct token_list *dst)
 {
 	const struct token *tk;
 
@@ -1345,8 +1327,7 @@ lexer_copy_token_list(
 }
 
 static const char *
-lexer_serialize_impl(
-    struct lexer *lx, const struct token *tk, struct arena_scope *s)
+lexer_serialize_impl(struct lexer *lx, const struct token *tk, struct arena_scope *s)
 {
 	if (tk == nullptr)
 		return "(null)";

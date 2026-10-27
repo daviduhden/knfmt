@@ -102,47 +102,47 @@ extern void stoeplitz_init(void);
 #include "vscsi.h"
 #include "softraid.h"
 
-const char	copyright[] =
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n"
-"\tThe Regents of the University of California.  All rights reserved.\n"
-"Copyright (c) 1995-2022 OpenBSD. All rights reserved.  https://www.OpenBSD.org\n";
+const char copyright[] =
+    "Copyright (c) 1982, 1986, 1989, 1991, 1993\n"
+    "\tThe Regents of the University of California.  All rights reserved.\n"
+    "Copyright (c) 1995-2022 OpenBSD. All rights reserved.  https://www.OpenBSD.org\n";
 
 /* Components of the first process -- never freed. */
-struct	session session0;
-struct	pgrp pgrp0;
-struct	proc proc0;
-struct	process process0;
-struct	plimit limit0;
-struct	vmspace vmspace0;
-struct	sigacts sigacts0;
-struct	process *initprocess;
-struct	proc *reaperproc;
+struct session session0;
+struct pgrp pgrp0;
+struct proc proc0;
+struct process process0;
+struct plimit limit0;
+struct vmspace vmspace0;
+struct sigacts sigacts0;
+struct process *initprocess;
+struct proc *reaperproc;
 
-extern	struct user *proc0paddr;
+extern struct user *proc0paddr;
 
-struct	vnode *rootvp, *swapdev_vp;
-int	boothowto;
-int	db_active = 0;
-int	ncpus =  1;
-int	ncpusfound = 1;			/* number of cpus we find */
-volatile int start_init_exec;		/* semaphore for start_init() */
+struct vnode *rootvp, *swapdev_vp;
+int boothowto;
+int db_active = 0;
+int ncpus = 1;
+int ncpusfound = 1;	      /* number of cpus we find */
+volatile int start_init_exec; /* semaphore for start_init() */
 
 #if !defined(NO_PROPOLICE)
-long	__guard_local __attribute__((section(".openbsd.randomdata")));
+long __guard_local __attribute__((section(".openbsd.randomdata")));
 #endif
 
 /* XXX return int so gcc -Werror won't complain */
-int	main(void *);
-void	check_console(struct proc *);
-void	start_init(void *);
-void	db_ctf_init(void);
-void	prof_init(void);
-void	init_exec(void);
-void	futex_init(void);
-void	taskq_init(void);
-void	timeout_proc_init(void);
-void	pool_gc_pages(void *);
-void	percpu_init(void);
+int main(void *);
+void check_console(struct proc *);
+void start_init(void *);
+void db_ctf_init(void);
+void prof_init(void);
+void init_exec(void);
+void futex_init(void);
+void taskq_init(void);
+void timeout_proc_init(void);
+void pool_gc_pages(void *);
+void percpu_init(void);
 
 #ifdef DIAGNOSTIC
 int pdevinit_done = 0;
@@ -180,7 +180,7 @@ main(void *framep)
 	 * Attempt to find console and initialize
 	 * in case of early panic or other messages.
 	 */
-	config_init();		/* init autoconfiguration data structures */
+	config_init(); /* init autoconfiguration data structures */
 	consinit();
 
 	printf("%s\n", copyright);
@@ -197,11 +197,11 @@ main(void *framep)
 
 	rw_obj_init();
 	uvm_init();
-	disk_init();		/* must come before autoconfiguration */
-	tty_init();		/* initialise tty's */
+	disk_init(); /* must come before autoconfiguration */
+	tty_init();  /* initialise tty's */
 	cpu_startup();
 
-	random_start(boothowto & RB_GOODRANDOM);	/* Start the flow */
+	random_start(boothowto & RB_GOODRANDOM); /* Start the flow */
 
 	/*
 	 * Initialize mbuf's.  Do this now because we might attempt to
@@ -252,7 +252,7 @@ main(void *framep)
 
 	/* Create credentials. */
 	p->p_ucred = crget();
-	p->p_ucred->cr_ngroups = 1;	/* group 0 */
+	p->p_ucred->cr_ngroups = 1; /* group 0 */
 
 	/*
 	 * Create process 0 (the swapper).
@@ -303,7 +303,7 @@ main(void *framep)
 	    trunc_page(VM_MAX_ADDRESS), TRUE, TRUE);
 	p->p_vmspace = pr->ps_vmspace = &vmspace0;
 
-	p->p_addr = proc0paddr;				/* XXX */
+	p->p_addr = proc0paddr; /* XXX */
 
 	/*
 	 * Charge root for one process.
@@ -344,7 +344,7 @@ main(void *framep)
 
 	/* Initialize the file systems. */
 #if defined(NFSSERVER) || defined(NFSCLIENT)
-	nfs_init();			/* initialize server/shared data */
+	nfs_init(); /* initialize server/shared data */
 #endif
 	vfsinit();
 
@@ -482,9 +482,11 @@ main(void *framep)
 	 * from the file system.  Reset p->p_rtime as it may have been
 	 * munched in mi_switch() after the time got set.
 	 */
-	LIST_FOREACH(pr, &allprocess, ps_list) {
+	LIST_FOREACH(pr, &allprocess, ps_list)
+	{
 		nanouptime(&pr->ps_start);
-		TAILQ_FOREACH(p, &pr->ps_threads, p_thr_link) {
+		TAILQ_FOREACH(p, &pr->ps_threads, p_thr_link)
+		{
 			nanouptime(&p->p_cpu->ci_schedstate.spc_runtime);
 			timespecclear(&p->p_rtime);
 		}
@@ -508,7 +510,7 @@ main(void *framep)
 	if (kthread_create(syncer_thread, NULL, &syncerproc, "update"))
 		panic("fork update");
 
-	/* Create the aiodone daemon kernel thread. */ 
+	/* Create the aiodone daemon kernel thread. */
 	if (kthread_create(uvm_aiodone_daemon, NULL, NULL, "aiodoned"))
 		panic("fork aiodoned");
 
@@ -537,17 +539,17 @@ main(void *framep)
 	/*
 	 * Start the idle pool page garbage collector
 	 */
-#if !(defined(__m88k__) && defined(MULTIPROCESSOR))	/* XXX */
+#if !(defined(__m88k__) && defined(MULTIPROCESSOR)) /* XXX */
 	pool_gc_pages(NULL);
 #endif
 
 	start_periodic_resettodr();
 
-        /*
-         * proc0: nothing to do, back to sleep
-         */
-        while (1)
-                tsleep_nsec(&proc0, PVM, "scheduler", INFSLP);
+	/*
+	 * proc0: nothing to do, back to sleep
+	 */
+	while (1)
+		tsleep_nsec(&proc0, PVM, "scheduler", INFSLP);
 	/* NOTREACHED */
 }
 
@@ -555,10 +557,10 @@ main(void *framep)
  * List of paths to try when searching for "init".
  */
 static char *initpaths[] = {
-	"/sbin/init",
-	"/sbin/oinit",
-	"/sbin/init.bak",
-	NULL,
+    "/sbin/init",
+    "/sbin/oinit",
+    "/sbin/init.bak",
+    NULL,
 };
 
 void
@@ -623,11 +625,10 @@ start_init(void *arg)
 #endif
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_minsaddr = (caddr_t)(addr + PAGE_SIZE);
-	if (uvm_map(&p->p_vmspace->vm_map, &addr, PAGE_SIZE, 
-	    NULL, UVM_UNKNOWN_OFFSET, 0,
-	    UVM_MAPFLAG(PROT_READ | PROT_WRITE, PROT_MASK, MAP_INHERIT_COPY,
-	    MADV_NORMAL,
-	    UVM_FLAG_FIXED|UVM_FLAG_OVERLAY|UVM_FLAG_COPYONW|UVM_FLAG_STACK|UVM_FLAG_SYSCALL)))
+	if (uvm_map(&p->p_vmspace->vm_map, &addr, PAGE_SIZE, NULL, UVM_UNKNOWN_OFFSET, 0,
+		UVM_MAPFLAG(PROT_READ | PROT_WRITE, PROT_MASK, MAP_INHERIT_COPY, MADV_NORMAL,
+		    UVM_FLAG_FIXED | UVM_FLAG_OVERLAY | UVM_FLAG_COPYONW | UVM_FLAG_STACK |
+			UVM_FLAG_SYSCALL)))
 		panic("init: couldn't allocate argument space");
 
 	for (pathp = &initpaths[0]; (path = *pathp) != NULL; pathp++) {

@@ -21,15 +21,14 @@ static int
 is_loop_stmt(struct parser *pr, const struct token *semi)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *ident, *lparen, *nx, *rparen;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *ident, *lparen, *nx, *rparen;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, &ident) &&
 	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, &lparen, &rparen) &&
-	    lexer_peek(lx, &nx) && nx != semi && token_cmp(rparen, nx) < 0 &&
-	    parser_stmt_peek(pr))
+	    lexer_peek(lx, &nx) && nx != semi && token_cmp(rparen, nx) < 0 && parser_stmt_peek(pr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 
@@ -45,9 +44,9 @@ is_loop_stmt(struct parser *pr, const struct token *semi)
 int
 parser_stmt_expr(struct parser *pr, struct doc *dc)
 {
-	struct doc   *expr = nullptr;
+	struct doc *expr = nullptr;
 	struct token *nx, *semi;
-	int	      error;
+	int error;
 
 	if (parser_type_peek(pr, nullptr, 0) || !parser_expr_peek(pr, &nx))
 		return parser_none(pr);

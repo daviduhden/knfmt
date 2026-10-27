@@ -4,5 +4,4 @@
  * ContinuationIndentWidth: 8
  * UseTab: Never
  */
-aaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbb(ccccccccccc *ddd,
-                                            eeeeeeeeeeeeeeee fffffff);
+aaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbb(ccccccccccc *ddd, eeeeeeeeeeeeeeee fffffff);

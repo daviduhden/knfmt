@@ -31,7 +31,7 @@ iscdefs(const char *str, size_t len)
 	static struct KS_str_match match;
 	struct suffix {
 		const char *str;
-		size_t	    len;
+		size_t len;
 	} suffixes[] = {
 #define S(s) {s, sizeof(s) - 1}
 	    S("_BEGIN_DECLS"),
@@ -45,8 +45,7 @@ iscdefs(const char *str, size_t len)
 	for (i = 0; i < countof(suffixes); i++) {
 		const struct suffix *s = &suffixes[i];
 
-		if (len >= s->len &&
-		    strncmp(&str[len - s->len], s->str, s->len) == 0)
+		if (len >= s->len && strncmp(&str[len - s->len], s->str, s->len) == 0)
 			return 1;
 	}
 
@@ -81,18 +80,16 @@ int
 parser_cpp_peek_type(struct parser *pr, struct token **rparen)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *ident;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *ident;
+	int peek = 0;
 
 	/* Detect usage of types hidden behind cpp such as STACK_OF(X509). */
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, &ident) &&
-	    lexer_if(lx, TOKEN_LPAREN, nullptr) && cpp_type_in_parens(lx) &&
-	    lexer_if(lx, TOKEN_RPAREN, rparen)) {
+	if (lexer_if(lx, TOKEN_IDENT, &ident) && lexer_if(lx, TOKEN_LPAREN, nullptr) &&
+	    cpp_type_in_parens(lx) && lexer_if(lx, TOKEN_RPAREN, rparen)) {
 		struct token *nx;
-		if (lexer_peek_if(lx, TOKEN_IDENT, &nx) &&
-		    token_cmp(ident, nx) == 0)
+		if (lexer_peek_if(lx, TOKEN_IDENT, &nx) && token_cmp(ident, nx) == 0)
 			peek = 1;
 		else if (lexer_peek_if(lx, TOKEN_STAR, nullptr))
 			peek = 1;
@@ -104,22 +101,17 @@ parser_cpp_peek_type(struct parser *pr, struct token **rparen)
 	/* Detect LIST_ENTRY(list, struct s) from libks. */
 	lexer_peek_enter(lx, &s);
 	if (lexer_if(lx, TOKEN_IDENT, &ident) && is_list_entry(ident) &&
-	    lexer_if(lx, TOKEN_LPAREN, nullptr) &&
-	    lexer_if(lx, TOKEN_IDENT, nullptr) &&
-	    lexer_if(lx, TOKEN_COMMA, nullptr) &&
-	    lexer_if(lx, TOKEN_IDENT, nullptr) &&
-	    lexer_if(lx, TOKEN_RPAREN, rparen) &&
-	    lexer_if(lx, TOKEN_SEMI, nullptr))
+	    lexer_if(lx, TOKEN_LPAREN, nullptr) && lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	    lexer_if(lx, TOKEN_COMMA, nullptr) && lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	    lexer_if(lx, TOKEN_RPAREN, rparen) && lexer_if(lx, TOKEN_SEMI, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 
 	/* Detect typedef types hidden behind cpp. */
 	lexer_peek_enter(lx, &s);
-	if (lexer_back_if(lx, TOKEN_TYPEDEF, nullptr) &&
-	    lexer_if(lx, TOKEN_IDENT, nullptr) &&
+	if (lexer_back_if(lx, TOKEN_TYPEDEF, nullptr) && lexer_if(lx, TOKEN_IDENT, nullptr) &&
 	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, rparen) &&
-	    (lexer_peek_if(lx, TOKEN_IDENT, nullptr) ||
-		lexer_peek_if(lx, TOKEN_STAR, nullptr)))
+	    (lexer_peek_if(lx, TOKEN_IDENT, nullptr) || lexer_peek_if(lx, TOKEN_STAR, nullptr)))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 
@@ -138,24 +130,21 @@ parser_cpp_peek_type(struct parser *pr, struct token **rparen)
  * delimit the macro invocation.
  */
 int
-parser_cpp_peek_decl(
-    struct parser *pr, struct parser_type *type, unsigned int flags)
+parser_cpp_peek_decl(struct parser *pr, struct parser_type *type, unsigned int flags)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *macro, *tk;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *macro, *tk;
+	int peek = 0;
 
 	if (!lexer_peek(lx, &type->beg))
 		return 0;
 
 	lexer_peek_enter(lx, &s);
-	while (lexer_if_flags(
-	    lx, TOKEN_FLAG_QUALIFIER | TOKEN_FLAG_STORAGE, nullptr))
+	while (lexer_if_flags(lx, TOKEN_FLAG_QUALIFIER | TOKEN_FLAG_STORAGE, nullptr))
 		continue;
 	if (lexer_if(lx, TOKEN_IDENT, &macro) &&
-	    lexer_if_pair(
-		lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &type->end)) {
+	    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &type->end)) {
 		struct token *ident;
 
 		for (;;) {
@@ -166,14 +155,12 @@ parser_cpp_peek_decl(
 
 		if (lexer_if(lx, TOKEN_EQUAL, nullptr)) {
 			peek = 1;
-		} else if ((flags & PARSER_CPP_DECL_ROOT) &&
-		    lexer_if(lx, TOKEN_SEMI, nullptr)) {
+		} else if ((flags & PARSER_CPP_DECL_ROOT) && lexer_if(lx, TOKEN_SEMI, nullptr)) {
 			peek = 1;
 		} else if (lexer_if(lx, TOKEN_IDENT, &ident)) {
 			while (lexer_if(lx, TOKEN_IDENT, &ident))
 				continue;
-			if (token_cmp(macro, ident) == 0 ||
-			    lexer_if(lx, TOKEN_SEMI, nullptr))
+			if (token_cmp(macro, ident) == 0 || lexer_if(lx, TOKEN_SEMI, nullptr))
 				peek = 1;
 		}
 	}
@@ -198,10 +185,10 @@ int
 parser_cpp_peek_x(struct parser *pr, struct token **tk)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *pv = nullptr;
-	struct token	  *ident, *rparen;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *pv = nullptr;
+	struct token *ident, *rparen;
+	int peek = 0;
 
 	(void)lexer_back(lx, &pv);
 	lexer_peek_enter(lx, &s);
@@ -223,8 +210,7 @@ parser_cpp_peek_x(struct parser *pr, struct token **tk)
 		if ((pv == nullptr || token_cmp(pv, ident) < 0) &&
 		    (nx == nullptr ||
 			(token_cmp(nx, rparen) > 0 &&
-			    (ident->tk_cno == 1 ||
-				nx->tk_cno <= ident->tk_cno))))
+			    (ident->tk_cno == 1 || nx->tk_cno <= ident->tk_cno))))
 			peek = 1;
 	}
 	lexer_peek_leave(lx, &s);
@@ -242,10 +228,10 @@ parser_cpp_peek_x(struct parser *pr, struct token **tk)
 int
 parser_cpp_x(struct parser *pr, struct doc *dc)
 {
-	struct ruler  rl;
+	struct ruler rl;
 	struct lexer *lx = pr->pr_lx;
 	struct token *rparen;
-	int	      error;
+	int error;
 
 	if (!parser_cpp_peek_x(pr, &rparen))
 		return parser_none(pr);
@@ -255,7 +241,7 @@ parser_cpp_x(struct parser *pr, struct doc *dc)
 	ruler_init(&rl, 0, RULER_ALIGN_SENSE, &ruler_scope);
 
 	do {
-		struct doc   *concat;
+		struct doc *concat;
 		struct token *tk;
 
 		concat = doc_alloc(DOC_CONCAT, doc_alloc(DOC_GROUP, dc));
@@ -295,13 +281,13 @@ int
 parser_cpp_cdefs(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *ident, *nx;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *ident, *nx;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, &ident) && lexer_pop(lx, &nx) &&
-	    token_cmp(nx, ident) > 0 && iscdefs(ident->tk_str, ident->tk_len))
+	if (lexer_if(lx, TOKEN_IDENT, &ident) && lexer_pop(lx, &nx) && token_cmp(nx, ident) > 0 &&
+	    iscdefs(ident->tk_str, ident->tk_len))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	if (!peek)
@@ -320,13 +306,12 @@ int
 parser_cpp_decl_root(struct parser *pr, struct doc *dc)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	struct token	  *ident, *semi;
-	int		   peek = 0;
+	struct lexer *lx = pr->pr_lx;
+	struct token *ident, *semi;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_IDENT, nullptr) &&
-	    lexer_if(lx, TOKEN_SEMI, nullptr))
+	if (lexer_if(lx, TOKEN_IDENT, nullptr) && lexer_if(lx, TOKEN_SEMI, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	if (!peek)

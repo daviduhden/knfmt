@@ -66,21 +66,21 @@ enum expr_pc {
 #define PCUNARY 0x80000000U
 #define PC(pc) ((pc) & ~PCUNARY)
 
-#define FOR_EXPR_TYPES(OP)                                                     \
-	OP(EXPR_UNARY)                                                         \
-	OP(EXPR_BINARY)                                                        \
-	OP(EXPR_TERNARY)                                                       \
-	OP(EXPR_PREFIX)                                                        \
-	OP(EXPR_POSTFIX)                                                       \
-	OP(EXPR_PARENS)                                                        \
-	OP(EXPR_SQUARES)                                                       \
-	OP(EXPR_FIELD)                                                         \
-	OP(EXPR_CALL)                                                          \
-	OP(EXPR_ARG)                                                           \
-	OP(EXPR_CAST)                                                          \
-	OP(EXPR_SIZEOF)                                                        \
-	OP(EXPR_CONCAT)                                                        \
-	OP(EXPR_LITERAL)                                                       \
+#define FOR_EXPR_TYPES(OP)                                                                         \
+	OP(EXPR_UNARY)                                                                             \
+	OP(EXPR_BINARY)                                                                            \
+	OP(EXPR_TERNARY)                                                                           \
+	OP(EXPR_PREFIX)                                                                            \
+	OP(EXPR_POSTFIX)                                                                           \
+	OP(EXPR_PARENS)                                                                            \
+	OP(EXPR_SQUARES)                                                                           \
+	OP(EXPR_FIELD)                                                                             \
+	OP(EXPR_CALL)                                                                              \
+	OP(EXPR_ARG)                                                                               \
+	OP(EXPR_CAST)                                                                              \
+	OP(EXPR_SIZEOF)                                                                            \
+	OP(EXPR_CONCAT)                                                                            \
+	OP(EXPR_LITERAL)                                                                           \
 	OP(EXPR_RECOVER)
 
 enum expr_type {
@@ -91,14 +91,14 @@ enum expr_type {
 
 struct expr {
 	enum expr_type ex_type;
-	struct token  *ex_tk;
-	struct expr   *ex_lhs;
-	struct expr   *ex_rhs;
-	struct token  *ex_tokens[2];
+	struct token *ex_tk;
+	struct expr *ex_lhs;
+	struct expr *ex_rhs;
+	struct token *ex_tokens[2];
 
 	union {
 		struct expr *ex_ternary;
-		struct doc  *ex_dc;
+		struct doc *ex_dc;
 		VECTOR(struct expr *) ex_concat;
 
 		struct {
@@ -116,8 +116,8 @@ struct expr_state;
 
 struct expr_rule {
 	enum expr_pc er_pc;
-	int	     er_rassoc;
-	int	     er_type;
+	int er_rassoc;
+	int er_type;
 	struct expr *(*er_func)(struct expr_state *, struct expr *);
 };
 
@@ -129,23 +129,23 @@ struct expr_state {
 #define es_flags es_ea.flags
 
 	struct {
-		struct arena	   *scratch;
+		struct arena *scratch;
 		struct arena_scope *scratch_scope;
-		struct arena	   *buffer;
+		struct arena *buffer;
 	} es_arena;
 
 	const struct expr_rule *es_er;
-	struct token	       *es_tk;
-	enum expr_mode		es_mode;
-	unsigned int		es_depth;
-	unsigned int		es_parse_depth; /* Recursion guard. */
-	unsigned int		es_nassign;    /* # nested binary assignments */
-	unsigned int		es_ncalls;     /* # nested calls */
-	unsigned int		es_nconcat;    /* # enclosing juxtapositions */
-	unsigned int		es_noparens;   /* parens indent disabled */
-	unsigned int		es_col;	       /* ruler column */
-	int			es_overflow;   /* stack budget exceeded */
-	const char	       *es_stack_base; /* stack budget origin */
+	struct token *es_tk;
+	enum expr_mode es_mode;
+	unsigned int es_depth;
+	unsigned int es_parse_depth; /* Recursion guard. */
+	unsigned int es_nassign;     /* # nested binary assignments */
+	unsigned int es_ncalls;	     /* # nested calls */
+	unsigned int es_nconcat;     /* # enclosing juxtapositions */
+	unsigned int es_noparens;    /* parens indent disabled */
+	unsigned int es_col;	     /* ruler column */
+	int es_overflow;	     /* stack budget exceeded */
+	const char *es_stack_base;   /* stack budget origin */
 };
 
 static struct expr *expr_exec1(struct expr_state *, enum expr_pc);
@@ -170,59 +170,44 @@ static int expr_exec_peek(struct expr_state *, struct token **);
 static struct expr *expr_alloc(enum expr_type, const struct expr_state *);
 
 static struct doc *expr_doc(struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_unary(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_binary(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_parens(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_field(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_call(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_arg(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_sizeof(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_concat(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_ternary(
-    struct expr *, struct expr_state *, struct doc *);
-static struct doc *expr_doc_recover(
-    struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_unary(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_binary(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_parens(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_field(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_call(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_arg(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_sizeof(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_concat(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_ternary(struct expr *, struct expr_state *, struct doc *);
+static struct doc *expr_doc_recover(struct expr *, struct expr_state *, struct doc *);
 
-#define expr_doc_token(a, b, c)                                                \
-	expr_doc_token_impl((a), (b), (c), __func__, __LINE__)
+#define expr_doc_token(a, b, c) expr_doc_token_impl((a), (b), (c), __func__, __LINE__)
 static struct doc *expr_doc_token_impl(
     struct expr_state *, struct token *, struct doc *, const char *, int);
 
 static void expr_free_concat(void *);
 
-#define expr_doc_align(a, b, c, d)                                             \
-	expr_doc_align_impl((a), (b), (c), (d), __func__, __LINE__)
-static struct doc *expr_doc_align_impl(struct expr *, struct expr_state *,
-    struct doc *, unsigned int, const char *, int);
+#define expr_doc_align(a, b, c, d) expr_doc_align_impl((a), (b), (c), (d), __func__, __LINE__)
+static struct doc *expr_doc_align_impl(
+    struct expr *, struct expr_state *, struct doc *, unsigned int, const char *, int);
 
-#define expr_doc_align_disable(a, b, c, d)                                     \
+#define expr_doc_align_disable(a, b, c, d)                                                         \
 	expr_doc_align_disable_impl((a), (b), (c), (d), __func__, __LINE__)
-static struct doc *expr_doc_align_disable_impl(struct expr *,
-    struct expr_state *, struct doc *, unsigned int, const char *, int);
+static struct doc *expr_doc_align_disable_impl(
+    struct expr *, struct expr_state *, struct doc *, unsigned int, const char *, int);
 
-static void expr_doc_align_init(
-    struct expr_state *, struct doc_minimize *, size_t);
+static void expr_doc_align_init(struct expr_state *, struct doc_minimize *, size_t);
 
-static struct doc *expr_doc_indent_parens(
-    const struct expr_state *, struct doc *);
-static int	    expr_doc_has_spaces(const struct expr *);
+static struct doc *expr_doc_indent_parens(const struct expr_state *, struct doc *);
+static int expr_doc_has_spaces(const struct expr *);
 static unsigned int expr_doc_width(struct expr_state *, const struct doc *);
 
-#define expr_doc_soft(a, b, c, d)                                              \
-	expr_doc_soft_impl((a), (b), (c), (d), __func__, __LINE__)
+#define expr_doc_soft(a, b, c, d) expr_doc_soft_impl((a), (b), (c), (d), __func__, __LINE__)
 static struct doc *expr_doc_soft_impl(
     struct expr *, struct expr_state *, struct doc *, int, const char *, int);
 
-static void expr_state_init(struct expr_state *, const struct expr_exec_arg *,
-    enum expr_mode, struct arena_scope *);
+static void expr_state_init(
+    struct expr_state *, const struct expr_exec_arg *, enum expr_mode, struct arena_scope *);
 
 static const struct expr_rule *expr_find_rule(const struct token *, int);
 
@@ -340,8 +325,8 @@ struct doc *
 expr_exec(const struct expr_exec_arg *ea)
 {
 	struct expr_state es;
-	struct doc	 *dc, *expr, *indent, *optional;
-	struct expr	 *ex;
+	struct doc *dc, *expr, *indent, *optional;
+	struct expr *ex;
 
 	arena_scope(ea->arena.scratch, scratch_scope);
 
@@ -387,11 +372,11 @@ expr_exec(const struct expr_exec_arg *ea)
 int
 expr_peek(const struct expr_exec_arg *ea, struct token **tk)
 {
-	struct expr_state  es;
+	struct expr_state es;
 	struct lexer_state s;
-	struct expr	  *ex;
-	struct lexer	  *lx = ea->lx;
-	int		   peek = 0;
+	struct expr *ex;
+	struct lexer *lx = ea->lx;
+	int peek = 0;
 
 	arena_scope(ea->arena.scratch, scratch_scope);
 
@@ -409,11 +394,10 @@ static int
 is_star_argument(struct lexer *lx)
 {
 	struct lexer_state ls;
-	int		   peek;
+	int peek;
 
 	lexer_peek_enter(lx, &ls);
-	peek = lexer_if(lx, TOKEN_STAR, nullptr) &&
-	    lexer_if(lx, TOKEN_COMMA, nullptr);
+	peek = lexer_if(lx, TOKEN_STAR, nullptr) && lexer_if(lx, TOKEN_COMMA, nullptr);
 	lexer_peek_leave(lx, &ls);
 	return peek;
 }
@@ -427,11 +411,10 @@ static int
 is_std_attribute(struct lexer *lx)
 {
 	struct lexer_state s;
-	int		   peek;
+	int peek;
 
 	lexer_peek_enter(lx, &s);
-	peek = lexer_if(lx, TOKEN_LSQUARE, nullptr) &&
-	    lexer_if(lx, TOKEN_LSQUARE, nullptr);
+	peek = lexer_if(lx, TOKEN_LSQUARE, nullptr) && lexer_if(lx, TOKEN_LSQUARE, nullptr);
 	lexer_peek_leave(lx, &s);
 	return peek;
 }
@@ -480,8 +463,8 @@ static struct expr *
 expr_exec2(struct expr_state *es, enum expr_pc pc)
 {
 	const struct expr_rule *er;
-	struct expr	       *ex = nullptr;
-	struct token	       *tk;
+	struct expr *ex = nullptr;
+	struct token *tk;
 
 	if (!expr_exec_peek(es, &tk))
 		return nullptr;
@@ -547,8 +530,8 @@ static struct expr *
 expr_exec_recover(struct expr_state *es)
 {
 	const struct expr_exec_arg *ea = &es->es_ea;
-	struct doc		   *dc;
-	struct expr		   *ex;
+	struct doc *dc;
+	struct expr *ex;
 
 	dc = ea->callbacks.recover(ea, ea->callbacks.arg);
 	if (dc == nullptr)
@@ -562,8 +545,8 @@ static struct expr *
 expr_exec_recover_cast(struct expr_state *es)
 {
 	const struct expr_exec_arg *ea = &es->es_ea;
-	struct doc		   *dc;
-	struct expr		   *ex;
+	struct doc *dc;
+	struct expr *ex;
 
 	dc = ea->callbacks.recover_cast(ea, ea->callbacks.arg);
 	if (dc == nullptr)
@@ -584,10 +567,10 @@ expr_exec_recover_cast(struct expr_state *es)
 static struct expr *
 expr_exec_binary(struct expr_state *es, struct expr *lhs)
 {
-	struct expr  *ex;
+	struct expr *ex;
 	struct token *comma = es->es_tk;
-	enum expr_pc  pc;
-	int	      iscomma = es->es_tk->tk_type == TOKEN_COMMA;
+	enum expr_pc pc;
+	int iscomma = es->es_tk->tk_type == TOKEN_COMMA;
 
 	/* Some macros allow empty arguments such as queue(3). */
 	while (iscomma && lexer_if(es->es_lx, TOKEN_COMMA, &comma))
@@ -610,10 +593,8 @@ expr_exec_binary(struct expr_state *es, struct expr *lhs)
 	 * change how the next pass indents the initializer, breaking
 	 * idempotence for recovered fields such as `x[0] = { ... }`.
 	 */
-	if (ex->ex_rhs == nullptr &&
-	    (ex->ex_tk->tk_flags & TOKEN_FLAG_ASSIGN) != 0 &&
-	    es->es_ea.stop != nullptr &&
-	    es->es_ea.stop->tk_type == TOKEN_LBRACE)
+	if (ex->ex_rhs == nullptr && (ex->ex_tk->tk_flags & TOKEN_FLAG_ASSIGN) != 0 &&
+	    es->es_ea.stop != nullptr && es->es_ea.stop->tk_type == TOKEN_LBRACE)
 		ex->ex_rhs = expr_exec_recover(es);
 
 	return ex;
@@ -629,7 +610,7 @@ static struct expr *
 expr_exec_concat(struct expr_state *es, struct expr *lhs)
 {
 	struct expr **dst;
-	struct expr  *ex, *rhs;
+	struct expr *ex, *rhs;
 
 	assert(lhs != nullptr);
 
@@ -677,8 +658,7 @@ expr_exec_literal(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 static void
 expr_exec_call(struct expr_state *es, struct expr *ex)
 {
-	if (es->es_mode != EXPR_MODE_EXEC ||
-	    ex->ex_lhs->ex_type != EXPR_LITERAL)
+	if (es->es_mode != EXPR_MODE_EXEC || ex->ex_lhs->ex_type != EXPR_LITERAL)
 		return;
 
 	simple_cookie(simple);
@@ -696,7 +676,7 @@ expr_exec_call(struct expr_state *es, struct expr *ex)
 static struct expr *
 expr_exec_parens(struct expr_state *es, struct expr *lhs)
 {
-	struct expr  *ex;
+	struct expr *ex;
 	struct token *tk = es->es_tk;
 
 	if (lhs == nullptr) {
@@ -753,7 +733,7 @@ expr_exec_prepost(struct expr_state *es, struct expr *lhs)
 static struct expr *
 expr_exec_sizeof(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 {
-	struct expr  *ex;
+	struct expr *ex;
 	struct token *tk;
 
 	assert(lhs == nullptr);
@@ -780,8 +760,8 @@ static struct expr *
 expr_exec_generic(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 {
 	const struct expr_exec_arg *ea = &es->es_ea;
-	struct doc		   *dc;
-	struct expr		   *ex;
+	struct doc *dc;
+	struct expr *ex;
 
 	assert(lhs == nullptr);
 
@@ -796,7 +776,7 @@ expr_exec_generic(struct expr_state *es, struct expr *NDEBUG_UNUSED(lhs))
 static struct expr *
 expr_exec_squares(struct expr_state *es, struct expr *lhs)
 {
-	struct expr  *ex;
+	struct expr *ex;
 	struct token *tk;
 
 	assert(lhs != nullptr);
@@ -815,7 +795,7 @@ expr_exec_squares(struct expr_state *es, struct expr *lhs)
 static struct expr *
 expr_exec_ternary(struct expr_state *es, struct expr *lhs)
 {
-	struct expr  *ex;
+	struct expr *ex;
 	struct token *tk;
 
 	ex = expr_alloc(EXPR_TERNARY, es);
@@ -852,8 +832,8 @@ expr_exec_peek(struct expr_state *es, struct token **tk)
 {
 	struct lexer *lx = es->es_lx;
 
-	if (lexer_get_error(lx) || !lexer_peek(lx, &es->es_tk) ||
-	    es->es_tk == es->es_ea.stop || es->es_tk->tk_type == LEXER_EOF)
+	if (lexer_get_error(lx) || !lexer_peek(lx, &es->es_tk) || es->es_tk == es->es_ea.stop ||
+	    es->es_tk->tk_type == LEXER_EOF)
 		return 0;
 
 	*tk = es->es_tk;
@@ -885,8 +865,7 @@ expr_doc(struct expr *ex, struct expr_state *es, struct doc *dc)
 	if (es->es_stack_base != nullptr) {
 		uintptr_t base = (uintptr_t)es->es_stack_base;
 		uintptr_t here = (uintptr_t)__builtin_frame_address(0);
-		size_t	  used =
-		    base > here ? (size_t)(base - here) : (size_t)(here - base);
+		size_t used = base > here ? (size_t)(base - here) : (size_t)(here - base);
 
 		if (used > EXPR_STACK_BUDGET) {
 			es->es_overflow = 1;
@@ -1027,7 +1006,7 @@ expr_binary_default(const struct expr *ex, const struct expr_state *es)
 
 struct expr_doc_chain_frame {
 	struct expr *ex;
-	struct doc  *dc;
+	struct doc *dc;
 };
 
 /*
@@ -1041,12 +1020,12 @@ static struct doc *
 expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	const struct style *st = es->es_st;
-	int		    doalign = style(st, AlignOperands) == Align;
+	int doalign = style(st, AlignOperands) == Align;
 	struct expr_doc_chain_frame *frames;
-	struct doc		    *lhs;
-	size_t			     nframes = 0, cap = 16;
-	unsigned int		     entry_depth = es->es_depth;
-	size_t			     i;
+	struct doc *lhs;
+	size_t nframes = 0, cap = 16;
+	unsigned int entry_depth = es->es_depth;
+	size_t i;
 
 	frames = malloc(cap * sizeof(*frames));
 	if (frames == nullptr)
@@ -1071,8 +1050,7 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 		    .dc = dc,
 		};
 
-		if (ex->ex_lhs != nullptr &&
-		    expr_binary_default(ex->ex_lhs, es)) {
+		if (ex->ex_lhs != nullptr && expr_binary_default(ex->ex_lhs, es)) {
 			struct doc *group, *concat;
 
 			/*
@@ -1082,8 +1060,7 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 			group = doc_alloc(DOC_GROUP, dc);
 			doc_annotate(group, expr_type_str(ex->ex_type));
 			concat = doc_alloc(DOC_CONCAT, group);
-			if ((es->es_flags & EXPR_EXEC_TEST) &&
-			    ex->ex_type != EXPR_PARENS)
+			if ((es->es_flags & EXPR_EXEC_TEST) && ex->ex_type != EXPR_PARENS)
 				doc_literal("(", concat);
 			dc = concat;
 			continue;
@@ -1101,8 +1078,8 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 
 	for (i = nframes; i > 0; i--) {
 		struct expr *e = frames[i - 1].ex;
-		struct doc  *c = frames[i - 1].dc;
-		int	     dospace;
+		struct doc *c = frames[i - 1].dc;
+		int dospace;
 
 		dospace = expr_doc_has_spaces(e);
 		if (dospace)
@@ -1114,22 +1091,19 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 		 * line, ensure that the new line is honored even when optional
 		 * new line(s) are ignored.
 		 */
-		if (token_has_suffix(e->ex_tk, TOKEN_COMMENT) &&
-		    token_has_line(e->ex_tk, 1))
+		if (token_has_suffix(e->ex_tk, TOKEN_COMMENT) && token_has_line(e->ex_tk, 1))
 			doc_alloc(DOC_HARDLINE, lhs);
 		else if (dospace)
 			doc_alloc(DOC_LINE, dc);
 		if (e->ex_rhs != nullptr) {
 			es->es_depth = entry_depth + (unsigned int)(i - 1);
-			dc = expr_doc_soft(
-			    e->ex_rhs, es, dc, soft_weights.binary);
+			dc = expr_doc_soft(e->ex_rhs, es, dc, soft_weights.binary);
 		}
 		/*
 		 * The outermost level's closing parenthesis is emitted by the
 		 * caller (expr_doc()); inner levels are closed here.
 		 */
-		if (i > 1 && (es->es_flags & EXPR_EXEC_TEST) &&
-		    e->ex_type != EXPR_PARENS)
+		if (i > 1 && (es->es_flags & EXPR_EXEC_TEST) && e->ex_type != EXPR_PARENS)
 			doc_literal(")", dc);
 		lhs = dc;
 	}
@@ -1151,7 +1125,7 @@ static struct doc *
 expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	const struct style *st = es->es_st;
-	int		    doalign = style(st, AlignOperands) == Align;
+	int doalign = style(st, AlignOperands) == Align;
 
 	if (ex->ex_tk->tk_flags & TOKEN_FLAG_ASSIGN) {
 		struct doc *lhs;
@@ -1163,9 +1137,9 @@ expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 		doc_literal(" ", lhs);
 		if (ex->ex_rhs != nullptr) {
 			if (doalign) {
-				dc = token_has_line(ex->ex_tk, 1) ?
-				    expr_doc_align_disable(ex, es, dc, 0) :
-				    expr_doc_align(ex, es, dc, 0);
+				dc = token_has_line(ex->ex_tk, 1)
+				    ? expr_doc_align_disable(ex, es, dc, 0)
+				    : expr_doc_align(ex, es, dc, 0);
 			}
 
 			/*
@@ -1173,8 +1147,7 @@ expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 			 * after the assignment operator.
 			 */
 			if (es->es_nassign > 1) {
-				dc = expr_doc_soft(
-				    ex->ex_rhs, es, dc, soft_weights.binary);
+				dc = expr_doc_soft(ex->ex_rhs, es, dc, soft_weights.binary);
 			} else {
 				dc = expr_doc(ex->ex_rhs, es, dc);
 			}
@@ -1183,7 +1156,7 @@ expr_doc_binary(struct expr *ex, struct expr_state *es, struct doc *dc)
 	} else if (style(st, BreakBeforeBinaryOperators) == NonAssignment ||
 	    style(st, BreakBeforeBinaryOperators) == All) {
 		struct doc *lhs;
-		int	    dospace;
+		int dospace;
 
 		if (doalign)
 			dc = expr_doc_align(ex, es, dc, 0);
@@ -1243,8 +1216,7 @@ is_preceded_with_comment(const struct token *tk)
 	const struct token *pv = token_prev(tk);
 	if (pv == nullptr)
 		return 0;
-	const struct token *comment =
-	    token_list_find(&pv->tk_suffixes, TOKEN_COMMENT, 0);
+	const struct token *comment = token_list_find(&pv->tk_suffixes, TOKEN_COMMENT, 0);
 	if (comment == nullptr)
 		return 0;
 	return comment->tk_lno == tk->tk_lno;
@@ -1273,14 +1245,13 @@ expr_doc_parens(struct expr *ex, struct expr_state *es, struct doc *dc)
 	}
 
 	simple_cookie(simple);
-	if (token_is_moveable(lparen) && token_is_moveable(rparen) &&
-	    !is_gnu_stmt_expr(lparen) && !is_preceded_with_comment(lparen) &&
-	    (es->es_depth == 1 || !must_keep_parens(ex)) &&
+	if (token_is_moveable(lparen) && token_is_moveable(rparen) && !is_gnu_stmt_expr(lparen) &&
+	    !is_preceded_with_comment(lparen) && (es->es_depth == 1 || !must_keep_parens(ex)) &&
 	    simple_enter(es->es_ea.si, SIMPLE_EXPR_PARENS, 0, &simple)) {
 		struct token *pv = token_prev(rparen);
 		struct token *nx = token_next(rparen);
-		if (nx != nullptr && nx->tk_type == TOKEN_SEMI &&
-		    pv != nullptr && token_has_line(pv, 1))
+		if (nx != nullptr && nx->tk_type == TOKEN_SEMI && pv != nullptr &&
+		    token_has_line(pv, 1))
 			token_trim(pv);
 
 		/*
@@ -1353,7 +1324,7 @@ expr_doc_call(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	struct token *lparen = ex->ex_tokens[0];
 	struct token *rparen = ex->ex_tokens[1];
-	int	      fold_rparens = 0;
+	int fold_rparens = 0;
 
 	es->es_ncalls++;
 
@@ -1385,9 +1356,8 @@ expr_doc_call(struct expr *ex, struct expr_state *es, struct doc *dc)
 				indent = 0;
 			else
 				indent = es->es_ea.indent;
-			dc = token_has_line(lparen, 1) ?
-			    expr_doc_align_disable(ex, es, dc, indent) :
-			    expr_doc_align(ex, es, dc, indent);
+			dc = token_has_line(lparen, 1) ? expr_doc_align_disable(ex, es, dc, indent)
+						       : expr_doc_align(ex, es, dc, indent);
 		}
 		dc = expr_doc_soft(ex->ex_rhs, es, dc, soft_weights.call_args);
 	}
@@ -1415,10 +1385,8 @@ expr_doc_call(struct expr *ex, struct expr_state *es, struct doc *dc)
 static int
 comma_has_spaces(const struct token *comma)
 {
-	const struct token *comment =
-	    token_list_find(&comma->tk_suffixes, TOKEN_COMMENT, 0);
-	return comment != nullptr && comment->tk_len > 0 &&
-	    comment->tk_str[0] == ' ';
+	const struct token *comment = token_list_find(&comma->tk_suffixes, TOKEN_COMMENT, 0);
+	return comment != nullptr && comment->tk_len > 0 && comment->tk_str[0] == ' ';
 }
 
 /*
@@ -1431,7 +1399,7 @@ comma_has_spaces(const struct token *comma)
 static struct doc *
 expr_doc_arg(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
-	struct doc   *lhs = dc;
+	struct doc *lhs = dc;
 	struct token *comma = ex->ex_tk;
 
 	if (ex->ex_lhs != nullptr)
@@ -1492,17 +1460,16 @@ static struct doc *
 expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	struct token *pv;
-	size_t	      i, n;
+	size_t i, n;
 
 	if (style(es->es_st, AlignOperands) == Align && es->es_ncalls == 0 &&
-	    (pv = token_prev(ex->ex_concat[0]->ex_tk)) != nullptr &&
-	    !token_has_line(pv, 1))
+	    (pv = token_prev(ex->ex_concat[0]->ex_tk)) != nullptr && !token_has_line(pv, 1))
 		dc = expr_doc_align(ex, es, dc, 0);
 	n = VECTOR_LENGTH(ex->ex_concat);
 	es->es_nconcat++;
 	for (i = 0; i < n; i++) {
 		struct expr *e = ex->ex_concat[i];
-		struct doc  *tmp;
+		struct doc *tmp;
 
 		tmp = expr_doc(e, es, dc);
 		/*
@@ -1518,8 +1485,7 @@ expr_doc_concat(struct expr *ex, struct expr_state *es, struct doc *dc)
 			struct expr *nx = ex->ex_concat[i + 1];
 
 			if ((e->ex_tk != nullptr && nx->ex_tk != nullptr &&
-				token_pair_needs_space(
-				    token_prev(nx->ex_tk), nx->ex_tk)) ||
+				token_pair_needs_space(token_prev(nx->ex_tk), nx->ex_tk)) ||
 			    !token_has_line(e->ex_tk, 2))
 				doc_alloc(DOC_LINE, tmp);
 		}
@@ -1553,8 +1519,7 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 		/* The lhs expression can be empty, GNU extension. */
 		if (ex->ex_rhs != nullptr) {
 			doc_literal(" ", lhs);
-			lhs = expr_doc_soft(
-			    ex->ex_rhs, es, lhs, soft_weights.ternary);
+			lhs = expr_doc_soft(ex->ex_rhs, es, lhs, soft_weights.ternary);
 			doc_alloc(DOC_LINE, lhs);
 		}
 
@@ -1579,8 +1544,7 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 		/* The true expression can be empty, GNU extension. */
 		if (ex->ex_rhs != nullptr) {
 			doc_alloc(DOC_LINE, ternary);
-			ternary = expr_doc_soft(
-			    ex->ex_rhs, es, dc, soft_weights.ternary);
+			ternary = expr_doc_soft(ex->ex_rhs, es, dc, soft_weights.ternary);
 			/*
 			 * The colon binds to the true expression; do not offer
 			 * a break before it so the decision cannot depend on
@@ -1604,8 +1568,7 @@ expr_doc_ternary(struct expr *ex, struct expr_state *es, struct doc *dc)
 		else
 			doc_alloc(DOC_LINE, ternary);
 
-		return expr_doc_soft(
-		    ex->ex_ternary, es, dc, soft_weights.ternary);
+		return expr_doc_soft(ex->ex_ternary, es, dc, soft_weights.ternary);
 	}
 }
 
@@ -1630,11 +1593,10 @@ expr_doc_recover(struct expr *ex, struct expr_state *es, struct doc *dc)
 }
 
 static struct doc *
-expr_doc_token_impl(struct expr_state *es, struct token *tk, struct doc *dc,
-    const char *fun, int lno)
+expr_doc_token_impl(
+    struct expr_state *es, struct token *tk, struct doc *dc, const char *fun, int lno)
 {
-	return es->es_ea.callbacks.doc_token(
-	    tk, dc, fun, lno, es->es_ea.callbacks.arg);
+	return es->es_ea.callbacks.doc_token(tk, dc, fun, lno, es->es_ea.callbacks.arg);
 }
 
 static void
@@ -1650,8 +1612,8 @@ expr_free_concat(void *arg)
  * not cause exceesive new line(s). Otherwise, fallback to regular indentation.
  */
 static struct doc *
-expr_doc_align_impl(struct expr *UNUSED(ex), struct expr_state *es,
-    struct doc *dc, unsigned int indent, const char *fun, int lno)
+expr_doc_align_impl(struct expr *UNUSED(ex), struct expr_state *es, struct doc *dc,
+    unsigned int indent, const char *fun, int lno)
 {
 	struct doc_minimize minimizers[2];
 
@@ -1662,8 +1624,8 @@ expr_doc_align_impl(struct expr *UNUSED(ex), struct expr_state *es,
 }
 
 static struct doc *
-expr_doc_align_disable_impl(struct expr *UNUSED(ex), struct expr_state *es,
-    struct doc *dc, unsigned int indent, const char *fun, int lno)
+expr_doc_align_disable_impl(struct expr *UNUSED(ex), struct expr_state *es, struct doc *dc,
+    unsigned int indent, const char *fun, int lno)
 {
 	struct doc_minimize minimizers[2];
 
@@ -1674,8 +1636,8 @@ expr_doc_align_disable_impl(struct expr *UNUSED(ex), struct expr_state *es,
 }
 
 static void
-expr_doc_align_init(struct expr_state *UNUSED(es),
-    struct doc_minimize *minimizers, size_t nminimizers)
+expr_doc_align_init(
+    struct expr_state *UNUSED(es), struct doc_minimize *minimizers, size_t nminimizers)
 {
 	size_t i;
 
@@ -1738,17 +1700,16 @@ expr_doc_width(struct expr_state *es, const struct doc *dc)
  * entirely for callers that manage breaks themselves.
  */
 static struct doc *
-expr_doc_soft_impl(struct expr *ex, struct expr_state *es, struct doc *dc,
-    int weight, const char *fun, int lno)
+expr_doc_soft_impl(
+    struct expr *ex, struct expr_state *es, struct doc *dc, int weight, const char *fun, int lno)
 {
 	struct arena *scratch = es->es_arena.scratch;
-	struct doc   *concat, *parent, *softline;
+	struct doc *concat, *parent, *softline;
 
 	if (es->es_flags & EXPR_EXEC_NOSOFT)
 		return expr_doc(ex, es, dc);
 
-	dc = doc_alloc_impl(DOC_CONCAT,
-	    doc_alloc_impl(DOC_GROUP, dc, 0, fun, lno), 0, fun, lno);
+	dc = doc_alloc_impl(DOC_CONCAT, doc_alloc_impl(DOC_GROUP, dc, 0, fun, lno), 0, fun, lno);
 	softline = doc_alloc_impl(DOC_SOFTLINE, dc, weight, fun, lno);
 	parent = doc_alloc(DOC_CONCAT, dc);
 	concat = expr_doc(ex, es, parent);
@@ -1770,8 +1731,8 @@ expr_doc_soft_impl(struct expr *ex, struct expr_state *es, struct doc *dc,
  * this invocation.
  */
 static void
-expr_state_init(struct expr_state *es, const struct expr_exec_arg *ea,
-    enum expr_mode mode, struct arena_scope *scratch_scope)
+expr_state_init(struct expr_state *es, const struct expr_exec_arg *ea, enum expr_mode mode,
+    struct arena_scope *scratch_scope)
 {
 	ASSERT_CONSISTENCY(mode == EXPR_MODE_EXEC, ea->si);
 	ASSERT_CONSISTENCY(ea->flags & EXPR_EXEC_ALIGN, ea->rl);
@@ -1816,7 +1777,7 @@ static void
 token_move_prev_line(struct token *tk)
 {
 	struct token *pv;
-	unsigned int  lno;
+	unsigned int lno;
 
 	pv = token_prev(tk);
 	/*
@@ -1839,8 +1800,8 @@ static const char *
 expr_type_str(enum expr_type type)
 {
 	switch (type) {
-#define OP(type)                                                               \
-	case type:                                                             \
+#define OP(type)                                                                                   \
+	case type:                                                                                 \
 		return #type;
 		FOR_EXPR_TYPES(OP)
 #undef OP

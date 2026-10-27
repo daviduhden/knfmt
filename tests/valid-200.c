@@ -2,6 +2,7 @@
  * Empty line continuation in cpp declaration.
  */
 
-#define FOO do {							\
-									\
-} while (0)
+#define FOO                                                                                        \
+	do {                                                                                       \
+                                                                                                   \
+	} while (0)

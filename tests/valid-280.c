@@ -7,10 +7,8 @@ main(void)
 {
 	if (0) {
 		if (1) {
-			aaaaaa aaaaaat = aaaaaaaaaaaaaaaaaaaaaaaaaaa(aaaaaaaaaaaaaaaaaa(aaa,i),
-			    aaaaaaaaaaaaaaaaaaaa,
-			    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-			    &aaaaa);
+			aaaaaa aaaaaat = aaaaaaaaaaaaaaaaaaaaaaaaaaa(aaaaaaaaaaaaaaaaaa(aaa, i),
+			    aaaaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, &aaaaa);
 		}
 	}
 }

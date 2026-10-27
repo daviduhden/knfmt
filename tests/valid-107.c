@@ -2,12 +2,10 @@
  * Brace initializers with cpp branch.
  */
 
-struct emul	emul_elf = {
-	sysent,
+struct emul emul_elf = {sysent,
 #ifdef SYSCALL_DEBUG
-	syscallnames,
+    syscallnames,
 #else
-	NULL,
+    NULL,
 #endif
-	sigcoderet
-};
+    sigcoderet};

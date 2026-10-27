@@ -4,200 +4,196 @@
 
 struct arena_scope;
 
-#define FOR_TOKEN_TYPES(OP)                                                    \
-	/* keywords */                                                         \
-	OP(TOKEN_ASSEMBLY, "asm", 0)                                           \
-	OP(TOKEN_ATTRIBUTE, "__attribute__", 0)                                \
-	OP(TOKEN_AUTO, "auto", TOKEN_FLAG_STORAGE)                             \
-	OP(TOKEN_BREAK, "break", 0)                                            \
-	OP(TOKEN_CASE, "case", 0)                                              \
-	OP(TOKEN_CHAR, "char", TOKEN_FLAG_TYPE)                                \
-	OP(TOKEN_CONST, "const", TOKEN_FLAG_QUALIFIER)                         \
-	OP(TOKEN_CONTINUE, "continue", 0)                                      \
-	OP(TOKEN_DEFAULT, "default", 0)                                        \
-	OP(TOKEN_DO, "do", 0)                                                  \
-	OP(TOKEN_DOUBLE, "double", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_ELSE, "else", 0)                                              \
-	OP(TOKEN_ENUM, "enum", TOKEN_FLAG_TYPE)                                \
-	OP(TOKEN_EXTERN, "extern", TOKEN_FLAG_STORAGE)                         \
-	OP(TOKEN_FLOAT, "float", TOKEN_FLAG_TYPE)                              \
-	OP(TOKEN_FOR, "for", 0)                                                \
-	OP(TOKEN_GOTO, "goto", 0)                                              \
-	OP(TOKEN_IF, "if", 0)                                                  \
-	OP(TOKEN_INLINE, "inline", TOKEN_FLAG_STORAGE)                         \
-	OP(TOKEN_INT, "int", TOKEN_FLAG_TYPE)                                  \
-	OP(TOKEN_LONG, "long", TOKEN_FLAG_TYPE)                                \
-	OP(TOKEN_REGISTER, "register", TOKEN_FLAG_STORAGE)                     \
-	OP(TOKEN_RESTRICT, "restrict", TOKEN_FLAG_QUALIFIER)                   \
-	OP(TOKEN_RETURN, "return", 0)                                          \
-	OP(TOKEN_SHORT, "short", TOKEN_FLAG_TYPE)                              \
-	OP(TOKEN_SIGNED, "signed", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_SIZEOF, "sizeof", 0)                                          \
-	OP(TOKEN_STATIC, "static", TOKEN_FLAG_STORAGE)                         \
-	OP(TOKEN_STRUCT, "struct", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_SWITCH, "switch", 0)                                          \
-	OP(TOKEN_TYPEDEF, "typedef", TOKEN_FLAG_TYPE)                          \
-	OP(TOKEN_UNION, "union", TOKEN_FLAG_TYPE)                              \
-	OP(TOKEN_UNSIGNED, "unsigned", TOKEN_FLAG_TYPE)                        \
-	OP(TOKEN_VOID, "void", TOKEN_FLAG_TYPE)                                \
-	OP(TOKEN_VOLATILE, "volatile", TOKEN_FLAG_QUALIFIER)                   \
-	OP(TOKEN_WHILE, "while", 0)                                            \
-	/* C11 keywords */                                                     \
-	OP(TOKEN_ALIGNAS, "_Alignas", 0)                                       \
-	OP(TOKEN_ALIGNOF, "_Alignof", 0)                                       \
-	OP(TOKEN_ATOMIC, "_Atomic", TOKEN_FLAG_QUALIFIER)                      \
-	OP(TOKEN_COMPLEX, "_Complex", TOKEN_FLAG_TYPE)                         \
-	OP(TOKEN_GENERIC, "_Generic", 0)                                       \
-	OP(TOKEN_IMAGINARY, "_Imaginary", TOKEN_FLAG_TYPE)                     \
-	OP(TOKEN_NORETURN, "_Noreturn", TOKEN_FLAG_STORAGE)                    \
-	OP(TOKEN_STATIC_ASSERT, "_Static_assert", 0)                           \
-	OP(TOKEN_THREAD_LOCAL, "_Thread_local", TOKEN_FLAG_STORAGE)            \
-	/* C23 keywords */                                                     \
-	OP(TOKEN_BITINT, "_BitInt", TOKEN_FLAG_TYPE)                           \
-	/* punctuators */                                                      \
-	OP(TOKEN_LSQUARE, "[", 0)                                              \
-	OP(TOKEN_RSQUARE, "]", 0)                                              \
-	OP(TOKEN_LPAREN, "(", 0)                                               \
-	OP(TOKEN_RPAREN, ")", 0)                                               \
-	OP(TOKEN_LBRACE, "{", 0)                                               \
-	OP(TOKEN_RBRACE, "}", 0)                                               \
-	OP(TOKEN_PERIOD, ".", TOKEN_FLAG_AMBIGUOUS)                            \
-	OP(TOKEN_ELLIPSIS, "...", TOKEN_FLAG_TYPE)                             \
-	OP(TOKEN_AMP, "&", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)           \
-	OP(TOKEN_AMPAMP, "&&", TOKEN_FLAG_BINARY)                              \
-	OP(TOKEN_AMPEQUAL, "&=", TOKEN_FLAG_ASSIGN)                            \
-	OP(TOKEN_STAR, "*",                                                    \
-	    TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)       \
-	OP(TOKEN_STAREQUAL, "*=", TOKEN_FLAG_ASSIGN)                           \
-	OP(TOKEN_PLUS, "+", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)          \
-	OP(TOKEN_PLUSPLUS, "++", 0)                                            \
-	OP(TOKEN_PLUSEQUAL, "+=", TOKEN_FLAG_ASSIGN)                           \
-	OP(TOKEN_MINUS, "-", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)         \
-	OP(TOKEN_ARROW, "->", 0)                                               \
-	OP(TOKEN_MINUSMINUS, "--", 0)                                          \
-	OP(TOKEN_MINUSEQUAL, "-=", TOKEN_FLAG_ASSIGN)                          \
-	OP(TOKEN_TILDE, "~", 0)                                                \
-	OP(TOKEN_EXCLAIM, "!", TOKEN_FLAG_AMBIGUOUS)                           \
-	OP(TOKEN_EXCLAIMEQUAL, "!=", TOKEN_FLAG_BINARY)                        \
-	OP(TOKEN_SLASH, "/",                                                   \
-	    TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)       \
-	OP(TOKEN_SLASHEQUAL, "/=", TOKEN_FLAG_ASSIGN)                          \
-	OP(TOKEN_PERCENT, "%", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)       \
-	OP(TOKEN_PERCENTEQUAL, "%=", TOKEN_FLAG_ASSIGN)                        \
-	OP(TOKEN_LESS, "<", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)          \
-	OP(TOKEN_LESSLESS, "<<", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)     \
-	OP(TOKEN_LESSEQUAL, "<=", TOKEN_FLAG_BINARY)                           \
-	OP(TOKEN_LESSLESSEQUAL, "<<=", TOKEN_FLAG_ASSIGN)                      \
-	OP(TOKEN_GREATER, ">", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)       \
-	OP(TOKEN_GREATERGREATER, ">>",                                         \
-	    TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                          \
-	OP(TOKEN_GREATEREQUAL, ">=", TOKEN_FLAG_BINARY)                        \
-	OP(TOKEN_GREATERGREATEREQUAL, ">>=", TOKEN_FLAG_ASSIGN)                \
-	OP(TOKEN_CARET, "^", TOKEN_FLAG_AMBIGUOUS)                             \
-	OP(TOKEN_CARETEQUAL, "^=", TOKEN_FLAG_ASSIGN)                          \
-	OP(TOKEN_PIPE, "|",                                                    \
-	    TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)       \
-	OP(TOKEN_PIPEPIPE, "||", TOKEN_FLAG_BINARY)                            \
-	OP(TOKEN_PIPEEQUAL, "|=", TOKEN_FLAG_ASSIGN)                           \
-	OP(TOKEN_QUESTION, "?", TOKEN_FLAG_AMBIGUOUS)                          \
-	OP(TOKEN_COLON, ":", TOKEN_FLAG_AMBIGUOUS)                             \
-	OP(TOKEN_SEMI, ";", 0)                                                 \
-	OP(TOKEN_EQUAL, "=", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_ASSIGN)         \
-	OP(TOKEN_EQUALEQUAL, "==", TOKEN_FLAG_BINARY)                          \
-	OP(TOKEN_COMMA, ",", 0)                                                \
-	OP(TOKEN_BACKSLASH, "\\", TOKEN_FLAG_DISCARD)                          \
-	/* types */                                                            \
-	OP(TOKEN_BOOL, "_Bool", TOKEN_FLAG_TYPE)                               \
-	OP(TOKEN_INT8, "int8_t", TOKEN_FLAG_TYPE)                              \
-	OP(TOKEN_INT16, "int16_t", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_INT32, "int32_t", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_INT64, "int64_t", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_UINT8, "uint8_t", TOKEN_FLAG_TYPE)                            \
-	OP(TOKEN_UINT16, "uint16_t", TOKEN_FLAG_TYPE)                          \
-	OP(TOKEN_UINT32, "uint32_t", TOKEN_FLAG_TYPE)                          \
-	OP(TOKEN_UINT64, "uint64_t", TOKEN_FLAG_TYPE)                          \
+#define FOR_TOKEN_TYPES(OP)                                                                        \
+	/* keywords */                                                                             \
+	OP(TOKEN_ASSEMBLY, "asm", 0)                                                               \
+	OP(TOKEN_ATTRIBUTE, "__attribute__", 0)                                                    \
+	OP(TOKEN_AUTO, "auto", TOKEN_FLAG_STORAGE)                                                 \
+	OP(TOKEN_BREAK, "break", 0)                                                                \
+	OP(TOKEN_CASE, "case", 0)                                                                  \
+	OP(TOKEN_CHAR, "char", TOKEN_FLAG_TYPE)                                                    \
+	OP(TOKEN_CONST, "const", TOKEN_FLAG_QUALIFIER)                                             \
+	OP(TOKEN_CONTINUE, "continue", 0)                                                          \
+	OP(TOKEN_DEFAULT, "default", 0)                                                            \
+	OP(TOKEN_DO, "do", 0)                                                                      \
+	OP(TOKEN_DOUBLE, "double", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_ELSE, "else", 0)                                                                  \
+	OP(TOKEN_ENUM, "enum", TOKEN_FLAG_TYPE)                                                    \
+	OP(TOKEN_EXTERN, "extern", TOKEN_FLAG_STORAGE)                                             \
+	OP(TOKEN_FLOAT, "float", TOKEN_FLAG_TYPE)                                                  \
+	OP(TOKEN_FOR, "for", 0)                                                                    \
+	OP(TOKEN_GOTO, "goto", 0)                                                                  \
+	OP(TOKEN_IF, "if", 0)                                                                      \
+	OP(TOKEN_INLINE, "inline", TOKEN_FLAG_STORAGE)                                             \
+	OP(TOKEN_INT, "int", TOKEN_FLAG_TYPE)                                                      \
+	OP(TOKEN_LONG, "long", TOKEN_FLAG_TYPE)                                                    \
+	OP(TOKEN_REGISTER, "register", TOKEN_FLAG_STORAGE)                                         \
+	OP(TOKEN_RESTRICT, "restrict", TOKEN_FLAG_QUALIFIER)                                       \
+	OP(TOKEN_RETURN, "return", 0)                                                              \
+	OP(TOKEN_SHORT, "short", TOKEN_FLAG_TYPE)                                                  \
+	OP(TOKEN_SIGNED, "signed", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_SIZEOF, "sizeof", 0)                                                              \
+	OP(TOKEN_STATIC, "static", TOKEN_FLAG_STORAGE)                                             \
+	OP(TOKEN_STRUCT, "struct", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_SWITCH, "switch", 0)                                                              \
+	OP(TOKEN_TYPEDEF, "typedef", TOKEN_FLAG_TYPE)                                              \
+	OP(TOKEN_UNION, "union", TOKEN_FLAG_TYPE)                                                  \
+	OP(TOKEN_UNSIGNED, "unsigned", TOKEN_FLAG_TYPE)                                            \
+	OP(TOKEN_VOID, "void", TOKEN_FLAG_TYPE)                                                    \
+	OP(TOKEN_VOLATILE, "volatile", TOKEN_FLAG_QUALIFIER)                                       \
+	OP(TOKEN_WHILE, "while", 0)                                                                \
+	/* C11 keywords */                                                                         \
+	OP(TOKEN_ALIGNAS, "_Alignas", 0)                                                           \
+	OP(TOKEN_ALIGNOF, "_Alignof", 0)                                                           \
+	OP(TOKEN_ATOMIC, "_Atomic", TOKEN_FLAG_QUALIFIER)                                          \
+	OP(TOKEN_COMPLEX, "_Complex", TOKEN_FLAG_TYPE)                                             \
+	OP(TOKEN_GENERIC, "_Generic", 0)                                                           \
+	OP(TOKEN_IMAGINARY, "_Imaginary", TOKEN_FLAG_TYPE)                                         \
+	OP(TOKEN_NORETURN, "_Noreturn", TOKEN_FLAG_STORAGE)                                        \
+	OP(TOKEN_STATIC_ASSERT, "_Static_assert", 0)                                               \
+	OP(TOKEN_THREAD_LOCAL, "_Thread_local", TOKEN_FLAG_STORAGE)                                \
+	/* C23 keywords */                                                                         \
+	OP(TOKEN_BITINT, "_BitInt", TOKEN_FLAG_TYPE)                                               \
+	/* punctuators */                                                                          \
+	OP(TOKEN_LSQUARE, "[", 0)                                                                  \
+	OP(TOKEN_RSQUARE, "]", 0)                                                                  \
+	OP(TOKEN_LPAREN, "(", 0)                                                                   \
+	OP(TOKEN_RPAREN, ")", 0)                                                                   \
+	OP(TOKEN_LBRACE, "{", 0)                                                                   \
+	OP(TOKEN_RBRACE, "}", 0)                                                                   \
+	OP(TOKEN_PERIOD, ".", TOKEN_FLAG_AMBIGUOUS)                                                \
+	OP(TOKEN_ELLIPSIS, "...", TOKEN_FLAG_TYPE)                                                 \
+	OP(TOKEN_AMP, "&", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                               \
+	OP(TOKEN_AMPAMP, "&&", TOKEN_FLAG_BINARY)                                                  \
+	OP(TOKEN_AMPEQUAL, "&=", TOKEN_FLAG_ASSIGN)                                                \
+	OP(TOKEN_STAR, "*", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)           \
+	OP(TOKEN_STAREQUAL, "*=", TOKEN_FLAG_ASSIGN)                                               \
+	OP(TOKEN_PLUS, "+", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                              \
+	OP(TOKEN_PLUSPLUS, "++", 0)                                                                \
+	OP(TOKEN_PLUSEQUAL, "+=", TOKEN_FLAG_ASSIGN)                                               \
+	OP(TOKEN_MINUS, "-", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                             \
+	OP(TOKEN_ARROW, "->", 0)                                                                   \
+	OP(TOKEN_MINUSMINUS, "--", 0)                                                              \
+	OP(TOKEN_MINUSEQUAL, "-=", TOKEN_FLAG_ASSIGN)                                              \
+	OP(TOKEN_TILDE, "~", 0)                                                                    \
+	OP(TOKEN_EXCLAIM, "!", TOKEN_FLAG_AMBIGUOUS)                                               \
+	OP(TOKEN_EXCLAIMEQUAL, "!=", TOKEN_FLAG_BINARY)                                            \
+	OP(TOKEN_SLASH, "/", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)          \
+	OP(TOKEN_SLASHEQUAL, "/=", TOKEN_FLAG_ASSIGN)                                              \
+	OP(TOKEN_PERCENT, "%", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                           \
+	OP(TOKEN_PERCENTEQUAL, "%=", TOKEN_FLAG_ASSIGN)                                            \
+	OP(TOKEN_LESS, "<", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                              \
+	OP(TOKEN_LESSLESS, "<<", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                         \
+	OP(TOKEN_LESSEQUAL, "<=", TOKEN_FLAG_BINARY)                                               \
+	OP(TOKEN_LESSLESSEQUAL, "<<=", TOKEN_FLAG_ASSIGN)                                          \
+	OP(TOKEN_GREATER, ">", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                           \
+	OP(TOKEN_GREATERGREATER, ">>", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY)                   \
+	OP(TOKEN_GREATEREQUAL, ">=", TOKEN_FLAG_BINARY)                                            \
+	OP(TOKEN_GREATERGREATEREQUAL, ">>=", TOKEN_FLAG_ASSIGN)                                    \
+	OP(TOKEN_CARET, "^", TOKEN_FLAG_AMBIGUOUS)                                                 \
+	OP(TOKEN_CARETEQUAL, "^=", TOKEN_FLAG_ASSIGN)                                              \
+	OP(TOKEN_PIPE, "|", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_BINARY | TOKEN_FLAG_SPACE)           \
+	OP(TOKEN_PIPEPIPE, "||", TOKEN_FLAG_BINARY)                                                \
+	OP(TOKEN_PIPEEQUAL, "|=", TOKEN_FLAG_ASSIGN)                                               \
+	OP(TOKEN_QUESTION, "?", TOKEN_FLAG_AMBIGUOUS)                                              \
+	OP(TOKEN_COLON, ":", TOKEN_FLAG_AMBIGUOUS)                                                 \
+	OP(TOKEN_SEMI, ";", 0)                                                                     \
+	OP(TOKEN_EQUAL, "=", TOKEN_FLAG_AMBIGUOUS | TOKEN_FLAG_ASSIGN)                             \
+	OP(TOKEN_EQUALEQUAL, "==", TOKEN_FLAG_BINARY)                                              \
+	OP(TOKEN_COMMA, ",", 0)                                                                    \
+	OP(TOKEN_BACKSLASH, "\\", TOKEN_FLAG_DISCARD)                                              \
+	/* types */                                                                                \
+	OP(TOKEN_BOOL, "_Bool", TOKEN_FLAG_TYPE)                                                   \
+	OP(TOKEN_INT8, "int8_t", TOKEN_FLAG_TYPE)                                                  \
+	OP(TOKEN_INT16, "int16_t", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_INT32, "int32_t", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_INT64, "int64_t", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_UINT8, "uint8_t", TOKEN_FLAG_TYPE)                                                \
+	OP(TOKEN_UINT16, "uint16_t", TOKEN_FLAG_TYPE)                                              \
+	OP(TOKEN_UINT32, "uint32_t", TOKEN_FLAG_TYPE)                                              \
+	OP(TOKEN_UINT64, "uint64_t", TOKEN_FLAG_TYPE)                                              \
 	OP(TOKEN_VA_LIST, "va_list", TOKEN_FLAG_TYPE)
 
-#define FOR_TOKEN_ALIASES(OP)                                                  \
-	/* assembly */                                                         \
-	OP(TOKEN_ASSEMBLY, "__asm", 0)                                         \
-	OP(TOKEN_ASSEMBLY, "__asm_", 0)                                        \
-	OP(TOKEN_ASSEMBLY, "__asm__", 0)                                       \
-	OP(TOKEN_ASSEMBLY, "_asm", 0)                                          \
-	OP(TOKEN_ASSEMBLY, "_asm_", 0)                                         \
-	OP(TOKEN_ASSEMBLY, "asm_", 0)                                          \
-	/* assembly linux */                                                   \
-	OP(TOKEN_ASSEMBLY, "asm_inline", 0)                                    \
-	OP(TOKEN_ASSEMBLY, "asm_volatile_goto", 0)                             \
-	/* attribute */                                                        \
-	OP(TOKEN_ATTRIBUTE, "__attribute", 0)                                  \
-	OP(TOKEN_ATTRIBUTE, "__attribute_", 0)                                 \
-	OP(TOKEN_ATTRIBUTE, "__attribute__", 0)                                \
-	OP(TOKEN_ATTRIBUTE, "_attribute", 0)                                   \
-	OP(TOKEN_ATTRIBUTE, "_attribute_", 0)                                  \
-	OP(TOKEN_ATTRIBUTE, "_attribute__", 0)                                 \
-	OP(TOKEN_ATTRIBUTE, "attribute_", 0)                                   \
-	OP(TOKEN_ATTRIBUTE, "__declspec", 0)                                   \
-	/* inline */                                                           \
-	OP(TOKEN_INLINE, "_inline", TOKEN_FLAG_STORAGE)                        \
-	OP(TOKEN_INLINE, "_inline_", TOKEN_FLAG_STORAGE)                       \
-	OP(TOKEN_INLINE, "_inline__", TOKEN_FLAG_STORAGE)                      \
-	OP(TOKEN_INLINE, "inline_", TOKEN_FLAG_STORAGE)                        \
-	/* restrict */                                                         \
-	OP(TOKEN_RESTRICT, "_restrict", TOKEN_FLAG_QUALIFIER)                  \
-	/* volatile */                                                         \
-	OP(TOKEN_VOLATILE, "__volatile", TOKEN_FLAG_QUALIFIER)                 \
-	OP(TOKEN_VOLATILE, "__volatile__", TOKEN_FLAG_QUALIFIER)               \
-	OP(TOKEN_VOLATILE, "_volatile", TOKEN_FLAG_QUALIFIER)                  \
-	OP(TOKEN_VOLATILE, "_volatile_", TOKEN_FLAG_QUALIFIER)                 \
-	/* BSD */                                                              \
-	OP(TOKEN_UINT8, "u_int8_t", 0)                                         \
-	OP(TOKEN_UINT16, "u_int16_t", 0)                                       \
-	OP(TOKEN_UINT32, "u_int32_t", 0)                                       \
-	OP(TOKEN_UINT64, "u_int64_t", 0)                                       \
-	/* digraphs, standardized by C95 */                                    \
-	OP(TOKEN_LSQUARE, "<:", 0)                                             \
-	OP(TOKEN_RSQUARE, ":>", 0)                                             \
-	OP(TOKEN_LBRACE, "<%", 0)                                              \
-	OP(TOKEN_RBRACE, "%>", 0)                                              \
-	/* trigraphs, standardized by C89 and removed by C23 */                \
-	OP(TOKEN_QUESTION, "?\?", 0)                                           \
-	OP(TOKEN_LSQUARE, "?\?(", 0)                                           \
-	OP(TOKEN_RSQUARE, "?\?)", 0)                                           \
-	OP(TOKEN_LBRACE, "?\?<", 0)                                            \
-	OP(TOKEN_RBRACE, "?\?>", 0)                                            \
-	OP(TOKEN_BACKSLASH, "?\?/", 0)                                         \
-	OP(TOKEN_CARET, "?\?'", 0)                                             \
-	OP(TOKEN_PIPE, "?\?!", 0)                                              \
-	OP(TOKEN_TILDE, "?\?-", 0)                                             \
-	/*                                                                     \
-	 * A trigraph replacement is a character, not a token: when the        \
-	 * replacement combines with the following character the compound      \
-	 * punctuator must be recognized, exactly as phase 1 followed by       \
-	 * tokenization would.                                                 \
-	 */                                                                    \
-	OP(TOKEN_CARETEQUAL, "?\?'=", 0)                                       \
-	OP(TOKEN_PIPEEQUAL, "?\?!=", 0)                                        \
+#define FOR_TOKEN_ALIASES(OP)                                                                      \
+	/* assembly */                                                                             \
+	OP(TOKEN_ASSEMBLY, "__asm", 0)                                                             \
+	OP(TOKEN_ASSEMBLY, "__asm_", 0)                                                            \
+	OP(TOKEN_ASSEMBLY, "__asm__", 0)                                                           \
+	OP(TOKEN_ASSEMBLY, "_asm", 0)                                                              \
+	OP(TOKEN_ASSEMBLY, "_asm_", 0)                                                             \
+	OP(TOKEN_ASSEMBLY, "asm_", 0)                                                              \
+	/* assembly linux */                                                                       \
+	OP(TOKEN_ASSEMBLY, "asm_inline", 0)                                                        \
+	OP(TOKEN_ASSEMBLY, "asm_volatile_goto", 0)                                                 \
+	/* attribute */                                                                            \
+	OP(TOKEN_ATTRIBUTE, "__attribute", 0)                                                      \
+	OP(TOKEN_ATTRIBUTE, "__attribute_", 0)                                                     \
+	OP(TOKEN_ATTRIBUTE, "__attribute__", 0)                                                    \
+	OP(TOKEN_ATTRIBUTE, "_attribute", 0)                                                       \
+	OP(TOKEN_ATTRIBUTE, "_attribute_", 0)                                                      \
+	OP(TOKEN_ATTRIBUTE, "_attribute__", 0)                                                     \
+	OP(TOKEN_ATTRIBUTE, "attribute_", 0)                                                       \
+	OP(TOKEN_ATTRIBUTE, "__declspec", 0)                                                       \
+	/* inline */                                                                               \
+	OP(TOKEN_INLINE, "_inline", TOKEN_FLAG_STORAGE)                                            \
+	OP(TOKEN_INLINE, "_inline_", TOKEN_FLAG_STORAGE)                                           \
+	OP(TOKEN_INLINE, "_inline__", TOKEN_FLAG_STORAGE)                                          \
+	OP(TOKEN_INLINE, "inline_", TOKEN_FLAG_STORAGE)                                            \
+	/* restrict */                                                                             \
+	OP(TOKEN_RESTRICT, "_restrict", TOKEN_FLAG_QUALIFIER)                                      \
+	/* volatile */                                                                             \
+	OP(TOKEN_VOLATILE, "__volatile", TOKEN_FLAG_QUALIFIER)                                     \
+	OP(TOKEN_VOLATILE, "__volatile__", TOKEN_FLAG_QUALIFIER)                                   \
+	OP(TOKEN_VOLATILE, "_volatile", TOKEN_FLAG_QUALIFIER)                                      \
+	OP(TOKEN_VOLATILE, "_volatile_", TOKEN_FLAG_QUALIFIER)                                     \
+	/* BSD */                                                                                  \
+	OP(TOKEN_UINT8, "u_int8_t", 0)                                                             \
+	OP(TOKEN_UINT16, "u_int16_t", 0)                                                           \
+	OP(TOKEN_UINT32, "u_int32_t", 0)                                                           \
+	OP(TOKEN_UINT64, "u_int64_t", 0)                                                           \
+	/* digraphs, standardized by C95 */                                                        \
+	OP(TOKEN_LSQUARE, "<:", 0)                                                                 \
+	OP(TOKEN_RSQUARE, ":>", 0)                                                                 \
+	OP(TOKEN_LBRACE, "<%", 0)                                                                  \
+	OP(TOKEN_RBRACE, "%>", 0)                                                                  \
+	/* trigraphs, standardized by C89 and removed by C23 */                                    \
+	OP(TOKEN_QUESTION, "?\?", 0)                                                               \
+	OP(TOKEN_LSQUARE, "?\?(", 0)                                                               \
+	OP(TOKEN_RSQUARE, "?\?)", 0)                                                               \
+	OP(TOKEN_LBRACE, "?\?<", 0)                                                                \
+	OP(TOKEN_RBRACE, "?\?>", 0)                                                                \
+	OP(TOKEN_BACKSLASH, "?\?/", 0)                                                             \
+	OP(TOKEN_CARET, "?\?'", 0)                                                                 \
+	OP(TOKEN_PIPE, "?\?!", 0)                                                                  \
+	OP(TOKEN_TILDE, "?\?-", 0)                                                                 \
+	/*                                                                                         \
+	 * A trigraph replacement is a character, not a token: when the                            \
+	 * replacement combines with the following character the compound                          \
+	 * punctuator must be recognized, exactly as phase 1 followed by                           \
+	 * tokenization would.                                                                     \
+	 */                                                                                        \
+	OP(TOKEN_CARETEQUAL, "?\?'=", 0)                                                           \
+	OP(TOKEN_PIPEEQUAL, "?\?!=", 0)                                                            \
 	OP(TOKEN_PIPEPIPE, "?\?!|", 0)
 
-#define FOR_TOKEN_CPP(OP)                                                      \
-	/* type			normalized	keyword */                                        \
-	OP(TOKEN_CPP_IF, 0, "if")                                              \
-	OP(TOKEN_CPP_IFDEF, TOKEN_CPP_IF, "ifdef")                             \
-	OP(TOKEN_CPP_IFNDEF, TOKEN_CPP_IF, "ifndef")                           \
-	OP(TOKEN_CPP_ELSE, 0, "else")                                          \
-	OP(TOKEN_CPP_ELIF, TOKEN_CPP_ELSE, "elif")                             \
-	OP(TOKEN_CPP_ENDIF, 0, "endif")                                        \
-	OP(TOKEN_CPP_DEFINE, 0, "define")                                      \
+#define FOR_TOKEN_CPP(OP)                                                                          \
+	/* type			normalized	keyword */                                                            \
+	OP(TOKEN_CPP_IF, 0, "if")                                                                  \
+	OP(TOKEN_CPP_IFDEF, TOKEN_CPP_IF, "ifdef")                                                 \
+	OP(TOKEN_CPP_IFNDEF, TOKEN_CPP_IF, "ifndef")                                               \
+	OP(TOKEN_CPP_ELSE, 0, "else")                                                              \
+	OP(TOKEN_CPP_ELIF, TOKEN_CPP_ELSE, "elif")                                                 \
+	OP(TOKEN_CPP_ENDIF, 0, "endif")                                                            \
+	OP(TOKEN_CPP_DEFINE, 0, "define")                                                          \
 	OP(TOKEN_CPP_INCLUDE, 0, "include")
 
-#define FOR_TOKEN_SENTINELS(OP)                                                \
-	OP(TOKEN_COMMENT, 0)                                                   \
-	OP(TOKEN_CPP, 0)                                                       \
-	OP(TOKEN_IDENT, 0)                                                     \
-	OP(TOKEN_LITERAL, 0)                                                   \
-	OP(TOKEN_SPACE, 0)                                                     \
-	OP(TOKEN_STRING, 0)                                                    \
+#define FOR_TOKEN_SENTINELS(OP)                                                                    \
+	OP(TOKEN_COMMENT, 0)                                                                       \
+	OP(TOKEN_CPP, 0)                                                                           \
+	OP(TOKEN_IDENT, 0)                                                                         \
+	OP(TOKEN_LITERAL, 0)                                                                       \
+	OP(TOKEN_SPACE, 0)                                                                         \
+	OP(TOKEN_STRING, 0)                                                                        \
 	OP(TOKEN_NONE, 0)
 
 #define TOKEN_SERIALIZE_VERBATIM 0x00000001U
@@ -211,10 +207,10 @@ struct arena_scope;
  * Return a pointer to the backend-private tail appended after the public token.
  * The tail is allocated by token_alloc() using the backend's requested size.
  */
-#define token_priv(tk, type)                                                   \
-	__extension__({                                                        \
-		typeof(tk) _nx = (tk) + 1;                                     \
-		(type *)_nx;                                                   \
+#define token_priv(tk, type)                                                                       \
+	__extension__({                                                                            \
+		typeof(tk) _nx = (tk) + 1;                                                         \
+		(type *)_nx;                                                                       \
 	})
 
 enum {
@@ -234,8 +230,8 @@ LIST(token_list, token);
  * updated in place, but tokens never move once inserted into the lexer's list.
  */
 struct token {
-	int	     tk_type;
-	int	     tk_refs;
+	int tk_type;
+	int tk_refs;
 	unsigned int tk_priv_size;
 	unsigned int tk_lno;
 	unsigned int tk_cno;
@@ -275,8 +271,8 @@ struct token {
 #define TOKEN_FLAG_COMMENT_CLANG_FORMAT_ON 0x00010000U
 
 	const char *tk_str;
-	size_t	    tk_len;
-	size_t	    tk_off;
+	size_t tk_len;
+	size_t tk_off;
 
 	struct token_list tk_prefixes;
 	struct token_list tk_suffixes;
@@ -284,13 +280,11 @@ struct token {
 	LIST_ENTRY(token_list, token);
 };
 
-struct token *token_alloc(
-    struct arena_scope *, unsigned int, const struct token *);
-void	    token_ref(struct token *);
-void	    token_rele(struct token *);
-int	    token_trim(struct token *);
-const char *token_serialize(
-    const struct token *, unsigned int, struct arena_scope *);
+struct token *token_alloc(struct arena_scope *, unsigned int, const struct token *);
+void token_ref(struct token *);
+void token_rele(struct token *);
+int token_trim(struct token *);
+const char *token_serialize(const struct token *, unsigned int, struct arena_scope *);
 const char *token_serialize_with_extra_flags(
     const struct token *, unsigned int, const char *, struct arena_scope *);
 
@@ -317,16 +311,15 @@ int token_is_dangling(const struct token *);
 #define token_prev(tk) __extension__({ (__typeof__(tk))LIST_PREV(tk); })
 
 unsigned int token_lines(const struct token *);
-int	     token_pair_needs_space(const struct token *, const struct token *);
+int token_pair_needs_space(const struct token *, const struct token *);
 
 void token_set_str(struct token *, const char *, size_t);
 
 void token_list_prepend(struct token_list *, struct token *);
 void token_list_append(struct token_list *, struct token *);
-void token_list_append_after(
-    struct token_list *, struct token *, struct token *);
-void	      token_list_remove(struct token_list *, struct token *);
-void	      token_list_swap(struct token_list *, struct token_list *);
+void token_list_append_after(struct token_list *, struct token *, struct token *);
+void token_list_remove(struct token_list *, struct token *);
+void token_list_swap(struct token_list *, struct token_list *);
 struct token *token_list_first(struct token_list *);
 struct token *token_list_last(struct token_list *);
 struct token *token_list_find(const struct token_list *, int, unsigned int);

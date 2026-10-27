@@ -8,7 +8,6 @@
 int
 main(void)
 {
-        if (!aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbb ccccccccc, ddddddddddddddddddd,
-                                            eeeeeeeeeeeeeee))
-                return 0;
+	if (!aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(bbbb ccccccccc, ddddddddddddddddddd, eeeeeeeeeeeeeee))
+		return 0;
 }

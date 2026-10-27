@@ -2,7 +2,4 @@
  * No hard line after function arguments.
  */
 
-void persist_items_set_store(persist_items_t *,
-                             void *store,
-                             void (*store_dtor)(void *store)
-                             );
+void persist_items_set_store(persist_items_t *, void *store, void (*store_dtor)(void *store));

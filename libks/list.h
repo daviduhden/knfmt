@@ -49,130 +49,124 @@
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
  */
 
-#define LIST(name, type)                                                       \
-	struct name {                                                          \
-		struct type  *tqh_first;                                       \
-		struct type **tqh_last;                                        \
+#define LIST(name, type)                                                                           \
+	struct name {                                                                              \
+		struct type *tqh_first;                                                            \
+		struct type **tqh_last;                                                            \
 	}
 
-#define LIST_ENTRY(name, type)                                                 \
-	struct {                                                               \
-		struct type *tqe_next; /* next element */                      \
-		union {                                                        \
-			struct name *list; /* used to access list type */      \
-			struct type *                                          \
-			    *ptr; /* address of previous next element */       \
-		} tqe_prev;                                                    \
+#define LIST_ENTRY(name, type)                                                                     \
+	struct {                                                                                   \
+		struct type *tqe_next; /* next element */                                          \
+		union {                                                                            \
+			struct name *list; /* used to access list type */                          \
+			struct type **ptr; /* address of previous next element */                  \
+		} tqe_prev;                                                                        \
 	} list_entry
 
 #define LIST_FIELD(elm) (elm)->list_entry
 
 #define LIST_FIRST(head) ((head)->tqh_first)
 
-#define LIST_LAST(head)                                                        \
-	__extension__({                                                        \
-		__typeof__(head) _last = (__typeof__(head))(head)->tqh_last;   \
-		*_last->tqh_last;                                              \
+#define LIST_LAST(head)                                                                            \
+	__extension__({                                                                            \
+		__typeof__(head) _last = (__typeof__(head))(head)->tqh_last;                       \
+		*_last->tqh_last;                                                                  \
 	})
 
-#define LIST_PREV(elm)                                                         \
-	__extension__({                                                        \
-		__typeof__(LIST_FIELD(elm).tqe_prev.list) _last =              \
-		    (__typeof__(LIST_FIELD(elm).tqe_prev.list))LIST_FIELD(elm) \
-			.tqe_prev.ptr;                                         \
-		*_last->tqh_last;                                              \
+#define LIST_PREV(elm)                                                                             \
+	__extension__({                                                                            \
+		__typeof__(LIST_FIELD(elm).tqe_prev.list) _last =                                  \
+		    (__typeof__(LIST_FIELD(elm).tqe_prev.list))LIST_FIELD(elm).tqe_prev.ptr;       \
+		*_last->tqh_last;                                                                  \
 	})
 
 #define LIST_NEXT(elm) (LIST_FIELD(elm).tqe_next)
 
 #define LIST_EMPTY(head) (LIST_FIRST(head) == nullptr)
 
-#define LIST_LINKED(elm)                                                       \
-	(LIST_FIELD(elm).tqe_next != nullptr ||                                \
-	    LIST_FIELD(elm).tqe_prev.ptr != nullptr)
+#define LIST_LINKED(elm)                                                                           \
+	(LIST_FIELD(elm).tqe_next != nullptr || LIST_FIELD(elm).tqe_prev.ptr != nullptr)
 
-#define LIST_FOREACH(var, head)                                                \
+#define LIST_FOREACH(var, head)                                                                    \
 	for ((var) = LIST_FIRST(head); (var) != nullptr; (var) = LIST_NEXT(var))
 
-#define LIST_FOREACH_SAFE(var, head, tvar)                                     \
-	for ((var) = LIST_FIRST(head);                                         \
-	    (var) != nullptr && ((tvar) = LIST_NEXT(var), 1); (var) = (tvar))
+#define LIST_FOREACH_SAFE(var, head, tvar)                                                         \
+	for ((var) = LIST_FIRST(head); (var) != nullptr && ((tvar) = LIST_NEXT(var), 1);           \
+	    (var) = (tvar))
 
-#define LIST_FOREACH_REVERSE(var, head)                                        \
+#define LIST_FOREACH_REVERSE(var, head)                                                            \
 	for ((var) = LIST_LAST(head); (var) != nullptr; (var) = LIST_PREV(var))
 
-#define LIST_FOREACH_REVERSE_SAFE(var, head, tvar)                             \
-	for ((var) = LIST_LAST(head);                                          \
-	    (var) != nullptr && ((tvar) = LIST_PREV(var), 1); (var) = (tvar))
+#define LIST_FOREACH_REVERSE_SAFE(var, head, tvar)                                                 \
+	for ((var) = LIST_LAST(head); (var) != nullptr && ((tvar) = LIST_PREV(var), 1);            \
+	    (var) = (tvar))
 
-#define LIST_INIT(head)                                                        \
-	do {                                                                   \
-		(head)->tqh_first = nullptr;                                   \
-		(head)->tqh_last = &(head)->tqh_first;                         \
+#define LIST_INIT(head)                                                                            \
+	do {                                                                                       \
+		(head)->tqh_first = nullptr;                                                       \
+		(head)->tqh_last = &(head)->tqh_first;                                             \
 	} while (0)
 
-#define LIST_INSERT_HEAD(head, elm)                                            \
-	do {                                                                   \
-		LIST_FIELD(elm).tqe_next = (head)->tqh_first;                  \
-		if (LIST_FIELD(elm).tqe_next != nullptr)                       \
-			LIST_FIELD((head)->tqh_first).tqe_prev.ptr =           \
-			    &LIST_FIELD(elm).tqe_next;                         \
-		else                                                           \
-			(head)->tqh_last = &LIST_FIELD(elm).tqe_next;          \
-		(head)->tqh_first = (elm);                                     \
-		LIST_FIELD(elm).tqe_prev.ptr = &(head)->tqh_first;             \
+#define LIST_INSERT_HEAD(head, elm)                                                                \
+	do {                                                                                       \
+		LIST_FIELD(elm).tqe_next = (head)->tqh_first;                                      \
+		if (LIST_FIELD(elm).tqe_next != nullptr)                                           \
+			LIST_FIELD((head)->tqh_first).tqe_prev.ptr = &LIST_FIELD(elm).tqe_next;    \
+		else                                                                               \
+			(head)->tqh_last = &LIST_FIELD(elm).tqe_next;                              \
+		(head)->tqh_first = (elm);                                                         \
+		LIST_FIELD(elm).tqe_prev.ptr = &(head)->tqh_first;                                 \
 	} while (0)
 
-#define LIST_INSERT_TAIL(head, elm)                                            \
-	do {                                                                   \
-		LIST_FIELD(elm).tqe_next = nullptr;                            \
-		LIST_FIELD(elm).tqe_prev.ptr = (head)->tqh_last;               \
-		*(head)->tqh_last = (elm);                                     \
-		(head)->tqh_last = &LIST_FIELD(elm).tqe_next;                  \
+#define LIST_INSERT_TAIL(head, elm)                                                                \
+	do {                                                                                       \
+		LIST_FIELD(elm).tqe_next = nullptr;                                                \
+		LIST_FIELD(elm).tqe_prev.ptr = (head)->tqh_last;                                   \
+		*(head)->tqh_last = (elm);                                                         \
+		(head)->tqh_last = &LIST_FIELD(elm).tqe_next;                                      \
 	} while (0)
 
-#define LIST_INSERT_AFTER(head, listelm, elm)                                  \
-	do {                                                                   \
-		LIST_FIELD(elm).tqe_next = LIST_FIELD(listelm).tqe_next;       \
-		if (LIST_FIELD(elm).tqe_next != nullptr)                       \
-			LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =    \
-			    &LIST_FIELD(elm).tqe_next;                         \
-		else                                                           \
-			(head)->tqh_last = &LIST_FIELD(elm).tqe_next;          \
-		LIST_FIELD(listelm).tqe_next = (elm);                          \
-		LIST_FIELD(elm).tqe_prev.ptr = &LIST_FIELD(listelm).tqe_next;  \
+#define LIST_INSERT_AFTER(head, listelm, elm)                                                      \
+	do {                                                                                       \
+		LIST_FIELD(elm).tqe_next = LIST_FIELD(listelm).tqe_next;                           \
+		if (LIST_FIELD(elm).tqe_next != nullptr)                                           \
+			LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =                        \
+			    &LIST_FIELD(elm).tqe_next;                                             \
+		else                                                                               \
+			(head)->tqh_last = &LIST_FIELD(elm).tqe_next;                              \
+		LIST_FIELD(listelm).tqe_next = (elm);                                              \
+		LIST_FIELD(elm).tqe_prev.ptr = &LIST_FIELD(listelm).tqe_next;                      \
 	} while (0)
 
-#define LIST_INSERT_BEFORE(listelm, elm)                                       \
-	do {                                                                   \
-		LIST_FIELD(elm).tqe_prev.ptr =                                 \
-		    LIST_FIELD(listelm).tqe_prev.ptr;                          \
-		LIST_FIELD(elm).tqe_next = (listelm);                          \
-		*LIST_FIELD(listelm).tqe_prev.ptr = (elm);                     \
-		LIST_FIELD(listelm).tqe_prev.ptr = &LIST_FIELD(elm).tqe_next;  \
+#define LIST_INSERT_BEFORE(listelm, elm)                                                           \
+	do {                                                                                       \
+		LIST_FIELD(elm).tqe_prev.ptr = LIST_FIELD(listelm).tqe_prev.ptr;                   \
+		LIST_FIELD(elm).tqe_next = (listelm);                                              \
+		*LIST_FIELD(listelm).tqe_prev.ptr = (elm);                                         \
+		LIST_FIELD(listelm).tqe_prev.ptr = &LIST_FIELD(elm).tqe_next;                      \
 	} while (0)
 
-#define LIST_REMOVE(head, elm)                                                 \
-	do {                                                                   \
-		if ((LIST_FIELD(elm).tqe_next) != nullptr)                     \
-			LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =    \
-			    LIST_FIELD(elm).tqe_prev.ptr;                      \
-		else                                                           \
-			(head)->tqh_last = LIST_FIELD(elm).tqe_prev.ptr;       \
-		*LIST_FIELD(elm).tqe_prev.ptr = LIST_FIELD(elm).tqe_next;      \
-		LIST_FIELD(elm).tqe_prev.ptr = nullptr;                        \
-		LIST_FIELD(elm).tqe_next = nullptr;                            \
+#define LIST_REMOVE(head, elm)                                                                     \
+	do {                                                                                       \
+		if ((LIST_FIELD(elm).tqe_next) != nullptr)                                         \
+			LIST_FIELD(LIST_FIELD(elm).tqe_next).tqe_prev.ptr =                        \
+			    LIST_FIELD(elm).tqe_prev.ptr;                                          \
+		else                                                                               \
+			(head)->tqh_last = LIST_FIELD(elm).tqe_prev.ptr;                           \
+		*LIST_FIELD(elm).tqe_prev.ptr = LIST_FIELD(elm).tqe_next;                          \
+		LIST_FIELD(elm).tqe_prev.ptr = nullptr;                                            \
+		LIST_FIELD(elm).tqe_next = nullptr;                                                \
 	} while (0)
 
-#define LIST_CONCAT(head1, head2)                                              \
-	do {                                                                   \
-		if (!LIST_EMPTY(head2)) {                                      \
-			*(head1)->tqh_last = (head2)->tqh_first;               \
-			LIST_FIELD((head2)->tqh_first).tqe_prev.ptr =          \
-			    (head1)->tqh_last;                                 \
-			(head1)->tqh_last = (head2)->tqh_last;                 \
-			LIST_INIT((head2));                                    \
-		}                                                              \
+#define LIST_CONCAT(head1, head2)                                                                  \
+	do {                                                                                       \
+		if (!LIST_EMPTY(head2)) {                                                          \
+			*(head1)->tqh_last = (head2)->tqh_first;                                   \
+			LIST_FIELD((head2)->tqh_first).tqe_prev.ptr = (head1)->tqh_last;           \
+			(head1)->tqh_last = (head2)->tqh_last;                                     \
+			LIST_INIT((head2));                                                        \
+		}                                                                                  \
 	} while (0)
 
 #endif /* !LIBKS_LIST_H */

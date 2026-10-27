@@ -2,5 +2,6 @@
  * AFL
  */
 
-#define FOO do {	\
+#define FOO                                                                                        \
+	do {                                                                                       \
 	} while (0)

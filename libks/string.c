@@ -73,15 +73,14 @@ KS_str_match_init_default(const char *ranges, struct KS_str_match *match)
 }
 
 size_t
-KS_str_match_default(
-    const char *str, size_t len, const struct KS_str_match *match)
+KS_str_match_default(const char *str, size_t len, const struct KS_str_match *match)
 {
 	const char *ranges = match->u8;
-	size_t	    i;
+	size_t i;
 
 	for (i = 0; i < len; i++) {
 		size_t j;
-		int    found = 0;
+		int found = 0;
 
 		for (j = 0; ranges[j] != '\0'; j += 2) {
 			if (str[i] >= ranges[j] && str[i] <= ranges[j + 1]) {
@@ -103,11 +102,10 @@ KS_str_match_spaces(const char *str, size_t len)
 }
 
 size_t
-KS_str_match_until_default(
-    const char *str, size_t len, const struct KS_str_match *match)
+KS_str_match_until_default(const char *str, size_t len, const struct KS_str_match *match)
 {
 	const char *ranges = match->u8;
-	size_t	    i;
+	size_t i;
 
 	for (i = 0; i < len; i++) {
 		size_t j;
@@ -128,8 +126,7 @@ KS_str_match_until_spaces(const char *str, size_t len)
 }
 
 char **
-KS_str_split(
-    const char *str, const struct KS_str_match *match, struct arena_scope *s)
+KS_str_split(const char *str, const struct KS_str_match *match, struct arena_scope *s)
 {
 	VECTOR(char *) parts;
 	size_t len;
@@ -169,15 +166,14 @@ char *
 KS_str_vis(const char *str, size_t len, struct arena_scope *s)
 {
 	struct buffer *bf;
-	size_t	       i, size;
+	size_t i, size;
 
 	/*
 	 * Worst case every byte expands to four characters ("\xNN"), plus the
 	 * NUL terminator. Use a checked calculation and fall back to a minimal
 	 * hint when it would overflow; the buffer grows on demand.
 	 */
-	if (KS_size_mul_overflow(len, 4, &size) ||
-	    KS_size_add_overflow(size, 1, &size))
+	if (KS_size_mul_overflow(len, 4, &size) || KS_size_add_overflow(size, 1, &size))
 		size = 1;
 	bf = arena_buffer_alloc(s, size);
 
@@ -255,7 +251,7 @@ KS_str_to_u64(const char *str, uint64_t *out)
 		return 1;
 	}
 
-	char		  *end;
+	char *end;
 	unsigned long long val = strtoull(str, &end, 0);
 	if (end[0] != '\0') {
 		errno = EINVAL;

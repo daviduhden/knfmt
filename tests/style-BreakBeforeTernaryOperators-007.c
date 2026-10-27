@@ -8,8 +8,5 @@
 int
 main(void)
 {
-        log_error(1,
-                "str",
-                is_true ? "true" : "false",
-                a, b);
+	log_error(1, "str", is_true ? "true" : "false", a, b);
 }

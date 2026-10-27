@@ -42,7 +42,7 @@ KS_u32_clamp(uint64_t x)
 	return (uint32_t)x;
 }
 
-uint64_t	KS_extract_and_deposit_default(uint64_t, uint64_t, uint64_t);
+uint64_t KS_extract_and_deposit_default(uint64_t, uint64_t, uint64_t);
 extern uint64_t (*KS_extract_and_deposit)(uint64_t, uint64_t, uint64_t);
 
 #endif /* !LIBKS_BIT_H */

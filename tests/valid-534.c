@@ -2,11 +2,11 @@
  * Qualified and nested parenthesized declarators.
  */
 
-int (*p);
-int (*const p);
-int (*volatile p);
-int (*const *volatile p);
-int (**p);
+int(*p);
+int(*const p);
+int(*volatile p);
+int(*const *volatile p);
+int(**p);
 int (*p)[10];
 int (*const p)[10];
 int (*p)(void);

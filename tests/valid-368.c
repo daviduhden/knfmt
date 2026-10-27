@@ -11,7 +11,7 @@ main(void)
 	struct vmspace *vm = p->p_vmspace;
 	struct nameidata nd;
 	struct vattr vattr;
-	struct coredump_iostate	io;
+	struct coredump_iostate io;
 	int error, len, incrash = 0;
 	char *name;
 	const char *dir = "/var/crash";

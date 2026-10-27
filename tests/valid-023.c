@@ -6,7 +6,7 @@ int
 main(void)
 {
 	if (sc->sc_base.me_evp == NULL
-	/* comment */
+	    /* comment */
 	    && sc->sc_displaydv == NULL)
 		return;
 }

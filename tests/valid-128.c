@@ -8,8 +8,7 @@ free(void *addr, int type, size_t freedsize)
 
 #ifdef DIAGNOSTIC
 	if (addr < (void *)kmembase || addr >= (void *)kmemlimit)
-		panic("free: non-malloced addr %p type %s", addr,
-		    memname[type]);
+		panic("free: non-malloced addr %p type %s", addr, memname[type]);
 #endif
 
 	if (size > MAXALLOCSAVE)

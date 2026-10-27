@@ -16,8 +16,7 @@
  * failure is fatal.
  */
 struct file *
-files_alloc(
-    struct files *files, const char *path, struct arena_scope *eternal_scope)
+files_alloc(struct files *files, const char *path, struct arena_scope *eternal_scope)
 {
 	struct file *fe;
 

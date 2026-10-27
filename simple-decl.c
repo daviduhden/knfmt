@@ -14,18 +14,16 @@
 #include "trace-types.h"
 #include "trace.h"
 
-#define simple_trace(sd, fmt, ...)                                             \
-	trace(TRACE_SIMPLE, (sd)->op, (fmt), __VA_ARGS__)
+#define simple_trace(sd, fmt, ...) trace(TRACE_SIMPLE, (sd)->op, (fmt), __VA_ARGS__)
 
 struct token_range {
 	struct token *tr_beg;
 	struct token *tr_end;
 };
 
-#define TOKEN_RANGE_FOREACH(var, tr, tvar)                                     \
-	for ((var) = (tr)->tr_beg, (tvar) = token_next((var));                 \
-	    (var) != nullptr;                                                  \
-	    (var) = (var) == (tr)->tr_end ? nullptr : (tvar),                  \
+#define TOKEN_RANGE_FOREACH(var, tr, tvar)                                                         \
+	for ((var) = (tr)->tr_beg, (tvar) = token_next((var)); (var) != nullptr;                   \
+	    (var) = (var) == (tr)->tr_end ? nullptr : (tvar),                                      \
 	    (tvar) = (var) ? token_next((var)) : nullptr)
 
 /*
@@ -42,8 +40,7 @@ struct token_range {
  * The pass edits the token list; it does not build documents. It is deliberately
  * conservative in -D mode: every token it moves must be covered by a diff chunk.
  */
-static const char *token_range_str(
-    const struct token_range *, struct arena_scope *);
+static const char *token_range_str(const struct token_range *, struct arena_scope *);
 
 /*
  * Represents a single declaration from the source code.
@@ -61,8 +58,8 @@ static void decl_free(struct decl *);
 
 struct decl_var {
 	struct token_range dv_ident;
-	struct token	  *dv_sort;
-	struct token	  *dv_delim;
+	struct token *dv_sort;
+	struct token *dv_delim;
 };
 
 static int decl_var_cmp(const struct decl_var *, const struct decl_var *);
@@ -107,27 +104,24 @@ struct simple_decl {
 
 	struct decl_var dv;
 
-	struct lexer	     *lx;
+	struct lexer *lx;
 	const struct options *op;
 };
 
 static struct decl_type *simple_decl_type_create(
     struct simple_decl *, const char *, const struct token_range *);
-static struct decl_type *simple_decl_type_find(
-    struct simple_decl *, const char *);
-static struct token *simple_decl_move_vars(struct simple_decl *,
-    struct decl_type *, struct decl_type_vars *, struct token *);
+static struct decl_type *simple_decl_type_find(struct simple_decl *, const char *);
+static struct token *simple_decl_move_vars(
+    struct simple_decl *, struct decl_type *, struct decl_type_vars *, struct token *);
 
 static struct decl_var *simple_decl_var_init(struct simple_decl *);
-static struct decl_var *simple_decl_var_end(
-    struct simple_decl *, struct token *);
+static struct decl_var *simple_decl_var_end(struct simple_decl *, struct token *);
 
 static void associate_semi(struct decl *, struct decl_type *, struct token *);
-static int  classify(const struct token_range *, unsigned int *);
+static int classify(const struct token_range *, unsigned int *);
 
 struct simple_decl *
-simple_decl_enter(struct lexer *lx, struct arena_scope *eternal_scope,
-    const struct options *op)
+simple_decl_enter(struct lexer *lx, struct arena_scope *eternal_scope, const struct options *op)
 {
 	struct simple_decl *sd;
 
@@ -153,16 +147,16 @@ simple_decl_leave(struct simple_decl *sd)
 {
 	struct lexer *lx = sd->lx;
 	struct token *tk, *tmp;
-	size_t	      i;
+	size_t i;
 
 	for (i = 0; i < VECTOR_LENGTH(sd->types); i++) {
 		struct decl_type *dt = &sd->types[i];
-		struct token	 *after;
-		unsigned int	  slot;
+		struct token *after;
+		unsigned int slot;
 
 		for (slot = 0; slot < VECTOR_LENGTH(dt->dt_slots); slot++) {
 			struct decl_type_vars *ds = &dt->dt_slots[slot];
-			struct token	      *semi;
+			struct token *semi;
 
 			if (VECTOR_LENGTH(ds->vars) == 0)
 				continue;
@@ -170,8 +164,7 @@ simple_decl_leave(struct simple_decl *sd)
 			/* Sort the variables in alphabetical order. */
 			VECTOR_SORT(ds->vars, decl_var_cmp);
 
-			semi = ds->semi.kept != nullptr ? ds->semi.kept :
-							  ds->semi.fallback;
+			semi = ds->semi.kept != nullptr ? ds->semi.kept : ds->semi.fallback;
 			assert(semi != nullptr && semi->tk_type == TOKEN_SEMI);
 			after = semi;
 
@@ -219,8 +212,7 @@ simple_decl_free(struct simple_decl *sd)
 }
 
 static int
-is_type_valid(
-    const struct simple_decl *sd, struct token *beg, struct token *end)
+is_type_valid(const struct simple_decl *sd, struct token *beg, struct token *end)
 {
 	struct token_range tr = {
 	    .tr_beg = beg,
@@ -229,9 +221,7 @@ is_type_valid(
 	struct token *tk, *tmp;
 
 	/* Ignore anonymous struct and union. */
-	if (beg == end &&
-	    (token_is_decl(beg, TOKEN_STRUCT) ||
-		token_is_decl(beg, TOKEN_UNION)))
+	if (beg == end && (token_is_decl(beg, TOKEN_STRUCT) || token_is_decl(beg, TOKEN_UNION)))
 		return 0;
 
 	TOKEN_RANGE_FOREACH(tk, &tr, tmp)
@@ -266,9 +256,9 @@ simple_decl_type(struct simple_decl *sd, struct token *beg, struct token *end)
 	    .tr_beg = beg,
 	    .tr_end = end,
 	};
-	struct decl	*dc;
+	struct decl *dc;
 	struct decl_var *dv;
-	const char	*type;
+	const char *type;
 
 	if (!is_type_valid(sd, beg, end))
 		return;
@@ -330,7 +320,7 @@ void
 simple_decl_comma(struct simple_decl *sd, struct token *comma)
 {
 	struct decl_var *dv;
-	struct token	*delim = nullptr;
+	struct token *delim = nullptr;
 
 	if (decl_var_is_empty(&sd->dv))
 		return;
@@ -355,8 +345,8 @@ static const char *
 token_range_str(const struct token_range *tr, struct arena_scope *s)
 {
 	struct buffer *bf;
-	struct token  *tk, *tmp;
-	int	       ntokens = 0;
+	struct token *tk, *tmp;
+	int ntokens = 0;
 
 	bf = arena_buffer_alloc(s, 64);
 	TOKEN_RANGE_FOREACH(tk, tr, tmp)
@@ -410,12 +400,11 @@ decl_type_slot(struct decl_type *dt, unsigned int n)
  * Create or find the given type.
  */
 static struct decl_type *
-simple_decl_type_create(
-    struct simple_decl *sd, const char *type, const struct token_range *tr)
+simple_decl_type_create(struct simple_decl *sd, const char *type, const struct token_range *tr)
 {
 	struct decl_type *dt;
-	struct token	 *end = nullptr;
-	struct token	 *tk, *tmp;
+	struct token *end = nullptr;
+	struct token *tk, *tmp;
 
 	dt = simple_decl_type_find(sd, type);
 	if (dt != nullptr)
@@ -456,12 +445,12 @@ simple_decl_type_find(struct simple_decl *sd, const char *type)
 }
 
 static struct token *
-simple_decl_move_vars(struct simple_decl *sd, struct decl_type *dt,
-    struct decl_type_vars *ds, struct token *after)
+simple_decl_move_vars(
+    struct simple_decl *sd, struct decl_type *dt, struct decl_type_vars *ds, struct token *after)
 {
 	struct lexer *lx = sd->lx;
 	struct token *tk, *tmp;
-	size_t	      i;
+	size_t i;
 
 	/* Create new type declaration. */
 	TOKEN_RANGE_FOREACH(tk, &dt->dt_tr, tmp)
@@ -470,13 +459,12 @@ simple_decl_move_vars(struct simple_decl *sd, struct decl_type *dt,
 	/* Move variables to the new type declaration. */
 	for (i = 0; i < VECTOR_LENGTH(ds->vars); i++) {
 		struct decl_var *dv = &ds->vars[i];
-		struct token	*ident;
+		struct token *ident;
 
 		if (dv->dv_delim != nullptr)
 			lexer_remove(lx, dv->dv_delim);
 		if (i > 0) {
-			after = lexer_insert_after(
-			    lx, after, clang_keyword_token(TOKEN_COMMA));
+			after = lexer_insert_after(lx, after, clang_keyword_token(TOKEN_COMMA));
 		}
 
 		TOKEN_RANGE_FOREACH(ident, &dv->dv_ident, tmp)
@@ -503,13 +491,13 @@ simple_decl_var_init(struct simple_decl *sd)
 static struct decl_var *
 simple_decl_var_end(struct simple_decl *sd, struct token *end)
 {
-	struct decl	      *dc = VECTOR_LAST(sd->empty_decls);
-	struct decl_var	      *dv = &sd->dv;
-	struct decl_var	      *dst;
+	struct decl *dc = VECTOR_LAST(sd->empty_decls);
+	struct decl_var *dv = &sd->dv;
+	struct decl_var *dst;
 	struct decl_type_vars *ds;
-	struct token	      *sort, *tmp;
-	unsigned int	       slot;
-	int		       keep = 0;
+	struct token *sort, *tmp;
+	unsigned int slot;
+	int keep = 0;
 
 	assert(dv->dv_ident.tr_end == nullptr);
 	/* The delimiter is not part of the identifier. */
@@ -577,7 +565,7 @@ static void
 associate_semi(struct decl *dc, struct decl_type *dt, struct token *semi)
 {
 	struct decl_type_vars *slots = dt->dt_slots;
-	size_t		       i, nslots;
+	size_t i, nslots;
 
 	while (!VECTOR_EMPTY(dc->slots)) {
 		unsigned int *slot;
@@ -594,7 +582,7 @@ associate_semi(struct decl *dc, struct decl_type *dt, struct token *semi)
 	nslots = VECTOR_LENGTH(slots);
 	for (i = 0; i < nslots; i++) {
 		struct token *newsemi = nullptr;
-		size_t	      j;
+		size_t j;
 
 		if (slots[i].semi.kept != nullptr)
 			continue;
@@ -621,11 +609,11 @@ static int
 classify(const struct token_range *tr, unsigned int *slot)
 {
 	struct token *tk, *tmp;
-	unsigned int  nident = 0;
-	unsigned int  nstars = 0;
-	unsigned int  nsquares = 0;
-	int	      error = 0;
-	int	      before_assign = 1;
+	unsigned int nident = 0;
+	unsigned int nstars = 0;
+	unsigned int nsquares = 0;
+	int error = 0;
+	int before_assign = 1;
 
 	TOKEN_RANGE_FOREACH(tk, tr, tmp)
 	{

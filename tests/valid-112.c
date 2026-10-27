@@ -3,8 +3,7 @@
  */
 
 int
-sysctl_tty(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
-    size_t newlen)
+sysctl_tty(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen)
 {
 	int err;
 
@@ -26,8 +25,7 @@ sysctl_tty(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
 		int ttyc;
 
 		ttystats_init(&ttystats, &ttyc, &ttystatssiz);
-		err = sysctl_rdstruct(oldp, oldlenp, newp, ttystats,
-		    ttyc * sizeof(struct itty));
+		err = sysctl_rdstruct(oldp, oldlenp, newp, ttystats, ttyc * sizeof(struct itty));
 		free(ttystats, M_SYSCTL, ttystatssiz);
 		return (err);
 	}

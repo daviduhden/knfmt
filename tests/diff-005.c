@@ -3,8 +3,7 @@ main(void)
 {
 	int x = 0;
 
-	if (x)
-	{
+	if (x) {
 		return x + 1;
 	}
 	return 0;

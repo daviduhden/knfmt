@@ -14,24 +14,24 @@ cztty_receive(struct cztty_softc *sc, struct tty *tp)
 	put = CZTTY_BUF_READ(sc, BUFCTL_RX_PUT);
 	address = CZTTY_BUF_READ(sc, BUFCTL_RX_BUFADDR);
 
-	while ((get != put) &&
-	    ((tp->t_canq.c_cc + tp->t_rawq.c_cc) < tp->t_hiwat)) {
+	while ((get != put) && ((tp->t_canq.c_cc + tp->t_rawq.c_cc) < tp->t_hiwat)) {
 #ifdef HOSTRAMCODE
 		if (hostram)
 			ch = ((char *)fifoaddr)[get];
-		} else {
+	}
+	else
+	{
 #endif
-		ch = bus_space_read_1(cz->cz_win_st, cz->cz_win_sh,
-		    address + get);
+		ch = bus_space_read_1(cz->cz_win_st, cz->cz_win_sh, address + get);
 #ifdef HOSTRAMCODE
-		}
+	}
 #endif
-		(*linesw[tp->t_line].l_rint)(ch, tp);
-		get = (get + 1) % size;
-		done = 1;
-	}
-	if (done) {
-		CZTTY_BUF_WRITE(sc, BUFCTL_RX_GET, get);
-	}
-	return (done);
+	(*linesw[tp->t_line].l_rint)(ch, tp);
+	get = (get + 1) % size;
+	done = 1;
+}
+if (done) {
+	CZTTY_BUF_WRITE(sc, BUFCTL_RX_GET, get);
+}
+return (done);
 }

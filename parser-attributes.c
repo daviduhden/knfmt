@@ -20,27 +20,22 @@
  * argument expressions are formatted with the expression parser.
  */
 int
-parser_attributes_peek(
-    struct parser *pr, struct token **rparen, unsigned int flags)
+parser_attributes_peek(struct parser *pr, struct token **rparen, unsigned int flags)
 {
 	struct lexer_state s;
-	struct lexer	  *lx = pr->pr_lx;
-	int		   nattributes = 0;
+	struct lexer *lx = pr->pr_lx;
+	int nattributes = 0;
 
 	lexer_peek_enter(lx, &s);
 	for (;;) {
 		struct token *tmp;
 
 		if (lexer_if(lx, TOKEN_ATTRIBUTE, nullptr) &&
-		    lexer_if_pair(
-			lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, rparen)) {
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, rparen)) {
 			/* nothing */
-		} else if ((flags & PARSER_ATTRIBUTES_FUNC) &&
-		    lexer_if(lx, TOKEN_IDENT, nullptr) &&
-		    lexer_if_pair(
-			lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &tmp) &&
-		    lexer_if(lx, TOKEN_IDENT, nullptr) &&
-		    lexer_if(lx, TOKEN_LPAREN, nullptr)) {
+		} else if ((flags & PARSER_ATTRIBUTES_FUNC) && lexer_if(lx, TOKEN_IDENT, nullptr) &&
+		    lexer_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &tmp) &&
+		    lexer_if(lx, TOKEN_IDENT, nullptr) && lexer_if(lx, TOKEN_LPAREN, nullptr)) {
 			/* Possible attribute hidden behind cpp macro. */
 			*rparen = tmp;
 		} else {
@@ -53,8 +48,8 @@ parser_attributes_peek(
 }
 
 static int
-parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
-    struct token *attribute, struct token *rparen)
+parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out, struct token *attribute,
+    struct token *rparen)
 {
 	struct lexer *lx = pr->pr_lx;
 
@@ -64,7 +59,7 @@ parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
 
 	for (;;) {
 		struct token *comma, *nx, *stop;
-		int	      error;
+		int error;
 
 		if (is_simple_enabled(pr->pr_si, SIMPLE_ATTRIBUTES))
 			simple_attributes(lx);
@@ -106,29 +101,27 @@ parser_attributes_expr(struct parser *pr, struct doc *dc, struct doc **out,
  * closing parenthesis is placed in the output document chosen by the caller.
  */
 int
-parser_attributes(
-    struct parser *pr, struct doc *dc, struct doc **out, unsigned int flags)
+parser_attributes(struct parser *pr, struct doc *dc, struct doc **out, unsigned int flags)
 {
-	struct doc   *def, *optional;
+	struct doc *def, *optional;
 	struct lexer *lx = pr->pr_lx;
 	struct token *end, *pv;
 	enum doc_type linetype;
-	int	      nattributes = 0;
+	int nattributes = 0;
 
 	if (!parser_attributes_peek(pr, &end, flags))
 		return parser_none(pr);
 
 	if (out == nullptr)
 		out = &def;
-	linetype = lexer_back(lx, &pv) && token_has_line(pv, 1) ? DOC_HARDLINE :
-								  DOC_LINE;
+	linetype = lexer_back(lx, &pv) && token_has_line(pv, 1) ? DOC_HARDLINE : DOC_LINE;
 
 	optional = doc_alloc(DOC_CONCAT, doc_alloc(DOC_OPTIONAL, dc));
 	for (;;) {
-		struct doc   *concat;
+		struct doc *concat;
 		struct token *rparen = end;
 		struct token *attribute, *lparen, *tk;
-		int	      error;
+		int error;
 
 		if (!lexer_if(lx, TOKEN_ATTRIBUTE, &attribute) &&
 		    !lexer_if(lx, TOKEN_IDENT, &attribute))
@@ -141,12 +134,10 @@ parser_attributes(
 		parser_doc_token(pr, attribute, concat);
 		if (lexer_expect(lx, TOKEN_LPAREN, &tk))
 			parser_doc_token(pr, tk, concat);
-		if (lexer_peek_if_pair(
-			lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &rparen) &&
+		if (lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &rparen) &&
 		    lexer_if(lx, TOKEN_LPAREN, &lparen))
 			parser_doc_token(pr, lparen, concat);
-		error =
-		    parser_attributes_expr(pr, concat, out, attribute, rparen);
+		error = parser_attributes_expr(pr, concat, out, attribute, rparen);
 		if (error & HALT)
 			return parser_fail(pr);
 		if (lexer_expect(lx, TOKEN_RPAREN, &rparen))
@@ -169,14 +160,13 @@ parser_attributes(
 int
 parser_attributes_std_peek(struct parser *pr, struct token **end)
 {
-	struct lexer	  *lx = pr->pr_lx;
+	struct lexer *lx = pr->pr_lx;
 	struct lexer_state s;
-	struct token	  *t;
-	int		   nest, peek = 0;
+	struct token *t;
+	int nest, peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_LSQUARE, nullptr) &&
-	    lexer_if(lx, TOKEN_LSQUARE, nullptr)) {
+	if (lexer_if(lx, TOKEN_LSQUARE, nullptr) && lexer_if(lx, TOKEN_LSQUARE, nullptr)) {
 		nest = 2;
 		while (lexer_pop(lx, &t)) {
 			if (t->tk_type == LEXER_EOF)
@@ -201,11 +191,10 @@ static int
 peek_colon_colon(struct lexer *lx)
 {
 	struct lexer_state s;
-	int		   peek = 0;
+	int peek = 0;
 
 	lexer_peek_enter(lx, &s);
-	if (lexer_if(lx, TOKEN_COLON, nullptr) &&
-	    lexer_if(lx, TOKEN_COLON, nullptr))
+	if (lexer_if(lx, TOKEN_COLON, nullptr) && lexer_if(lx, TOKEN_COLON, nullptr))
 		peek = 1;
 	lexer_peek_leave(lx, &s);
 	return peek;
@@ -222,7 +211,7 @@ parser_attributes_std(struct parser *pr, struct doc *dc)
 {
 	struct lexer *lx = pr->pr_lx;
 	struct token *end, *name = nullptr, *t;
-	int	      error, nattributes = 0;
+	int error, nattributes = 0;
 
 	if (!parser_attributes_std_peek(pr, &end))
 		return parser_none(pr);
@@ -259,15 +248,13 @@ parser_attributes_std(struct parser *pr, struct doc *dc)
 		if (lexer_peek_if(lx, TOKEN_LPAREN, nullptr)) {
 			struct token *rparen;
 
-			if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN,
-				nullptr, &rparen))
+			if (!lexer_peek_if_pair(lx, TOKEN_LPAREN, TOKEN_RPAREN, nullptr, &rparen))
 				return parser_fail(pr);
 			if (!lexer_if(lx, TOKEN_LPAREN, &t))
 				return parser_fail(pr);
 			parser_doc_token(pr, t, dc);
 			if (!lexer_peek_if(lx, TOKEN_RPAREN, nullptr)) {
-				error = parser_attributes_expr(
-				    pr, dc, &dc, name, rparen);
+				error = parser_attributes_expr(pr, dc, &dc, name, rparen);
 				if (error & HALT)
 					return parser_fail(pr);
 			}

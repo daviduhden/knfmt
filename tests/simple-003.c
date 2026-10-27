@@ -14,7 +14,7 @@ int x =
 #else
     1
 #endif
-// clang-format off
+    // clang-format off
 
 i;
 

@@ -2,7 +2,7 @@
  * Comment followed by comment.
  */
 
-/* 
+/*
  * Time of day and interval timer support.
  */
 

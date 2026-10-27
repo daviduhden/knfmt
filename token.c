@@ -32,8 +32,7 @@ static const char *token_type_str(int);
  * reference count starts at one and the dangling lists are empty.
  */
 struct token *
-token_alloc(
-    struct arena_scope *s, unsigned int priv_size, const struct token *def)
+token_alloc(struct arena_scope *s, unsigned int priv_size, const struct token *def)
 {
 	struct token *tk;
 
@@ -90,7 +89,7 @@ int
 token_trim(struct token *tk)
 {
 	struct token *suffix;
-	int	      ntrim = 0;
+	int ntrim = 0;
 
 	LIST_FOREACH(suffix, &tk->tk_suffixes)
 	{
@@ -110,23 +109,21 @@ token_trim(struct token *tk)
 }
 
 const char *
-token_serialize(
-    const struct token *tk, unsigned int flags, struct arena_scope *s)
+token_serialize(const struct token *tk, unsigned int flags, struct arena_scope *s)
 {
 	return token_serialize_with_extra_flags(tk, flags, nullptr, s);
 }
 
 const char *
-token_serialize_with_extra_flags(const struct token *tk, unsigned int flags,
-    const char *extra_flags, struct arena_scope *s)
+token_serialize_with_extra_flags(
+    const struct token *tk, unsigned int flags, const char *extra_flags, struct arena_scope *s)
 {
 	struct buffer *bf, *serialized_flags;
-	int	       comma = 0;
+	int comma = 0;
 
 	serialized_flags = arena_buffer_alloc(s, 128);
 	if (flags & TOKEN_SERIALIZE_POSITION) {
-		buffer_printf(
-		    serialized_flags, "%u:%u", tk->tk_lno, tk->tk_cno);
+		buffer_printf(serialized_flags, "%u:%u", tk->tk_lno, tk->tk_cno);
 		comma++;
 	}
 	if (flags & TOKEN_SERIALIZE_FLAGS) {
@@ -134,21 +131,18 @@ token_serialize_with_extra_flags(const struct token *tk, unsigned int flags,
 
 		serialized_token_flags = token_flags_str(tk->tk_flags, s);
 		if (serialized_token_flags[0] != '\0') {
-			buffer_printf(serialized_flags, "%s%s",
-			    comma++ ? "," : "", serialized_token_flags);
+			buffer_printf(
+			    serialized_flags, "%s%s", comma++ ? "," : "", serialized_token_flags);
 		}
 	}
 	if (flags & TOKEN_SERIALIZE_REFS) {
-		buffer_printf(
-		    serialized_flags, "%s%d", comma++ ? "," : "", tk->tk_refs);
+		buffer_printf(serialized_flags, "%s%d", comma++ ? "," : "", tk->tk_refs);
 	}
 	if (flags & TOKEN_SERIALIZE_ADDRESS) {
-		buffer_printf(serialized_flags, "%s%p", comma++ ? "," : "",
-		    (const void *)tk);
+		buffer_printf(serialized_flags, "%s%p", comma++ ? "," : "", (const void *)tk);
 	}
 	if (extra_flags != nullptr) {
-		buffer_printf(
-		    serialized_flags, "%s%s", comma++ ? "," : "", extra_flags);
+		buffer_printf(serialized_flags, "%s%s", comma++ ? "," : "", extra_flags);
 	}
 
 	bf = arena_buffer_alloc(s, 128);
@@ -179,11 +173,10 @@ void
 token_position_after(struct token *after, struct token *tk)
 {
 	struct token *last, *suffix;
-	unsigned int  lno = after->tk_lno;
-	unsigned int  cno;
+	unsigned int lno = after->tk_lno;
+	unsigned int cno;
 
-	last = LIST_EMPTY(&after->tk_suffixes) ? after :
-						 LIST_LAST(&after->tk_suffixes);
+	last = LIST_EMPTY(&after->tk_suffixes) ? after : LIST_LAST(&after->tk_suffixes);
 
 	cno = colwidth(last->tk_str, last->tk_len, last->tk_cno);
 	/*
@@ -236,7 +229,7 @@ int
 token_memcmp(const struct token *tk, const char *str, size_t len)
 {
 	size_t minlen;
-	int    cmp, gt, le;
+	int cmp, gt, le;
 
 	minlen = tk->tk_len < len ? tk->tk_len : len;
 	cmp = strncmp(tk->tk_str, str, minlen);
@@ -272,10 +265,10 @@ int
 token_type_normalize(const struct token *tk)
 {
 	switch (tk->tk_type) {
-#define OP(type, normalized, ...)                                              \
-	case type:                                                             \
-		if (normalized)                                                \
-			return normalized;                                     \
+#define OP(type, normalized, ...)                                                                  \
+	case type:                                                                                 \
+		if (normalized)                                                                    \
+			return normalized;                                                         \
 		break;
 		FOR_TOKEN_CPP(OP)
 #undef OP
@@ -291,8 +284,7 @@ token_type_normalize(const struct token *tk)
 int
 token_has_indent(const struct token *tk)
 {
-	return tk->tk_off > 0 &&
-	    (tk->tk_str[-1] == ' ' || tk->tk_str[-1] == '\t');
+	return tk->tk_off > 0 && (tk->tk_str[-1] == ' ' || tk->tk_str[-1] == '\t');
 }
 
 int
@@ -309,7 +301,7 @@ int
 token_has_line(const struct token *tk, int nlines)
 {
 	const struct token *suffix;
-	unsigned int	    flags = TOKEN_FLAG_OPTSPACE;
+	unsigned int flags = TOKEN_FLAG_OPTSPACE;
 
 	assert(nlines > 0 && nlines <= 2);
 
@@ -318,8 +310,7 @@ token_has_line(const struct token *tk, int nlines)
 
 	LIST_FOREACH(suffix, &tk->tk_suffixes)
 	{
-		if (suffix->tk_type == TOKEN_SPACE &&
-		    (suffix->tk_flags & flags) == 0)
+		if (suffix->tk_type == TOKEN_SPACE && (suffix->tk_flags & flags) == 0)
 			return 1;
 	}
 	return 0;
@@ -333,7 +324,7 @@ int
 token_has_verbatim_line(const struct token *tk, int nlines)
 {
 	const char *str = tk->tk_str;
-	size_t	    len = tk->tk_len;
+	size_t len = tk->tk_len;
 
 	for (; len > 0; len--) {
 		if (str[len - 1] != '\n')
@@ -363,8 +354,7 @@ token_has_tabs(const struct token *tk)
 
 	LIST_FOREACH(suffix, &tk->tk_suffixes)
 	{
-		if (suffix->tk_type == TOKEN_SPACE &&
-		    (suffix->tk_flags & TOKEN_FLAG_OPTSPACE) &&
+		if (suffix->tk_type == TOKEN_SPACE && (suffix->tk_flags & TOKEN_FLAG_OPTSPACE) &&
 		    suffix->tk_str[0] == '\t')
 			return 1;
 	}
@@ -377,15 +367,13 @@ token_has_tabs(const struct token *tk)
 int
 token_has_spaces(const struct token *tk)
 {
-	return token_list_find(&tk->tk_suffixes, TOKEN_SPACE,
-		   TOKEN_FLAG_OPTSPACE) != nullptr;
+	return token_list_find(&tk->tk_suffixes, TOKEN_SPACE, TOKEN_FLAG_OPTSPACE) != nullptr;
 }
 
 int
 token_has_c99_comment(const struct token *tk)
 {
-	return token_list_find(&tk->tk_suffixes, TOKEN_COMMENT,
-		   TOKEN_FLAG_COMMENT_C99) != nullptr;
+	return token_list_find(&tk->tk_suffixes, TOKEN_COMMENT, TOKEN_FLAG_COMMENT_C99) != nullptr;
 }
 
 /*
@@ -401,7 +389,7 @@ token_skip_attributes_backward(const struct token *tk)
 {
 	while (tk != nullptr && tk->tk_type == TOKEN_RSQUARE) {
 		const struct token *pv = tk;
-		int		    depth = 0;
+		int depth = 0;
 
 		for (; pv != nullptr; pv = token_prev(pv)) {
 			if (pv->tk_type == TOKEN_RSQUARE) {
@@ -446,7 +434,7 @@ token_is_decl(const struct token *tk, int type)
 	 */
 	if (type == TOKEN_ENUM) {
 		const struct token *pv;
-		int		    colon = 0;
+		int colon = 0;
 
 		for (pv = tk; pv != nullptr; pv = token_prev(pv)) {
 			if (pv->tk_type == TOKEN_ENUM) {
@@ -485,8 +473,7 @@ token_is_moveable(const struct token *tk)
 
 	LIST_FOREACH(prefix, &tk->tk_prefixes)
 	{
-		if (prefix->tk_type == TOKEN_COMMENT ||
-		    (prefix->tk_flags & TOKEN_FLAG_CPP))
+		if (prefix->tk_type == TOKEN_COMMENT || (prefix->tk_flags & TOKEN_FLAG_CPP))
 			return 0;
 	}
 
@@ -547,14 +534,11 @@ token_pair_needs_space(const struct token *a, const struct token *b)
 		return 1;
 
 	/* Adjacent punctuators that would form a different operator. */
-	if ((ac == '+' && bc == '+') ||
-	    (ac == '-' && (bc == '-' || bc == '>')) ||
+	if ((ac == '+' && bc == '+') || (ac == '-' && (bc == '-' || bc == '>')) ||
 	    (ac == '&' && bc == '&') || (ac == '|' && bc == '|') ||
-	    (ac == '<' && (bc == '<' || bc == '=')) ||
-	    (ac == '>' && (bc == '>' || bc == '=')) ||
-	    (ac == '=' && bc == '=') || (ac == '!' && bc == '=') ||
-	    (ac == '*' && bc == '=') || (ac == '/' && bc == '=') ||
-	    (ac == '%' && bc == '=') || (ac == '^' && bc == '=') ||
+	    (ac == '<' && (bc == '<' || bc == '=')) || (ac == '>' && (bc == '>' || bc == '=')) ||
+	    (ac == '=' && bc == '=') || (ac == '!' && bc == '=') || (ac == '*' && bc == '=') ||
+	    (ac == '/' && bc == '=') || (ac == '%' && bc == '=') || (ac == '^' && bc == '=') ||
 	    (ac == '#' && bc == '#'))
 		return 1;
 
@@ -569,13 +553,13 @@ token_pair_needs_space(const struct token *a, const struct token *b)
 unsigned int
 token_lines(const struct token *tk)
 {
-	const char  *str = tk->tk_str;
-	size_t	     len = tk->tk_len;
+	const char *str = tk->tk_str;
+	size_t len = tk->tk_len;
 	unsigned int nlines = 0;
 
 	while (len > 0) {
 		const char *p;
-		size_t	    linelen;
+		size_t linelen;
 
 		p = memchr(str, '\n', len);
 		if (p == nullptr)
@@ -601,8 +585,7 @@ token_list_append(struct token_list *tl, struct token *tk)
 }
 
 void
-token_list_append_after(
-    struct token_list *tl, struct token *after, struct token *tk)
+token_list_append_after(struct token_list *tl, struct token *after, struct token *tk)
 {
 	LIST_INSERT_AFTER(tl, after, tk);
 }
@@ -623,7 +606,7 @@ void
 token_list_swap(struct token_list *src, struct token_list *dst)
 {
 	struct token_list tmp;
-	struct token	 *safe, *tk;
+	struct token *safe, *tk;
 
 	LIST_INIT(&tmp);
 
@@ -661,8 +644,7 @@ token_list_last(struct token_list *tl)
 struct token *
 token_find_suffix_spaces(struct token *tk)
 {
-	return token_list_find(
-	    &tk->tk_suffixes, TOKEN_SPACE, TOKEN_FLAG_OPTSPACE);
+	return token_list_find(&tk->tk_suffixes, TOKEN_SPACE, TOKEN_FLAG_OPTSPACE);
 }
 
 void
@@ -724,8 +706,8 @@ static const char *
 token_flags_str(unsigned int token_flags, struct arena_scope *s)
 {
 	static const struct {
-		const char  *str;
-		size_t	     len;
+		const char *str;
+		size_t len;
 		unsigned int flag;
 	} flags[] = {
 #define F(f, s) {(s), sizeof(s) - 1, (f)}
@@ -741,7 +723,7 @@ token_flags_str(unsigned int token_flags, struct arena_scope *s)
 	    F(TOKEN_FLAG_DIFF, "DIFF"),
 #undef F
 	};
-	size_t	       i;
+	size_t i;
 	struct buffer *bf;
 
 	bf = arena_buffer_alloc(s, 1 << 6);
@@ -762,8 +744,8 @@ static const char *
 token_type_str(int token_type)
 {
 	switch (token_type) {
-#define OP(type, ...)                                                          \
-	case type:                                                             \
+#define OP(type, ...)                                                                              \
+	case type:                                                                                 \
 		return &#type[sizeof("TOKEN_") - 1];
 		FOR_TOKEN_TYPES(OP)
 		FOR_TOKEN_CPP(OP)

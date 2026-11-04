@@ -1,4 +1,5 @@
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -279,9 +280,10 @@ filediff(struct main_context *c, const struct file *fe)
 
 /*
  * Replace the input file with the formatted result. Nothing is written when
- * the bytes are unchanged. KS_fs_replace() writes a sibling temporary file and
- * fsyncs the new file and parent directory. Errors before rename leave the
- * original intact; a directory-sync error can follow publication.
+ * the bytes are unchanged. KS_fs_replace_checked() compares identity and input
+ * bytes before publishing a sibling temporary file, then syncs its directory.
+ * Errors before rename leave the original intact; a directory-sync error can
+ * follow publication. The check cannot exclude subsequent concurrent edits.
  */
 static int
 filewrite(struct main_context *c, const struct file *fe)
@@ -291,7 +293,8 @@ filewrite(struct main_context *c, const struct file *fe)
 
 	if (buffer_cmp(src, dst) == 0)
 		return 0;
-	if (KS_fs_replace(fe->fe_path, buffer_get_ptr(dst), buffer_get_len(dst)) == -1) {
+	if (KS_fs_replace_checked(fe->fe_path, buffer_get_ptr(dst), buffer_get_len(dst), fe->fe_fd,
+		buffer_get_ptr(src), buffer_get_len(src)) == -1) {
 		warn("%s", fe->fe_path);
 		return 1;
 	}
@@ -312,8 +315,14 @@ fileprint(const struct buffer *dst)
 		ssize_t nw;
 
 		nw = write(1, buf, buflen);
+		if (nw == -1 && errno == EINTR)
+			continue;
 		if (nw == -1) {
 			warn("write: /dev/stdout");
+			return 1;
+		}
+		if (nw == 0) {
+			warnx("write: /dev/stdout: no progress");
 			return 1;
 		}
 		buflen -= (size_t)nw;

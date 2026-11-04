@@ -22,6 +22,12 @@
 
 /* Sync a replaced path; a directory-sync error can follow publication. */
 int KS_fs_replace(const char *, const char *, size_t);
+/*
+ * Also compare the path's identity and bytes with the input descriptor and
+ * snapshot before rename; EBUSY means a detected concurrent edit. This does
+ * not exclude changes after the final check. expectedfd remains caller-owned.
+ */
+int KS_fs_replace_checked(const char *, const char *, size_t, int, const char *, size_t);
 /* Write bytes to an unlinked temporary file, rewind it, and return its fd. */
 int KS_fs_tmpfd(const char *, size_t, char *, size_t);
 

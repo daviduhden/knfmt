@@ -525,7 +525,15 @@ clean:
 		${DEPS_strmatch} ${OBJS_strmatch} ${PROG_strmatch} \
 		${DEPS_test} ${OBJS_test} ${PROG_test} \
 		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
+fs-test: tests/fs-replace.c libks/fs.c libks/fs.h
+	${CC} ${CPPFLAGS} ${CFLAGS} ${DEBUG} ${NO_SANITIZE_FUZZER} -o $@ tests/fs-replace.c ${LDFLAGS}
+
+test-fs: fs-test
+	${EXEC} ./fs-test
+.PHONY: test-fs
+
 		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
+	rm -f fs-test fs-test.d
 		${DEPS_fuzz-parse} ${OBJS_fuzz-parse} ${PROG_fuzz-parse} \
 		${DEPS_benchmark} ${OBJS_benchmark} ${PROG_benchmark}
 .PHONY: clean
@@ -594,7 +602,7 @@ lint-shellcheck:
 	cd ${.CURDIR} && shellcheck ${SHELLCHECKFLAGS} ${SHLINT}
 .PHONY: lint-shellcheck
 
-test: ${PROG_knfmt} test-${PROG_test}
+test: ${PROG_knfmt} test-${PROG_test} test-fs
 	${MAKE} -C ${.CURDIR}/tests \
 		"KNFMT=${.OBJDIR}/${PROG_knfmt}" \
 		"VALGRINDRC=${.CURDIR}/.valgrindrc"

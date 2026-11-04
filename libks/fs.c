@@ -106,17 +106,67 @@ inherit_ownership_and_permissions(int srcfd, int dstfd)
 	if (fstat(dstfd, &dstsb) == -1)
 		return -1;
 
-	if (srcsb.st_mode != dstsb.st_mode && fchmod(dstfd, srcsb.st_mode) == -1)
-		return -1;
 	if ((srcsb.st_uid != dstsb.st_uid || srcsb.st_gid != dstsb.st_gid) &&
 	    fchown(dstfd, srcsb.st_uid, srcsb.st_gid) == -1)
+		return -1;
+	/* chown may clear set-id bits, so restore the mode afterwards. */
+	if (fchmod(dstfd, srcsb.st_mode & 07777) == -1)
 		return -1;
 
 	return 0;
 }
 
+/*
+ * Detect a replaced path or edited contents immediately before publication.
+ * This is best effort: another writer can still change the path after stat().
+ * Read sequentially so an input size need not be converted to off_t.
+ */
+static int
+check_original(const char *path, int srcfd, int expectedfd, const char *original, size_t len)
+{
+	struct stat actual, expected, named;
+	char chunk[8192];
+
+	if (fstat(srcfd, &actual) == -1 || fstat(expectedfd, &expected) == -1 ||
+	    stat(path, &named) == -1)
+		return -1;
+	if (actual.st_dev != expected.st_dev || actual.st_ino != expected.st_ino ||
+	    actual.st_dev != named.st_dev || actual.st_ino != named.st_ino) {
+		errno = EBUSY;
+		return -1;
+	}
+	if (lseek(srcfd, 0, SEEK_SET) == -1)
+		return -1;
+	for (;;) {
+		ssize_t nr = read(srcfd, chunk, sizeof(chunk));
+
+		if (nr == -1) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+		if (nr == 0 && len == 0)
+			break;
+		if (nr == 0 || (size_t)nr > len || memcmp(chunk, original, (size_t)nr) != 0) {
+			errno = EBUSY;
+			return -1;
+		}
+		original += (size_t)nr;
+		len -= (size_t)nr;
+	}
+	/* Recheck the name after reading, which can take time for a large file. */
+	if (stat(path, &named) == -1)
+		return -1;
+	if (actual.st_dev != named.st_dev || actual.st_ino != named.st_ino) {
+		errno = EBUSY;
+		return -1;
+	}
+	return 0;
+}
+
 int
-KS_fs_replace(const char *path, const char *buf, size_t buflen)
+KS_fs_replace_checked(const char *path, const char *buf, size_t buflen, int expectedfd,
+    const char *original, size_t original_len)
 {
 	char tmppath[PATH_MAX] = {0};
 	mode_t old_umask;
@@ -143,8 +193,13 @@ KS_fs_replace(const char *path, const char *buf, size_t buflen)
 		ssize_t nw;
 
 		nw = write(tmpfd, buf, buflen);
-		if (nw == -1)
+		if (nw == -1 && errno == EINTR)
+			continue;
+		if (nw <= 0) {
+			if (nw == 0)
+				errno = EIO;
 			goto out;
+		}
 		buf += nw;
 		buflen -= (size_t)nw;
 	}
@@ -157,10 +212,14 @@ KS_fs_replace(const char *path, const char *buf, size_t buflen)
 	dirfd = open_parent_directory(path);
 	if (dirfd == -1)
 		goto out;
+	if (expectedfd != -1 &&
+	    check_original(path, srcfd, expectedfd, original, original_len) == -1)
+		goto out;
 
 	/* Rename publishes the completed contents atomically at the target path. */
 	if (rename(tmppath, path) == -1)
 		goto out;
+	tmppath[0] = '\0';
 	/* Persist the directory entry after the new file's data and metadata. */
 	if (fsync_retry(dirfd) == -1)
 		goto out;
@@ -170,7 +229,7 @@ KS_fs_replace(const char *path, const char *buf, size_t buflen)
 out:
 	if (error == -1)
 		saved_errno = errno;
-	if (tmppath[0] != '\0')
+	if (tmpfd != -1 && tmppath[0] != '\0')
 		(void)unlink(tmppath);
 	if (srcfd != -1)
 		close(srcfd);
@@ -181,6 +240,12 @@ out:
 	if (error == -1)
 		errno = saved_errno;
 	return error;
+}
+
+int
+KS_fs_replace(const char *path, const char *buf, size_t buflen)
+{
+	return KS_fs_replace_checked(path, buf, buflen, -1, nullptr, 0);
 }
 
 int
@@ -210,8 +275,13 @@ KS_fs_tmpfd(const char *buf, size_t buflen, char *path, size_t pathsiz)
 		ssize_t nw;
 
 		nw = write(fd, buf, buflen);
-		if (nw == -1)
+		if (nw == -1 && errno == EINTR)
+			continue;
+		if (nw <= 0) {
+			if (nw == 0)
+				errno = EIO;
 			goto err;
+		}
 		buf += nw;
 		buflen -= (size_t)nw;
 	}

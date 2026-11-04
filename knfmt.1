@@ -30,7 +30,8 @@ instead of searching upward for the nearest
 .Pa .knfmt
 or
 .Pa .clang-format
-file. If both files are in the same directory,
+file.
+If both files are in the same directory,
 .Pa .knfmt
 takes precedence.
 .It Fl D
@@ -40,6 +41,10 @@ Unchanged regions are copied verbatim.
 The files to format are named by the
 .Pa +++
 headers of the diff; file operands are not accepted.
+Paths may contain spaces or use Git's quoted path syntax.
+An optional unified-diff timestamp must be separated by a tab.
+The diff supplies trusted paths and line numbers; it is not applied or checked
+against the files on disk.
 May be combined with
 .Fl d ,
 .Fl i
@@ -60,6 +65,11 @@ The formatted contents are written to a sibling temporary file, synchronized,
 and renamed over the original; the parent directory is then synchronized.
 If that final synchronization fails, the replacement may already be visible
 although the command reports an error.
+Before replacement, the file's identity and contents are compared with the
+input that was read; a detected concurrent edit aborts the replacement.
+This is a best-effort check: changes after the final comparison are not
+excluded.
+Symbolic links are replaced and hard links are separated.
 Standard input cannot be edited in place unless
 .Fl D
 is also given.
@@ -402,6 +412,12 @@ Regular expression matching is case-insensitive unless
 is set for the category list.
 .It Cm IncludeGuards Pq extension
 List of headers in which include guards must be present.
+This policy runs independently of
+.Fl s .
+Guard names use uppercase ASCII letters, digits and underscores.
+Other bytes become underscores; a leading digit gains an underscore prefix.
+Different paths can yield the same name, so select enough path components
+to distinguish headers.
 The supported nested options are as follows:
 .Bl -tag -width Ds
 .It Cm Regex
@@ -482,6 +498,13 @@ cannot be read, or when
 .Fl d
 finds a difference.
 .Sh DIAGNOSTICS
+Excessive preprocessor reparsing is rejected with
+.Dq preprocessor reparse limit exceeded
+before any formatted output is emitted.
+Malformed style entries are normally non-fatal; use
+.Fl ts
+to inspect style diagnostics.
+.Pp
 Diagnostics are written to standard error as
 .Pa file:line: message
 followed by the offending source line and a caret marker.

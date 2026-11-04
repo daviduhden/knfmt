@@ -1,0 +1,12 @@
+void
+f(void)
+{
+	warnx("\\n");
+	warnx("\\\\n");
+	warnx("x\\");
+	warnx(u8"x");
+	warnx(L"x");
+	warnx(u"x");
+	warnx(U"x");
+	warnx("x" "y");
+}

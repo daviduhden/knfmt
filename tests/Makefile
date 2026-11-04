@@ -733,6 +733,7 @@ TESTS += simple-expr-parens-008.c
 TESTS += simple-expr-printf-001.c
 TESTS += simple-expr-printf-002.c
 TESTS += simple-expr-printf-003.c
+TESTS += simple-expr-printf-004.c
 TESTS += simple-expr-sizeof-001.c
 TESTS += simple-expr-sizeof-002.c
 TESTS += simple-implicit-int-001.c

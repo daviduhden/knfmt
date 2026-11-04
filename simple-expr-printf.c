@@ -84,15 +84,20 @@ string_has_line(const char *str, size_t len)
 {
 	const char suffix[] = "\\n\"";
 	size_t suffixlen = sizeof(suffix) - 1;
+	size_t nslashes = 0;
 
-	return len >= suffixlen && strncmp(&str[len - suffixlen], suffix, suffixlen) == 0;
+	if (len < suffixlen || memcmp(&str[len - suffixlen], suffix, suffixlen) != 0)
+		return 0;
+	for (size_t i = len - 2; i > 0 && str[i - 1] == '\\'; i--)
+		nslashes++;
+	return (nslashes % 2) != 0;
 }
 
 void
 simple_expr_printf(struct lexer *lx, struct token *tk)
 {
 	enum format_argno argno;
-	const char *sanitized_format;
+	char *sanitized_format;
 	struct arena_scope *s;
 	struct token *format;
 
@@ -105,7 +110,8 @@ simple_expr_printf(struct lexer *lx, struct token *tk)
 		return;
 
 	s = lexer_get_arena_scope(lx);
-	sanitized_format = arena_sprintf(
-	    s, "\"%.*s\"", (int)(format->tk_len - 1 /* " */ - 3 /* \n" */), &format->tk_str[1]);
-	token_set_str(format, sanitized_format, strlen(sanitized_format));
+	/* Preserve the encoding prefix and every byte before the final escape. */
+	sanitized_format = arena_strndup(s, format->tk_str, format->tk_len - 2);
+	sanitized_format[format->tk_len - 3] = '"';
+	token_set_str(format, sanitized_format, format->tk_len - 2);
 }

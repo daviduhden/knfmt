@@ -64,6 +64,8 @@ struct clang {
 	 * content.
 	 */
 	int lossy;
+	/* End of the furthest crossed branch, retained across successful parses. */
+	size_t crossed_end;
 };
 
 struct clang_token {
@@ -332,6 +334,8 @@ clang_branch(struct clang *cl, struct lexer *lx, struct token **unmute)
 	token_ref(cpp_dst);
 	dst = token_priv(cpp_dst, struct clang_token)->branch.parent;
 	token_ref(dst);
+	if (cpp_dst->tk_off > cl->crossed_end)
+		cl->crossed_end = cpp_dst->tk_off;
 
 	clang_trace(cl, "branch from %s to %s, covering [%s, %s)", lexer_serialize(lx, cpp_src),
 	    lexer_serialize(lx, cpp_dst), lexer_serialize(lx, src), lexer_serialize(lx, dst));
@@ -406,7 +410,7 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute, unsigne
 	struct token *seek = nullptr;
 	struct token *back, *cpp_dst, *cpp_src, *dst, *src, *stamp;
 	size_t i, seek_index = 0;
-	unsigned int remove;
+	unsigned int remove = 0;
 	int error = 0;
 
 	if (verbatim != nullptr)
@@ -423,6 +427,15 @@ clang_recover(struct clang *cl, struct lexer *lx, struct token **unmute, unsigne
 		cpp_src = clang_recover_find_branch(back, stamp, 1);
 	if (cpp_src == nullptr)
 		return 0;
+
+	/*
+	 * A later successful construct may have committed a new stamp after
+	 * an earlier crossing. Folding that earlier branch still cannot
+	 * reconstruct its removed alternative. Defer verbatim output until
+	 * the remaining parse succeeds; keep genuine rejection unchanged.
+	 */
+	if (cl->crossed_end > 0 && cpp_src->tk_off <= cl->crossed_end && deferred != nullptr)
+		*deferred = 1;
 
 	src = token_priv(cpp_src, struct clang_token)->branch.parent;
 	cpp_dst = token_priv(cpp_src, struct clang_token)->branch.nx;
@@ -1454,7 +1467,6 @@ clang_read_cpp(struct clang *cl, struct lexer *lx)
 
 	if (tk->tk_type == TOKEN_CPP_DEFINE) {
 		const char *str;
-		size_t len;
 
 		str = cpp_format(lx, tk, cl->st, &cl->arena, cl->op, &len);
 		if (str != nullptr)

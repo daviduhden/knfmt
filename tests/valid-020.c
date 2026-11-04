@@ -9,6 +9,6 @@ main(void)
 #if NWSDISPLAY > 0
 	    && sc->sc_displaydv == NULL
 #endif
-	)
+	    )
 		return;
 }

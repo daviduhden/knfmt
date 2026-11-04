@@ -3,11 +3,11 @@
  * discards the recorded off comment. The whole source is preserved instead.
  */
 
-static voidJfoo /*
-		 * clang-format off
-		 */
+static voidJfoo/*
+ * clang-format off
+ */
 
-    // clang-format off
+// clang-format off
 int x =
 #ifdef FOO
 	0
@@ -18,4 +18,4 @@ int x =
 
 // clang-format on
 
-int y;
+	int y;

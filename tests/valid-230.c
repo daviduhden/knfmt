@@ -9,7 +9,7 @@ main(void)
 		switch (1) {
 		case 1:
 			break;
-		bad:
+bad:
 			return ENOMEM;
 		default:
 			goto bad;

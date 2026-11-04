@@ -9,5 +9,6 @@ main(void)
 		return 0;
 	else
 		return 1;
-	else return 2;
+	else
+		return 2;
 }

@@ -4,12 +4,13 @@
  * tokens are already removed; the content would be lost.
  */
 
-int x;
+int	x;
 
 #ifdef CPURESET_DELAY
-int cpureset_delay = CPURESET_DELAY;
+int	cpureset_delay = CPURESET_DELAY;
 #else
-int c<ddb / db_extern.h> extpureset_delay = 0;
+int	c <ddb/db_extern.h>
+extpureset_delay = 0;
 #endif
 
-int x;
+int	x;

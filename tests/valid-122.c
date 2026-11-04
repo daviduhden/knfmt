@@ -2,4 +2,6 @@
  * Trailing blank lines.
  */
 
-int x;
+int	x;
+
+

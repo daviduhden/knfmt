@@ -7,8 +7,8 @@
 int
 main(void)
 {
-	*feed_map = (feed_map_t){
-	    .slots = slots,
-	    .size = size,
-	};
+    *feed_map = (feed_map_t){
+        .slots = slots,
+        .size = size,
+    };
 }

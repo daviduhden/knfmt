@@ -4,12 +4,9 @@
 
 #if_var
 
-void
-f(void)
+void f(void)
 
-    int
+int
 #else
-    n
-{
-}
+n{}
 #endif

@@ -3,8 +3,7 @@
  * parameter be joined onto the comment line.
  */
 
-int
-f(int x //
-	y)
+int f(int x //
+y)
 {
 }

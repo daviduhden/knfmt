@@ -3,7 +3,7 @@
  */
 
 struct hash_function {
-	void (*init)(void *);
+	void	(*init)(void *);
 } functions = {
-    (void (*)(void *))CKSUM_Init,
+	(void (*)(void *))CKSUM_Init,
 };

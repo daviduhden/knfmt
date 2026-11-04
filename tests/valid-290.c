@@ -3,8 +3,7 @@
  */
 
 struct foo s = {
-    .callbacks =
-	{
-	    .arg = ptr,
+	.callbacks = {
+		.arg = ptr,
 	},
 };

@@ -5,6 +5,8 @@
 int
 main(void)
 {
-	if (a && ((b && c)))
+	if (a &&
+	    ((b &&
+	      c)))
 		return 0;
 }

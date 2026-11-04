@@ -8,8 +8,7 @@ main(void)
 	if (0) {
 		if (1) {
 			if (aaaaaaaaaaaaaa(slot))
-				/* comment */ after =
-				    bbbbbbbbbbbbbbbbbbbbbbbbbbbb(sd, dt, ds, after);
+				/* comment */ after = bbbbbbbbbbbbbbbbbbbbbbbbbbbb(sd, dt, ds, after);
 			else
 				after = ccccccccccccccccccccc(sd, dt, ds, after);
 			/* comment */

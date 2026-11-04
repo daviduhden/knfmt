@@ -2,4 +2,4 @@
  * c89_trigraph_array.
  */
 
-int a ? ? (3 ? ?);
+int a??(3??);

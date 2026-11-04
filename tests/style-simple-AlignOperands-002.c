@@ -6,6 +6,6 @@
 int
 main(void)
 {
-	return (aaaaaaaaaaaaaaaaaa(bbb, cccc, &dddddddddddddd[1]) ||
-	    aaaaaaaaaaaaaaaaaa(bbb, cccc, &dddddddddddddd[2]));
+	return (aaaaaaaaaaaaaaaaaa(bbb, cccc, &dddddddddddddd[1])
+		|| aaaaaaaaaaaaaaaaaa(bbb, cccc, &dddddddddddddd[2]));
 }

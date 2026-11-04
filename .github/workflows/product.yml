@@ -1,0 +1,56 @@
+name: Product checks
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: clang-19
+            cxx: clang++-19
+            make: make
+          - cc: gcc-14
+            cxx: g++-14
+            make: bmake
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Install toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-19 libclang-rt-19-dev gcc-14 g++-14 bmake
+      - name: Configure and test
+        run: |
+          ./configure --pedantic
+          ${{ matrix.make }} -j2
+          ${{ matrix.make }} test str-match fault
+      - name: Compare sanitizer build
+        if: matrix.cc == 'clang-19'
+        run: |
+          normal="$(mktemp "${RUNNER_TEMP}/knfmt-normal.XXXXXX")"
+          cp knfmt "$normal"
+          chmod u+x "$normal"
+          make clean
+          ./configure --pedantic --sanitize address
+          make -j2
+          make test
+          sh tests/cross-build.sh "$normal" "$PWD/knfmt"
+          rm -f "$normal"

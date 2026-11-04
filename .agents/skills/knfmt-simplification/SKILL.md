@@ -103,8 +103,10 @@ changes which transformations can compose.
   that had none. Check `simple_decl_proto`'s named-parameter detection.
 - Attribute rewriting must not turn a valid attribute into an invalid or
   different one. Require the `__name__` shape.
-- The `printf` pass must match the exact trailing `\n"` shape; do not strip
-  newlines from arbitrary strings.
+- The `printf` pass must match a trailing `\n"` escape with an odd run of
+  backslashes before `n`; an even run spells a literal backslash followed by
+  `n`. Preserve encoding prefixes and copy by token length when rewriting.
+  Do not strip newlines from arbitrary strings.
 - Under `-D`, passes that move or delete tokens must check `TOKEN_FLAG_DIFF`
   for the whole construct. `SIMPLE_DECL`, `SIMPLE_DECL_FORWARD`,
   `SIMPLE_STMT` and include sorting do this; new passes must follow the same
@@ -192,7 +194,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

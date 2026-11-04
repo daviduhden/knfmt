@@ -56,10 +56,16 @@ stop later files.
   source: unchanged regions are copied verbatim and groups intersecting the
   diff are reformatted.
 - `-d` writes a real unified diff with `<path>.orig` and `<path>` labels.
-- `-i` writes no stdout. `KS_fs_replace()` writes a hidden sibling temporary
-  file, copies mode/ownership, then renames. It is atomic against partial
-  writes but does not fsync; symlinks are replaced, hard links are broken.
-- Exit status is 0 on success and 1 on any read/parse/write/style failure.
+- `-i` writes no stdout. `KS_fs_replace_checked()` writes a hidden sibling temporary
+  file, copies mode/ownership, fsyncs it, renames, then fsyncs the parent
+  directory. A directory-sync error can follow publication. Symlinks are
+  replaced and hard links are broken. Before replacement it compares the
+  target with the original descriptor and byte snapshot; detected concurrent
+  edits fail with `EBUSY`. This check is best-effort, with a residual race
+  before rename; it does not provide filesystem compare-and-swap.
+- Exit status is 0 on success and 1 on read/parse/write failure or a missing
+  explicit style file. Style syntax errors remain non-fatal, including with
+  `-c`; diagnostics require style tracing.
   `-d` also returns 1 when a difference exists. `diff(1)` exit 2 or a signal
   is collapsed to 1.
 - Diagnostics are `<path>:<line>: <message>` followed by the source line and
@@ -69,7 +75,10 @@ stop later files.
 
 ## Diff parsing details
 
-- Only `+++` headers name files. Git `b/` prefixes are stripped; if a relative
+- Only `+++` headers name files. Unquoted spaces belong to the path; a tab
+  separates an optional timestamp. Git quoted paths decode standard C escapes
+  and three-digit octal bytes; malformed escapes and encoded NUL are rejected
+  before processing the file list. Git `b/` prefixes are stripped; if a relative
   path is missing and `.git` exists above the cwd, leading components are
   trimmed up to the repository depth.
 - Hunk headers use the new-file range. `+` lines create or extend a chunk;
@@ -108,7 +117,7 @@ stop later files.
 2. Check `options.c` for trace parsing; unknown trace flags warn and return 1.
 3. For `-D`, trace `diff_parse()`, `matchchunk()`, `matchline()` and the
    `TOKEN_FLAG_DIFF` assignment in `clang.c`.
-4. For `-i`, trace `filewrite()` and `KS_fs_replace()`. Confirm that a
+4. For `-i`, trace `filewrite()` and `KS_fs_replace_checked()`. Confirm that a
    failure before `filewrite()` leaves the target untouched.
 5. For `-d`, trace `filediff()` and `KS_exec_diff()`. Remember that exit 1 is
    a normal "differences found" result.
@@ -151,7 +160,8 @@ stop later files.
 - Letting `-i` proceed after a parse failure.
 - Replacing the target non-atomically or leaving a temporary file behind.
 - Adding an option to `getopt` but not to `usage()` or `knfmt.1`.
-- Treating `-c`/`-t` as public stable interfaces; `-t` is not.
+- Assuming implementation trace flags or trace text are a stable interface;
+  `-t` is for development.
 - Assuming `.clang-format` is discovered next to the input file.
 - Copying upstream manual text that no longer matches the fork.
 
@@ -176,7 +186,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

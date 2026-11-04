@@ -28,6 +28,7 @@ only acceptable if it preserves output and the documented invariants.
 ## Files
 
 - `arenas.c`, `arenas.h` — the five process-wide arenas.
+- `util.c`, `util.h` — shared per-operation process-stack guard.
 - `libks/arena.c`, `libks/arena.h` — bump allocator, scopes, cleanup lists.
 - `libks/arena-buffer.c`, `libks/arena-vector.c` — arena-backed containers.
 - `libks/vector.c`, `libks/vector.h` — hidden-header vectors.
@@ -37,7 +38,7 @@ only acceptable if it preserves output and the documented invariants.
 - `libks/fs.c` — atomic in-place replacement.
 - `doc.c`, `expr.c` — explicit frame arrays.
 - `tests/fault-wrap.c`, `tests/fault.sh`, `tests/bench.sh`,
-  `tests/bench-decl.sh`, `tests/cross-build.sh`.
+  `tests/bench-decl.sh`, `tests/benchmark.pl`, `tests/cross-build.sh`.
 - `.valgrindrc`, `.clang-tidy`, `cppcheck-suppressions.xml`.
 
 ## Arena contracts
@@ -84,9 +85,17 @@ only acceptable if it preserves output and the documented invariants.
   `free(ptr, size)`. Buffers hold length-delimited bytes unless `buffer_str()`
   adds a NUL; `buffer_getline()` returns scratch storage invalidated by its next
   call. `buffer_release()` transfers ownership and nulls the internal pointer;
-  a later `buffer_free()` is safe.
+  a later `buffer_free()` is safe. After a null line result, the iterator's
+  `error` field distinguishes allocation failure from EOF; retry clears it and
+  EOF/free clears the entire iterator. `buffer_getline_impl()` propagates both line
+  append and terminating-NUL allocation failures without advancing the cursor;
+  the caller may retry or free the iterator. `t.c` tests both failures.
 - `KS_str` match tables are initialized once from linker sections. The x86-64
   dispatch selects SSE/AVX2/AVX-512; Valgrind disables PCMPISTRI.
+- `KS_fs_replace_checked()` also receives the original file descriptor and
+  snapshot, validates identity and bytes, and checks metadata again before
+  rename. A detected concurrent edit reports `EBUSY`; a residual race remains
+  between the final check and rename, so the protection is best effort.
 - `KS_fs_replace()` writes a hidden sibling temporary file, copies mode and
   ownership, fsyncs the file, renames it, then fsyncs the parent directory.
   Failures before rename leave the target untouched; a directory-sync error
@@ -94,22 +103,31 @@ only acceptable if it preserves output and the documented invariants.
 - Checked arithmetic is mandatory for sizes and indices:
   `KS_size_add_overflow`, `KS_size_mul_overflow`, `ckd_add`, etc. Do not
   compute a byte count in `size_t` and hope.
+- `libks/arithmetic.c` contains independent test-reference functions whose
+  contract includes returning the wrapped result on overflow. Only those
+  functions disable `unsigned-integer-overflow` instrumentation, since their
+  unsigned wrap is intentional; signed overflow and other sanitizers remain
+  active. Keep production checked wrappers instrumented, and do not suppress
+  unsigned-overflow checking globally to run the reference boundary tests.
 
 ## Recursion and stack
 
-- `expr_exec1()` is recursive, bounded by `EXPR_MAX_DEPTH` (8000).
-- `expr_doc()` checks `EXPR_STACK_BUDGET` (2 MiB) using the process stack
-  distance from `es_stack_base`; exceeding it makes the expression fail
-  cleanly.
-- Declarator scanning is bounded by `SCAN_MAX_DEPTH` (8000).
+- Expression parsing, declarator scanning, and statement/declaration nesting
+  retain their 8000-level depth guards.
+- `util.c` implements a per-operation `stack_guard`: the budget is the lesser
+  of 2 MiB and one quarter of the current `RLIMIT_STACK`, queried once when
+  the operation initializes its guard. The parser shares it across declarator
+  scans, expression parsing/peeking/document construction, width queries and
+  final rendering. Exceeding the budget is sticky and rejects the file.
+- Standalone expression and renderer callers initialize their own guard;
+  do not reset the parser guard at a mutually recursive entry.
 - `expr_doc_binary_chain()` and `doc_exec1()` use explicit growable frame
-  arrays for flat chains and concat/group rendering. Keep them iterative.
+  arrays with checked capacity and byte-count multiplication. Keep them iterative.
 - Renderer helpers for indent/scope/maxlines/optional/minimize still recurse
-  by document nesting depth. Do not add recursion proportional to document
-  length.
-- Statement/declaration nesting is bounded by `PARSER_MAX_DEPTH` (8000).
-  If you add recursive descent with input-controlled depth, add a limit or
-  make it iterative.
+  by document nesting depth; recursive renderer entries check the shared guard.
+- `tests/stack-budget.sh` exercises expressions, statements and declarators
+  with a 512 KiB stack. Small-stack acceptance can depend on compiled frame
+  sizes; controlled rejection and no partial output are required in every build.
 
 ## Performance invariants
 
@@ -126,9 +144,13 @@ better behavior with measurements:
 - allocation-free common token paths and length-delimited strings;
 - SIMD `KS_str_match` with a C fallback.
 
-Known remaining quadratic behavior: sequential conditional initializers
-(`int v = #ifdef A 1 #else 2 #endif;`). Do not "fix" it by changing recovery
-semantics unless you have a safe rewind floor and measurements.
+Sequential conditional initializers (`int v = #ifdef A 1 #else 2 #endif;`)
+still have quadratic reparse work below the resource limit. After reparsing
+starts, `128 * initial_token_count + 65536` token visits (including peeks)
+bound that work; the parser checks between top-level attempts and rejects
+excessive input without partial output. `tests/reparse-budget.sh` verifies
+small acceptance, large rejection, in-place safety and linear top-level CPP.
+A full algorithmic correction still needs a safe rewind floor and measurements.
 
 ## Analysis procedure
 
@@ -143,7 +165,10 @@ semantics unless you have a safe rewind floor and measurements.
    by growth.
 5. For performance, measure first. Use `tests/bench.sh` and
    `tests/bench-decl.sh`, and report time and peak RSS. Compare the same
-   input and build flags.
+   input and build flags. The benchmark wrappers share `tests/benchmark.pl`:
+   keep high-resolution timing and arithmetic in that driver, preserve output
+   fields and optional BSD RSS, and avoid interpreter startup in measured
+   timestamp calculations.
 6. Confirm sanitizer instrumentation by inspecting `CFLAGS`/the binary, not
    by trusting the configure option. GCC sanitizer linking may be unavailable;
    Clang is the supported sanitizer compiler in the documented environment.
@@ -169,7 +194,10 @@ semantics unless you have a safe rewind floor and measurements.
 
 ## Tests and validation
 
-- `make test` — functional fixtures and the in-process `t` binary.
+- `make test` — functional fixtures, the in-process `t` binary, and `fs-test`.
+  `tests/fs-replace.c` uses portable syscall wrappers to cover short writes,
+  EINTR, zero/error writes, chmod/fsync/rename failures, symlinks, modes and
+  identity/content conflicts. Directory-fsync failures occur after publication.
 - `make fault` — allocation-failure sweep; checks controlled exit, no partial
   stdout and an unchanged in-place target.
 - `make str-match` — SIMD vs C string matching (bmake-only historically;
@@ -220,7 +248,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

@@ -90,9 +90,17 @@ controls.
   the pass runs regardless and sorts bytewise/case-sensitively.
 - `IncludeCategories` regexes are compiled with `REG_ICASE` by default;
   `CaseSensitive: true` recompiles them without it.
+- `util.h` owns the shared `stack_guard` definition and needs its include
+  guard; keep it selected in the repository's `.knfmt` IncludeGuards policy.
 - `IncludeGuards` is a knfmt extension. It runs independently of `-s` and can
   insert or remove a canonical guard. Do not move it behind `-s` without an
   explicit contract change.
+- Compiled style regexes carry an explicit validity flag. Never call
+  `regexec` or `regfree` on a missing or failed pattern. Compile replacements
+  into a temporary object and retain the previous valid pattern on failure.
+- Guard identifiers use ASCII letters, digits and underscores, replace every
+  other byte with an underscore, and prefix a leading digit with `_`. This
+  mapping is locale-independent; existing valid guard names remain stable.
 
 ## Analysis procedure
 
@@ -157,7 +165,8 @@ only asserts canonical input, which is not enough for a new rule.
 - `docs/ARCHITECTURE.md` sections "Preprocessor handling", "Simplifier",
   "Macro realignment and literals".
 - `knfmt.1` for the option table.
-- `.clang-format` for the repository's own formatting rules.
+- `.knfmt` for the repository's own formatting rules; `.clang-format` is
+  reserved for LLVM-compatible tooling.
 - `tests/style-*` for executable examples.
 
 ## Maintenance & Continuous Learning
@@ -172,7 +181,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

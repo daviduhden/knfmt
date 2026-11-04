@@ -71,12 +71,23 @@ object.
 ## Rendering contracts
 
 - `doc_exec1()` is iterative for `DOC_CONCAT` and `DOC_GROUP`, using an
-  explicit frame stack. The stack starts at 32 frames and doubles.
+  explicit frame stack. The stack starts at 32 frames and doubles with checked
+  capacity and byte-count multiplication.
 - Indent/scope/maxlines/optional/minimize helpers still recurse by document
-  nesting depth. Process-stack use is O(nesting), not O(document length).
+  nesting depth. `doc_exec1()` checks the per-operation `stack_guard` at each
+  recursive entry before allocating a frame stack. Parser callers share their
+  guard with width queries and final layout; standalone calls initialize one.
+  Exhaustion sets the sticky guard and unwinds while freeing frame arrays.
+  `doc_exec()` is `[[nodiscard]]` and returns nonzero; callers must discard
+  its partial buffer. The parser rejects that file but continues later files;
+  macro formatting declines the rewrite, and brace sensing conservatively
+  keeps/adds braces.
 - `doc_summarize()` computes `dc_sum_flat`, `dc_sum_flags` and
   `dc_sum_depth` in an iterative post-order. `DOC_SUM_PURE` subtrees may be
   accepted or rejected whole by `doc_fits1()` with `DOC_WALK_SKIP`.
+- `doc_exec_arg.dc` is mutable because `doc_exec()` and `doc_width()` refresh
+  cached summaries before rendering. Width helpers must preserve this mutable
+  contract instead of casting away `const`; rendering traversal remains const.
 - The summary is valid only while the tree is immutable during layout. Do not
   mutate a document after summarizing it without recomputing.
 - `doc_walk()` is iterative with a queue. Callbacks may return
@@ -175,7 +186,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

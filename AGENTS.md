@@ -13,8 +13,13 @@ limit. It is not a compiler, a preprocessor, or a semantic refactoring tool.
 
 Two modes must be kept distinct:
 
-- **Formatting** (the default, including `-i`, `-d` and `-D`) changes layout
-  only. It must preserve the program's preprocessing tokens and semantics.
+- **Formatting** (the default, including `-i`, `-d` and `-D`) preserves
+  program semantics. Historical removal of redundant semicolons and recovery
+  of unattached backslashes is recorded by exact input/output pairs in the
+  semantic test manifest; do not broaden those exceptions. Explicit style
+  policies can also sort includes or insert/remove include guards without `-s`.
+  Outside these documented policies, formatting must preserve preprocessing
+  tokens.
 - **Simplification** (`-s`) rewrites tokens: it removes redundant parentheses,
   adds braces, inserts `continue;`/`break`, reorders declarations, drops
   parameter names from mixed prototypes, rewrites `__attribute__` names and
@@ -55,7 +60,7 @@ evidence log and must not be treated as a description of the current code.
 | Lexing | `lexer.c`, `lexer.h`, `lexer-callbacks.h`, `token.c`, `token.h` | Owns tokens; byte-oriented; length-delimited strings; comments and directives are dangling tokens |
 | C vocabulary and CPP state | `clang.c`, `clang.h` | Keyword/identifier tables and `#if`/`#elif`/`#else`/`#endif` branch tracking; not LLVM Clang |
 | Parsing | `parser*.c`, `parser-priv.h` | Recursive descent; returns `GOOD`, `FAIL`, `NONE`, `BRCH` or `HALT` |
-| Expressions | `expr.c`, `expr.h` | Pratt parser; `EXPR_MAX_DEPTH` and `EXPR_STACK_BUDGET`; iterative flat binary chains |
+| Expressions | `expr.c`, `expr.h` | Pratt parser; `EXPR_MAX_DEPTH` and shared `stack_guard`; iterative flat binary chains |
 | Documents | `doc.c`, `doc.h` | Document tree and iterative renderer; `DOC_CONCAT` is n-ary |
 | Alignment | `ruler.c`, `ruler.h` | Two-phase declaration/prototype alignment |
 | Style | `style.c`, `style.h`, `path.c` | clang-format YAML subset and upward `.clang-format` discovery |
@@ -70,8 +75,10 @@ Unless a change is explicitly about one of these properties and is justified
 with tests and measurements, preserve all of them:
 
 1. **Semantics in normal mode.** Formatting must not add, remove, reorder or
-   merge preprocessing tokens. `tests/semantic.sh` and
-   `tests/semanticoracle.pl` are the independent oracle.
+   merge preprocessing tokens outside the documented historical and explicit
+   style-policy exceptions above. `tests/semanticoracle.pl` compares strictly;
+   `tests/semantic.sh` separately accounts for pinned historical fixture pairs.
+   A passing oracle is evidence, not a proof of full C semantic equivalence.
 2. **Idempotence.** `F(F(x)) == F(x)` in normal and `-s` mode for every
    accepted input. `tests/idempotence.sh` checks the reproducers;
    `tests/reparse.sh` checks the whole corpus.
@@ -87,7 +94,10 @@ with tests and measurements, preserve all of them:
    byte-identical. A failure syncing the parent directory can be reported after
    the atomic rename has published the replacement, with crash durability
    uncertain. `make fault` checks allocation faults and `tests/fault.sh`
-   checks pre-replacement failures.
+   checks pre-replacement allocation failures. `make test` also runs `fs-test`
+   with deterministic I/O failures and concurrent-edit checks. `-i` compares
+   the input descriptor and snapshot before rename, but cannot exclude edits
+   after the final check.
 7. **Documented options.** Existing option names, combinations and exit
    statuses remain compatible. New behavior needs `knfmt.1` and tests.
 8. **Diff and partial formatting.** `-D` trusts the new-file line numbers in
@@ -95,7 +105,9 @@ with tests and measurements, preserve all of them:
    copied from the source. Do not silently change that contract.
 9. **Reproducibility.** The same input, options and style produce the same
    bytes regardless of build, and normal versus instrumented builds agree
-   (`tests/cross-build.sh`).
+   (`tests/cross-build.sh`). Stack exhaustion near extreme nesting boundaries
+   can occur at different depths with different compiler frames; never publish
+   partial output, and do not compare resource-exhausted output as a success.
 10. **Performance.** Do not reintroduce quadratic scans, deep recursion or
     per-token rescans. Preserve the existing caches and iterative walks.
 
@@ -181,7 +193,7 @@ untracked; edit `configure`, not the generated files.
 ```sh
 ./configure                 # or: CC=clang ./configure --pedantic
 make                        # GNU make; bmake also works
-make test                   # fixtures + shell tests
+make test                   # fixtures + shell + in-process + filesystem tests
 make fault                  # allocation-fault sweep (development)
 make str-match              # SIMD vs C string matching
 make fuzz                   # fuzz-parse and fuzz-style
@@ -202,6 +214,9 @@ Test conventions:
   is stripped and, for `-c`, used as the synthetic `.clang-format`.
 - `tests/Makefile` is generated by `mkls.sh`; add new fixtures to both the
   generated list and the generator globs, or explain why not.
+- Never run bulk source formatting over `tests/` inputs. A prior bulk
+  reformat invalidated fixture/expected-output pairs; restore raw bytes from
+  the pre-reformat revision rather than regenerate expected output blindly.
 - Test fixtures are raw inputs and may intentionally contain trailing
   whitespace, blank lines at EOF or unusual indentation. `.gitattributes`
   disables whitespace checks for `tests/*.c` and `tests/*.h`; do not "clean"
@@ -231,6 +246,13 @@ before trusting a clean run.
   embedded NUL or non-UTF-8 bytes are possible.
 - Check every size/length addition and multiplication. Validate indices
   before subtracting. Do not assume a NUL terminator on token text.
+- Keep interpreter programs in maintained script files: shell, CI and make
+  recipes invoke those files instead of embedding Perl one-liners or programs
+  on standard input. Native shell configuration generation remains shell.
+  Delegate multi-step packaging recipes to source-controlled helpers.
+- Auxiliary Perl tooling uses `use strict;`, `use warnings;`, core modules
+  where possible, lexical file handles and argument-list subprocesses. The
+  knowledge validator and its Test::More suite require Perl 5.20+ and Git.
 - Avoid new external dependencies. `libks` is vendored for a reason.
 - Preserve copyright notices and the ISC license text. New files need the
   project's copyright header.
@@ -286,7 +308,7 @@ that review finds an error that is then corrected.
 6. Remove stale or contradictory operational knowledge, add reusable findings,
    and check referenced paths and cross-links. Do not make cosmetic or empty
    edits, add timestamps, or record one-off execution details.
-7. Run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final documentation edit. It
+7. Run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final documentation edit. It
    checks Git change coverage, non-empty instruction edits, required section
    structure, skill frontmatter and locally resolvable Markdown links. The
    check is structural; a reviewer must still judge whether the update is
@@ -367,10 +389,12 @@ When considering an upstream change:
 These are real and must not be "fixed" by guesswork:
 
 - Sequential conditional initializers (`int v = #ifdef A 1 #else 2 #endif;`)
-  are quadratic because no stamp survives and each pass rewinds to the first
-  token. The behavior is documented and measured.
-- `tests/known-nonidempotent/005.c` is still mishandled; the expected-failure
-  script fails when it starts passing, so promote it deliberately.
+  still reparse quadratically until the deterministic token-visit budget is
+  reached. Excessive reparse work is rejected without partial output; it is
+  never converted into a successful verbatim fallback.
+- The former `tests/known-nonidempotent/005.c` is promoted to
+  `tests/repro-idempotence-019.c`. Keep the expected-failure driver for future
+  explicitly documented cases; it must fail when a known case starts passing.
 - Statement/declaration nesting is guarded by `PARSER_MAX_DEPTH` (8000);
   expression and declarator recursion have their own limits. New recursive
   descent must still account for stack use.
@@ -389,10 +413,10 @@ These are real and must not be "fixed" by guesswork:
 
 ### Shared Agent Knowledge Validation Contract
 
-Use `python3 scripts/validate-agent-knowledge.py --scope worktree` for local
-changes and `python3 -m unittest discover -s tests/agent_knowledge_validator -v`
-for its contract tests. The validator requires Python 3.11+ and Git, uses only
-the Python standard library, and publishes contract version `1.0.0`. All
+Use `perl scripts/validate-agent-knowledge.pl --scope worktree` for local
+changes and `prove -v tests/agent_knowledge_validator/*.pl`
+for its contract tests. The validator requires Perl 5.20+ and Git, uses only
+core Perl modules, and publishes contract version `1.0.0`. All
 adopting repositories share the same CLI, AK001-AK006 identifiers, output
 schema, and exit codes (`0` pass, `1` policy failure, `2` execution/configuration
 error). For a pull request, pass both revisions with
@@ -402,8 +426,8 @@ Read [Agent Knowledge Validation Contract](docs/agent-knowledge-validation.md)
 for the complete rules, JSON schema, optional repository configuration,
 warning semantics, and extension process. AK004 and AK006 can require human
 review; their warnings do not prove or disprove semantic correctness. Keep the
-canonical script and black-box unittest suite byte-identical across adopting
-repositories. Repository-specific requirements belong in the documented TOML
-configuration or a stable `AKX...` extension, never in a private fork of the
-shared rules. The GitHub PR workflow runs the same tests and range command;
+canonical Perl implementation and black-box Test::More suite synchronized
+across repositories adopting this port, with equivalent public behavior.
+Repository-specific requirements belong in the documented TOML configuration
+or a stable `AKX...` extension, never in a private fork of the shared rules. The GitHub PR workflow runs the same tests and range command;
 it does not edit files or require secrets.

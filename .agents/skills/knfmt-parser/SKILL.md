@@ -52,12 +52,20 @@ output is wrong, use `knfmt-document-rendering` or `knfmt-style-rules`.
   `BRCH` it calls `clang_branch()` and reparses. On failure it calls
   `clang_recover()`; a deferred lossy recovery is only committed after the
   whole parse succeeds, and then the source is emitted verbatim.
+- After reparsing starts, token visits (including peeks) are bounded by
+  `128 * initial_token_count + 65536`. The check runs between top-level parse
+  attempts; exceeding it rejects cleanly rather than guessing whether a later
+  parse would have succeeded. Preserve this deterministic work bound when
+  changing CPP recovery.
 - The declaration-scan cache records only negative results for ranges of
   token offsets. It assumes scans are made at increasing positions. Its
   offsets are `size_t`.
-- `EXPR_MAX_DEPTH` is 8000 and `EXPR_STACK_BUDGET` is 2 MiB. Both must be
-  respected by new recursive expression code. Statement and declaration
-  recursion is bounded by `PARSER_MAX_DEPTH` (8000).
+- Expression, statement and declarator depth limits remain 8000. A shared
+  per-parser `stack_guard` additionally bounds total process-stack consumption
+  across mutual recursion, expression peeking/construction and rendering. Its
+  budget is the lesser of 2 MiB and one quarter of `RLIMIT_STACK`; exhaustion
+  is sticky and rejects the file without partial output. Standalone expression
+  and renderer entry points create their own guard.
 - Flat left-associative binary chains use
   `expr_doc_binary_chain()` with an explicit frame array. Do not replace it
   with recursive construction.
@@ -99,7 +107,7 @@ output is wrong, use `knfmt-document-rendering` or `knfmt-style-rules`.
 4. Preserve branch semantics. A token marked `TOKEN_FLAG_EMITTED` is not
    proof that its document survives; documents from speculative parses may
    be removed.
-5. Before adding recursion, check the depth and stack budgets. Prefer an
+5. Before adding recursion, check the depth and shared stack budgets. Prefer an
    iterative frame array for flat chains.
 6. Update `docs/ARCHITECTURE.md` when a recovery rule or parser contract
    changes, and add a `.ok` fixture when output changes.
@@ -113,8 +121,12 @@ output is wrong, use `knfmt-document-rendering` or `knfmt-style-rules`.
 - `tests/reparse.sh` for corpus-wide one-pass stability.
 - `t` includes `test_parser_expr`, `test_parser_type`,
   `test_parser_attributes_peek`, `test_lexer_read` and branch unlinking.
-- `tests/known-nonidempotent.sh` must keep failing for `005.c` until that
-  case is deliberately promoted.
+- `tests/repro-idempotence-019.c` guards recovery of a previously crossed CPP
+  alternative after a later successful construct took a new stamp. The crossing
+  endpoint survives `GOOD`; a recovery at or before it requests deferred
+  verbatim output only after parsing succeeds.
+- `tests/stack-budget.sh` requires controlled rejection with a 512 KiB stack.
+- `tests/reparse-budget.sh` covers bounded CPP work and unchanged in-place input.
 
 If a parser fix changes output, inspect the full diff of the fixture corpus;
 a cascade usually means a classification heuristic became too broad.
@@ -156,7 +168,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

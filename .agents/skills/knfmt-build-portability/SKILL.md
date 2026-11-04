@@ -53,10 +53,10 @@ output; verify with the test and cross-build layers when possible.
 - `--pedantic` adds `-g -O2 -Wall -Werror -Wextra -Wcast-qual
   -Wmissing-prototypes -Wpedantic -Wshadow -Wsign-conversion
   -Wwrite-strings` plus compiler-specific probes.
-- `--sanitize X` adds the sanitizer subset the compiler can link and
-  `-fno-sanitize-recover=all`. Always inspect the resulting `CFLAGS` and the
-  binary; a configure option can silently produce an uninstrumented build if
-  the runtime cannot link.
+- `--sanitize X` requires the requested sanitizer to link, then adds supported
+  supplementary sanitizers and
+  `-fno-sanitize-recover=all`. Inspect the resulting `CFLAGS` and binary before fuzzing; explicit
+  unavailable instrumentation is a configure error.
 - `--fuzz llvm` implies `--sanitize address`, links the fuzzer runtime and
   defines `FUZZER_LLVM`. Without it, harnesses use the AFL-mode `main`.
 - `DEBUG` is folded into `CFLAGS` and also passed separately. Because
@@ -67,8 +67,9 @@ output; verify with the test and cross-build layers when possible.
 
 ## Targets
 
-- `all`, `knfmt`, `t`, `knfmt-fault`, `strmatch`, `benchmark`.
-- `test` builds `knfmt` and `t` and recurses into `tests/`.
+- `all`, `knfmt`, `t`, `fs-test`, `knfmt-fault`, `strmatch`, `benchmark`.
+- `test` builds `knfmt`, `t` and `fs-test`, runs filesystem syscall-failure
+  checks and recurses into `tests/`.
 - `fault` links with `--wrap=malloc,--wrap=calloc,--wrap=realloc` and runs
   `tests/fault.sh`. This is ELF/GNU-ld/lld-specific.
 - `str-match` was historically bmake-only because it used the `:N` modifier.
@@ -102,11 +103,22 @@ output; verify with the test and cross-build layers when possible.
   `NDEBUG`.
 - `--wrap` is not supported by Apple ld64; `make fault` is a Linux/OpenBSD
   development target.
-- `make dist` uses `git archive` and `sha256` and assumes a release tag; the
-  current clone has no tags.
-- The repository has no CI. GNU make is still supported through
-  `GNUmakefile`, and bmake reads `Makefile` directly; both should keep
-  working.
+- `make dist` delegates to `scripts/dist.sh`, a source-only POSIX shell helper
+  using `git archive` and `sha256`/`sha256sum`. It requires the existing
+  `v<VERSION>` release tag, validates the version as a filename component,
+  and never tags or publishes a release. Keep its path in the generated
+  SHLINT list and the generator's `scripts/*.sh` glob.
+- Keep interpreter bodies out of shell, CI and make recipes. The standalone
+  knowledge scripts already check Perl 5.20+, so CI does not need an inline
+  runtime probe. Multi-step release logic belongs in the checked helper;
+  declarative make argument lists and native shell configuration generation
+  remain in their owning build files.
+- Product CI is `.github/workflows/product.yml`: Clang 19/GNU make and
+  GCC 14/bmake on Linux, plus sanitizer comparison. GNU make uses
+  `GNUmakefile`; bmake reads `Makefile` directly. Isolated configure tests
+  must clear `MAKEFLAGS`/`MFLAGS`/`MAKELEVEL`: bmake jobserver `-J` flags
+  cannot be passed to the GNU make probes. Actions are pinned by SHA;
+  verify a replacement against its upstream release before updating it.
 
 ## Analysis procedure
 
@@ -187,16 +199,20 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A
 repository change is incomplete until this synchronization is done.
 
-The repository's CI is defined in `.github/workflows/agent-sync.yml`; it runs
-`python3 scripts/validate-agent-knowledge.py --scope range --base <pull-request-base> --head HEAD` on every pull request.
-The checker is a POSIX shell script using Git and standard utilities, so keep
-it independent of the C toolchain and invoke it directly from CI. Run
-`python3 scripts/validate-agent-knowledge.py --scope worktree` locally after making the required instruction
-updates. If the workflow or checker changes, update this skill and the root
-`AGENTS.md` procedure together, then validate the checker itself.
+The separate knowledge workflow is
+`.github/workflows/agent-knowledge-validation.yml`. It runs the canonical
+Perl 5.20+ checker and its Test::More contract suite; it is independent of the
+C toolchain. Keep its path and requirements aligned with root `AGENTS.md`.
+
+`lint-clang-tidy` passes `-std=c23` explicitly because the compiler's default
+language mode cannot be assumed to parse this project. Configure probes the
+required language features before writing build files. The `tests/tooling.sh`
+regression covers unsupported instrumentation/fuzzer requests and mutation
+driver execution failures. If configure semantics change, exercise the script
+in an isolated directory, not over another build's generated configuration.

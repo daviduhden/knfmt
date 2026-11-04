@@ -33,7 +33,7 @@ the document tree is wrong, use `knfmt-document-rendering` instead.
 - `token.c`, `token.h` — `struct token`, flags, lists, serialization.
 - `comment.c` — block-comment reindentation and trimming.
 - `cpp-format.c` — macro continuation alignment (consumes directive tokens).
-- `tests/t.c` — in-process lexer/token tests.
+- `t.c` — in-process lexer/token tests.
 - `tests/bytes.sh`, `tests/nul.sh`, `tests/semantic-*.c` — byte contracts.
 
 ## Contracts
@@ -44,6 +44,10 @@ the document tree is wrong, use `knfmt-document-rendering` instead.
 - A missing final newline is accepted and one is added.
 - Token text is length-delimited (`tk_str`, `tk_len`). It is not necessarily
   NUL-terminated; embedded NUL is representable in comments and literals.
+  Synthetic diagnostic tokens may have null text with zero length: avoid
+  calling libc byte-search/copy functions with that null pointer, even for
+  zero bytes. Empty input backed by a released buffer uses a non-null empty
+  slice so EOF offset calculations remain defined.
 - `struct token` has stable identity. Tokens are reference counted
   (`token_ref`/`token_rele`) and valid until `lexer_free()`.
 - Directives and comments are never ordinary parser tokens. They are
@@ -56,6 +60,9 @@ the document tree is wrong, use `knfmt-document-rendering` instead.
 - `lexer_if_*` consumes; `lexer_peek_*` does not. `lexer_peek_*` must not
   cross a CPP branch. `lexer_if_pair()` jumps directly to the closing token
   and does not run the normal `lexer_pop()` branch checks.
+- Inputs without phase-2 splices use the original buffer and an implicit identity
+  offset map; `lexer_getc()`/`lexer_ungetc()` maintain line numbers in O(1).
+  Do not allocate per-byte maps or add per-byte binary searches on this path.
 - Translation phase 2 is performed before tokenization: the logical buffer
   drops `\`+newline and `??/`+newline, while `map[]`/`pline[]` retain the
   physical offsets and line numbers. `lexer_apply_splices()` reattaches a
@@ -92,7 +99,7 @@ the document tree is wrong, use `knfmt-document-rendering` instead.
 2. Preserve the `lexer_if_*`/`lexer_peek_*` split and the no-cross-branch
    rule.
 3. When adding a token alias, update the token table and the serialization
-   used by `tests/t.c` only if the test contract requires it.
+   used by `t.c` only if the test contract requires it.
 4. When moving a token, move its prefixes/suffixes first
    (`lexer_remove()`, `lexer_move_before()`, `lexer_copy_after()`), or the
    comments/directives will be lost.
@@ -149,7 +156,7 @@ timestamps or execution-specific notes that will not help future tasks.
 
 Also inspect the applicable `AGENTS.md` and any related specialized agent
 instructions, keep their responsibilities and references synchronized with
-this skill, and run `python3 scripts/validate-agent-knowledge.py --scope worktree` after the final instruction
+this skill, and run `perl scripts/validate-agent-knowledge.pl --scope worktree` after the final instruction
 edit. That check verifies structural conditions; use judgment to ensure the
 updated knowledge is pertinent and accurate. Report which agent and skill
 instructions were reviewed or updated and whether the check passed. A

@@ -161,6 +161,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 	unsigned int ndocs = 0;
 	unsigned int brch_docs = 0;
 	int error = 0;
+	int reparsing = 0;
 
 	arena_scope(pr->pr_arena.doc, doc_scope);
 	parser_arena_scope(&pr->pr_arena_scope.doc, &doc_scope, cookie);
@@ -170,6 +171,14 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 	for (;;) {
 		struct doc *concat;
 		struct token *tk;
+
+		if (reparsing && lexer_reparse_limit(lx)) {
+			(void)lexer_peek(lx, &tk);
+			lexer_error(
+			    lx, tk, __func__, __LINE__, "preprocessor reparse limit exceeded");
+			lexer_error_flush(lx);
+			return 1;
+		}
 
 		/* Always emit EOF token as it could have prefixes. */
 		if (lexer_if(lx, LEXER_EOF, &tk)) {
@@ -188,12 +197,15 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 			brch_docs = 0;
 			pr->pr_verbatim = 0;
 		} else if (error & BRCH) {
+			reparsing = 1;
 			if (!clang_branch(clang, lx, &pr->pr_token.unmute))
 				break;
 			brch_docs = ndocs;
 			parser_reset(pr);
 		} else if (error & (FAIL | NONE)) {
 			int r, verbatim = 0, deferred = 0;
+
+			reparsing = 1;
 
 			r = clang_recover(clang, lx, &pr->pr_token.unmute, ndocs, brch_docs,
 			    &verbatim, &deferred);
@@ -228,6 +240,12 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 			parser_reset(pr);
 		}
 	}
+	if (pr->pr_stack.exceeded) {
+		const struct token origin = {.tk_lno = 1, .tk_cno = 1};
+
+		lexer_error(lx, &origin, __func__, __LINE__, "parser stack limit exceeded");
+		error = 1;
+	}
 	if (error) {
 		lexer_error_flush(lx);
 		return 1;
@@ -240,12 +258,6 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 	 * missing that content. Emit the whole source verbatim instead. If the
 	 * parse had failed, the error above would already have been reported,
 	 * so genuinely unrecoverable input keeps its rejection.
-	if (pr->pr_stack.exceeded) {
-		const struct token origin = {.tk_lno = 1, .tk_cno = 1};
-
-		lexer_error(lx, &origin, __func__, __LINE__, "parser stack limit exceeded");
-		error = 1;
-	}
 	 */
 	if (pr->pr_lossy) {
 		pr->pr_lossy = 0;
@@ -278,6 +290,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 		doc_flags |= DOC_EXEC_TRACE;
 	error = doc_exec(&(struct doc_exec_arg){
 	    .dc = dc,
+	    .stack = &pr->pr_stack,
 	    .lx = pr->pr_op->diffparse ? pr->pr_lx : nullptr,
 	    .scratch = pr->pr_arena.scratch,
 	    .diff_chunks = pr->pr_op->diffparse ? diff_chunks : nullptr,
@@ -285,19 +298,6 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 	    .st = pr->pr_st,
 	    .flags = doc_flags,
 	});
-
-	return 0;
-}
-
-/*
-	    .stack = &pr->pr_stack,
- * Recognize one top-level construct: a declaration (which also covers function
- * declarations and implicit-int forms), a function definition, an extern "C"
- * block, or a top-level asm statement. The first alternative that reports GOOD
- * wins; NONE means "not this construct".
- */
-int
-parser_root(struct parser *pr, struct doc *dc)
 	if (error || pr->pr_stack.exceeded) {
 		const struct token origin = {.tk_lno = 1, .tk_cno = 1};
 
@@ -305,6 +305,18 @@ parser_root(struct parser *pr, struct doc *dc)
 		lexer_error_flush(lx);
 		return 1;
 	}
+
+	return 0;
+}
+
+/*
+ * Recognize one top-level construct: a declaration (which also covers function
+ * declarations and implicit-int forms), a function definition, an extern "C"
+ * block, or a top-level asm statement. The first alternative that reports GOOD
+ * wins; NONE means "not this construct".
+ */
+int
+parser_root(struct parser *pr, struct doc *dc)
 {
 	int error;
 
@@ -402,6 +414,7 @@ parser_width(struct parser *pr, struct doc *dc)
 	bf = arena_buffer_alloc(&s, 1 << 10);
 	return doc_width(&(struct doc_exec_arg){
 	    .dc = dc,
+	    .stack = &pr->pr_stack,
 	    .scratch = pr->pr_arena.scratch,
 	    .bf = bf,
 	    .st = pr->pr_st,
@@ -414,7 +427,6 @@ parser_good(const struct parser *pr)
 	if (is_branch(pr->pr_lx))
 		return BRCH;
 	return lexer_get_error(pr->pr_lx) ? FAIL : GOOD;
-	    .stack = &pr->pr_stack,
 }
 
 int

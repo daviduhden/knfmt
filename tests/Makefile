@@ -948,6 +948,7 @@ TESTS += nul.sh
 TESTS += bytes.sh
 TESTS += idempotence.sh
 TESTS += known-nonidempotent.sh
+TESTS += reparse-budget.sh
 TESTS += stack-budget.sh
 TESTS += semantic.sh
 TESTS += stdckdint-compile-fail.sh

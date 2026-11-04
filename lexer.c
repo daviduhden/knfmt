@@ -2,6 +2,7 @@
 #include <err.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "config.h"
@@ -64,6 +65,9 @@ struct lexer {
 	VECTOR(size_t) lx_splices;
 
 	int lx_peek;
+	/* Monotonic token visits, including speculative reads, for reparse limits. */
+	size_t lx_work;
+	size_t lx_work_limit;
 
 	struct token_list lx_tokens;
 };
@@ -144,6 +148,16 @@ lexer_tokenize(const struct lexer_arg *arg)
 
 	if (lx->lx_callbacks.after_tokenize != nullptr)
 		lx->lx_callbacks.after_tokenize(lx, lx->lx_callbacks.arg);
+	{
+		struct token *tk;
+		size_t ntokens = 0;
+
+		LIST_FOREACH(tk, &lx->lx_tokens)
+		ntokens++;
+		if (KS_size_mul_overflow(ntokens, 128, &lx->lx_work_limit) ||
+		    KS_size_add_overflow(lx->lx_work_limit, 65536, &lx->lx_work_limit))
+			lx->lx_work_limit = SIZE_MAX;
+	}
 
 	return lx;
 
@@ -461,6 +475,9 @@ lexer_pop(struct lexer *lx, struct token **tk)
 {
 	struct lexer_state *st = &lx->lx_st;
 
+	if (lx->lx_work < SIZE_MAX)
+		lx->lx_work++;
+
 	if (st->st_tk == nullptr) {
 		*tk = st->st_tk = LIST_FIRST(&lx->lx_tokens);
 		return 1;
@@ -490,6 +507,12 @@ lexer_pop(struct lexer *lx, struct token **tk)
 
 	*tk = st->st_tk;
 	return 1;
+}
+
+int
+lexer_reparse_limit(const struct lexer *lx)
+{
+	return lx->lx_work >= lx->lx_work_limit;
 }
 
 /*
@@ -1088,6 +1111,11 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 	size_t i, j;
 	size_t nbytes, mapsize, plinesize;
 	unsigned int lno = 1;
+	int spliced = 0;
+
+	/* An empty released buffer has no allocation, but EOF still has a slice. */
+	if (n == 0 && p == nullptr)
+		p = "";
 
 	/* Physical line table, mapping line number to physical offset. */
 	{
@@ -1098,6 +1126,8 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 		*dst = 0;
 	}
 	for (i = 0; i < n; i++) {
+		if (!spliced && splice_len(p, n, i) > 0)
+			spliced = 1;
 		if (p[i] == '\n') {
 			size_t *dst = VECTOR_ALLOC(lx->lx_lines);
 
@@ -1107,15 +1137,19 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 		}
 	}
 
+	lx->lx_input.phys = p;
+	lx->lx_input.phys_len = n;
+	if (!spliced) {
+		/* Identity mapping needs neither a copy nor per-byte tables. */
+		lx->lx_input.ptr = p;
+		lx->lx_input.len = n;
+		return;
+	}
+
 	if (KS_size_add_overflow(n, 1, &nbytes) ||
 	    KS_size_mul_overflow(nbytes, sizeof(*map), &mapsize) ||
 	    KS_size_mul_overflow(nbytes, sizeof(*pline), &plinesize))
 		errx(1, "%s: input too large", __func__);
-	int spliced = 0;
-
-	/* An empty released buffer has no allocation, but EOF still has a slice. */
-	if (n == 0 && p == nullptr)
-		p = "";
 	lg = arena_malloc(lx->lx_arena.eternal_scope, nbytes);
 	map = arena_malloc(lx->lx_arena.eternal_scope, mapsize);
 	pline = arena_malloc(lx->lx_arena.eternal_scope, plinesize);
@@ -1126,8 +1160,6 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 
 		if (splice > 0) {
 			size_t *dst = VECTOR_ALLOC(lx->lx_splices);
-		if (!spliced && splice_len(p, n, i) > 0)
-			spliced = 1;
 
 			if (dst == nullptr)
 				err(1, nullptr);
@@ -1137,15 +1169,6 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 			continue;
 		}
 		map[j] = i;
-	lx->lx_input.phys = p;
-	lx->lx_input.phys_len = n;
-	if (!spliced) {
-		/* Identity mapping needs neither a copy nor per-byte tables. */
-		lx->lx_input.ptr = p;
-		lx->lx_input.len = n;
-		return;
-	}
-
 		lg[j] = p[i];
 		pline[j] = lno;
 		if (p[i] == '\n')
@@ -1169,6 +1192,8 @@ logical_to_physical(const struct lexer *lx, size_t off)
 {
 	if (off >= lx->lx_input.len)
 		return lx->lx_input.phys_len;
+	if (lx->lx_input.map == nullptr)
+		return off;
 	return lx->lx_input.map[off];
 }
 
@@ -1192,8 +1217,6 @@ lexer_token_physical(struct lexer *lx, struct token *tk)
 
 /*
  * Map a physical offset back to the logical offset. Every logical byte maps to
-	if (lx->lx_input.map == nullptr)
-		return off;
  * a distinct physical byte; offsets pointing into a removed splice map to the
  * following logical byte.
  */
@@ -1201,6 +1224,9 @@ static size_t
 physical_to_logical(const struct lexer *lx, size_t poff)
 {
 	size_t lo = 0, hi = lx->lx_input.len;
+
+	if (lx->lx_input.map == nullptr)
+		return poff < hi ? poff : hi;
 
 	while (lo < hi) {
 		size_t mid = lo + (hi - lo) / 2;
@@ -1225,9 +1251,6 @@ physical_to_logical(const struct lexer *lx, size_t poff)
  * physical offsets, so their range is translated back before comparison. The
  * tokens are visited in source order and the scan resumes from the previous
  * token, keeping the post-processing linear.
-	if (lx->lx_input.map == nullptr)
-		return poff < hi ? poff : hi;
-
  */
 static void
 lexer_apply_splices(struct lexer *lx)

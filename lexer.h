@@ -56,6 +56,8 @@ void lexer_set_state(struct lexer *, const struct lexer_state *);
 struct arena_scope *lexer_get_arena_scope(const struct lexer *);
 const char *lexer_get_path(const struct lexer *);
 int lexer_get_peek(const struct lexer *);
+/* Token-visit budget: 128 times the initial token count plus 65536 visits. */
+int lexer_reparse_limit(const struct lexer *);
 
 int lexer_getc(struct lexer *, unsigned char *);
 void lexer_ungetc(struct lexer *);

@@ -7,6 +7,8 @@
  * context helpers below must be paired exactly as shown in main().
  */
 
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "arenas.h"
@@ -89,6 +91,70 @@ static void test_token_branch_impl(struct context *);
 
 static void test_token_serialize(struct context *);
 static void test_clang_token_serialize(struct context *);
+
+static void *
+getline_alloc(size_t size, void *UNUSED(arg))
+{
+	return calloc(1, size);
+}
+
+static void *
+getline_realloc(void *ptr, size_t UNUSED(oldsize), size_t size, void *arg)
+{
+	if (*(int *)arg) {
+		errno = ENOMEM;
+		return nullptr;
+	}
+	return realloc(ptr, size);
+}
+
+static void
+getline_free(void *ptr, size_t UNUSED(size), void *UNUSED(arg))
+{
+	free(ptr);
+}
+
+/* Fail both the line copy and the terminating-NUL allocation, then retry. */
+static void
+test_buffer_getline_failure(void)
+{
+	size_t lengths[] = {16, 32};
+
+	for (size_t i = 0; i < sizeof(lengths) / sizeof(lengths[0]); i++) {
+		struct buffer_getline it = {0};
+		struct buffer *src = buffer_alloc(64);
+		int fail = 0;
+		struct buffer_callbacks cb = {
+		    .alloc = getline_alloc,
+		    .realloc = getline_realloc,
+		    .free = getline_free,
+		    .arg = &fail,
+		};
+		char line[33];
+		const char *got;
+
+		KS_expect_true(src != nullptr);
+		memset(line, 'x', lengths[i]);
+		line[lengths[i]] = '\0';
+		KS_expect_true(buffer_puts(src, line, lengths[i]) >= 0);
+		it.bf = buffer_alloc_impl(16, 0, &cb);
+		KS_expect_true(it.bf != nullptr);
+		fail = 1;
+		errno = 0;
+		KS_expect_true(buffer_getline_impl(src, &it) == nullptr);
+		KS_expect_int(ENOMEM, errno);
+		KS_expect_int(0, it.off);
+		KS_expect_int(1, it.error);
+		fail = 0;
+		got = buffer_getline_impl(src, &it);
+		KS_expect_str((const char *)line, got);
+		KS_expect_int(0, it.error);
+		KS_expect_true(buffer_getline_impl(src, &it) == nullptr);
+		KS_expect_int(0, it.error);
+		buffer_getline_free(&it);
+		buffer_free(src);
+	}
+}
 
 static void context_alloc(struct context *);
 static void context_free(struct context *);
@@ -543,6 +609,7 @@ main(void)
 	test_clang_token_serialize(&ctx);
 
 	test_arithmetic();
+	test_buffer_getline_failure();
 
 	context_free(&ctx);
 	style_shutdown();

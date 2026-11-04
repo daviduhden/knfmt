@@ -298,8 +298,10 @@ buffer_getline(const struct buffer *bf, struct buffer_getline *getline)
 {
 	if (getline->bf == nullptr) {
 		getline->bf = buffer_alloc(1 << 10);
-		if (getline->bf == nullptr)
+		if (getline->bf == nullptr) {
+			getline->error = 1;
 			return nullptr;
+		}
 	}
 
 	return buffer_getline_impl(bf, getline);
@@ -311,6 +313,7 @@ buffer_getline_impl(const struct buffer *bf, struct buffer_getline *getline)
 	const char *line, *newline;
 	size_t linelen;
 
+	getline->error = 0;
 	if (getline->off >= bf->bf_len)
 		goto done;
 
@@ -320,8 +323,10 @@ buffer_getline_impl(const struct buffer *bf, struct buffer_getline *getline)
 		newline = &bf->bf_ptr[bf->bf_len];
 	linelen = (size_t)(newline - line);
 	buffer_reset(getline->bf);
-	buffer_puts(getline->bf, line, linelen);
-	buffer_putc(getline->bf, '\0');
+	if (buffer_puts(getline->bf, line, linelen) == -1 || buffer_putc(getline->bf, '\0') == -1) {
+		getline->error = 1;
+		return nullptr;
+	}
 	getline->off += linelen + 1;
 	return buffer_get_ptr(getline->bf);
 

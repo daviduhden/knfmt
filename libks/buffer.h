@@ -35,6 +35,7 @@ struct buffer_callbacks {
 struct buffer_getline {
 	struct buffer *bf;
 	size_t off;
+	int error; /* A null result with error == 0 is EOF. Cleared on retry/free. */
 };
 
 /* Allocate a growable byte buffer with the default allocator callbacks. */
@@ -68,7 +69,11 @@ int buffer_putc(struct buffer *, char);
 int buffer_printf(struct buffer *, const char *, ...) __attribute__((format(printf, 2, 3)));
 int buffer_vprintf(struct buffer *, const char *, va_list) __attribute__((format(printf, 2, 0)));
 
-/* Return a line without its newline; NULL marks EOF or allocation error. */
+/*
+ * Return a line without its newline; NULL marks EOF or allocation error.
+ * On error the cursor is unchanged and error is set, so the caller may retry
+ * or free it. EOF clears the iterator, including error.
+ */
 const char *buffer_getline(const struct buffer *, struct buffer_getline *);
 const char *buffer_getline_impl(const struct buffer *, struct buffer_getline *);
 /* Release getline's reusable scratch buffer and reset its cursor. */

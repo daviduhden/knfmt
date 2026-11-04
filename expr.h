@@ -11,6 +11,7 @@ struct expr_exec_arg {
 	struct lexer *lx;
 	struct doc *dc;
 	struct ruler *rl;
+	struct stack_guard *stack;
 
 	/*
 	 * Reaching this token causes the expression parser to stop.

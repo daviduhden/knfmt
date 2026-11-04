@@ -21,4 +21,5 @@ IncludeGuards:
   - Regex: 'lexer-callbacks\.h'
   - Regex: 'options\.h'
   - Regex: 'trace-types\.h'
+  - Regex: 'util\.h'
 ...

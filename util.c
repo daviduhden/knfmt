@@ -1,3 +1,5 @@
+#include <sys/resource.h>
+
 #include <stdint.h>
 
 #include "config.h"
@@ -6,6 +8,31 @@
 #include "libks/string.h"
 #include "libks/vector.h"
 #include "util.h"
+
+void
+stack_guard_init(struct stack_guard *guard, const void *base)
+{
+	struct rlimit limit;
+
+	guard->base = (uintptr_t)base;
+	guard->budget = 2 * 1024 * 1024;
+	guard->exceeded = 0;
+	/* Leave room for callers, diagnostics, instrumented frames and cleanup. */
+	if (getrlimit(RLIMIT_STACK, &limit) == 0 && limit.rlim_cur != RLIM_INFINITY &&
+	    limit.rlim_cur / 4 < guard->budget)
+		guard->budget = (size_t)(limit.rlim_cur / 4);
+}
+
+int
+stack_guard_check(struct stack_guard *guard, const void *frame)
+{
+	uintptr_t here = (uintptr_t)frame;
+	size_t used = guard->base > here ? guard->base - here : here - guard->base;
+
+	if (used >= guard->budget)
+		guard->exceeded = 1;
+	return !guard->exceeded;
+}
 
 /*
  * Return the 1-based column reached after processing len bytes starting at the

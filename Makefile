@@ -491,6 +491,7 @@ SHLINT += tests/simple.sh
 SHLINT += tests/stdckdint-compile-fail.sh
 SHLINT += tests/stdin.sh
 SHLINT += tests/style-enoent.sh
+SHLINT += tests/stack-budget.sh
 SHLINT += tests/audit-inputs.sh
 
 SHELLCHECKFLAGS += -f gcc

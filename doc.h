@@ -37,7 +37,9 @@ struct doc_exec_arg {
 	struct buffer *bf;
 	struct lexer *lx;
 	const struct diffchunk *diff_chunks;
-	const struct doc *dc;
+	/* Rendering updates the tree's cached width summaries. */
+	struct doc *dc;
+	struct stack_guard *stack;
 	struct arena *scratch;
 	unsigned int flags;
 #define DOC_EXEC_DIFF 0x00000001U
@@ -71,7 +73,8 @@ struct doc_align {
 	unsigned int tabalign;
 };
 
-void doc_exec(struct doc_exec_arg *);
+/* Return nonzero on stack exhaustion; the buffered partial output is invalid. */
+[[nodiscard]] int doc_exec(struct doc_exec_arg *);
 unsigned int doc_width(struct doc_exec_arg *);
 void doc_append(struct doc *, struct doc *);
 void doc_move_before(struct doc *, struct doc *, struct doc *);

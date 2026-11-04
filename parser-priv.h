@@ -2,6 +2,7 @@
 
 #include "arenas.h"
 #include "trace.h"
+#include "util.h"
 
 struct doc;
 struct token;
@@ -61,6 +62,7 @@ struct parser {
 	unsigned int pr_depth;
 	/* Statement/declaration nesting guard. */
 	unsigned int pr_nest_depth;
+	struct stack_guard pr_stack;
 
 	/*
 	 * Set when parser_extern() declines an extern block whose closing
@@ -140,7 +142,7 @@ void parser_token_trim_before(const struct parser *, struct token *);
 
 int parser_semi(struct parser *, struct doc *);
 
-unsigned int parser_width(struct parser *, const struct doc *);
+unsigned int parser_width(struct parser *, struct doc *);
 
 int parser_root(struct parser *, struct doc *);
 

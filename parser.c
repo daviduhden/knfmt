@@ -137,6 +137,7 @@ parser_alloc(const struct parser_arg *arg, struct arena_scope *s)
 	pr->pr_lx = arg->lexer;
 	pr->pr_clang = arg->clang;
 	pr->pr_arena = *arg->arena;
+	stack_guard_init(&pr->pr_stack, __builtin_frame_address(0));
 
 	return pr;
 }
@@ -239,6 +240,12 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 	 * missing that content. Emit the whole source verbatim instead. If the
 	 * parse had failed, the error above would already have been reported,
 	 * so genuinely unrecoverable input keeps its rejection.
+	if (pr->pr_stack.exceeded) {
+		const struct token origin = {.tk_lno = 1, .tk_cno = 1};
+
+		lexer_error(lx, &origin, __func__, __LINE__, "parser stack limit exceeded");
+		error = 1;
+	}
 	 */
 	if (pr->pr_lossy) {
 		pr->pr_lossy = 0;
@@ -269,7 +276,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 		doc_flags |= DOC_EXEC_TRIM;
 	if (options_trace_level(pr->pr_op, TRACE_DOC) > 0)
 		doc_flags |= DOC_EXEC_TRACE;
-	doc_exec(&(struct doc_exec_arg){
+	error = doc_exec(&(struct doc_exec_arg){
 	    .dc = dc,
 	    .lx = pr->pr_op->diffparse ? pr->pr_lx : nullptr,
 	    .scratch = pr->pr_arena.scratch,
@@ -283,6 +290,7 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
 }
 
 /*
+	    .stack = &pr->pr_stack,
  * Recognize one top-level construct: a declaration (which also covers function
  * declarations and implicit-int forms), a function definition, an extern "C"
  * block, or a top-level asm statement. The first alternative that reports GOOD
@@ -290,6 +298,13 @@ parser_exec(struct parser *pr, const struct diffchunk *diff_chunks, struct buffe
  */
 int
 parser_root(struct parser *pr, struct doc *dc)
+	if (error || pr->pr_stack.exceeded) {
+		const struct token origin = {.tk_lno = 1, .tk_cno = 1};
+
+		lexer_error(lx, &origin, __func__, __LINE__, "document stack limit exceeded");
+		lexer_error_flush(lx);
+		return 1;
+	}
 {
 	int error;
 
@@ -378,7 +393,7 @@ parser_token_trim_after(const struct parser *UNUSED(pr), struct token *tk)
  * is used for alignment decisions while parsing.
  */
 unsigned int
-parser_width(struct parser *pr, const struct doc *dc)
+parser_width(struct parser *pr, struct doc *dc)
 {
 	struct buffer *bf;
 
@@ -399,6 +414,7 @@ parser_good(const struct parser *pr)
 	if (is_branch(pr->pr_lx))
 		return BRCH;
 	return lexer_get_error(pr->pr_lx) ? FAIL : GOOD;
+	    .stack = &pr->pr_stack,
 }
 
 int
@@ -438,7 +454,8 @@ parser_reset(struct parser *pr)
 int
 parser_depth_enter(struct parser *pr)
 {
-	if (pr->pr_nest_depth >= PARSER_MAX_DEPTH)
+	if (pr->pr_nest_depth >= PARSER_MAX_DEPTH ||
+	    !stack_guard_check(&pr->pr_stack, __builtin_frame_address(0)))
 		return 0;
 	pr->pr_nest_depth++;
 	return 1;

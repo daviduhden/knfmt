@@ -222,12 +222,13 @@ simple_stmt_need_braces(struct simple_stmt *ss, const struct stmt *st, struct bu
 		return 1;
 
 	buffer_reset(bf);
-	doc_exec(&(struct doc_exec_arg){
-	    .dc = st->root,
-	    .scratch = ss->arena.scratch,
-	    .bf = bf,
-	    .st = ss->st,
-	});
+	if (doc_exec(&(struct doc_exec_arg){
+		.dc = st->root,
+		.scratch = ss->arena.scratch,
+		.bf = bf,
+		.st = ss->st,
+	    }))
+		return 1;
 	buflen = buffer_get_len(bf);
 	buf = strtrim(buffer_get_ptr(bf), &buflen);
 	if (isoneline(buf, buflen)) {

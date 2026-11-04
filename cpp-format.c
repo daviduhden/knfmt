@@ -498,12 +498,13 @@ cpp_format(const struct lexer *lx, struct token *tk, const struct style *st, str
 
 	ruler_exec(&rl);
 	buffer_reset(bf);
-	doc_exec(&(struct doc_exec_arg){
-	    .dc = dc,
-	    .scratch = arena->scratch,
-	    .bf = bf,
-	    .st = st,
-	});
+	if (doc_exec(&(struct doc_exec_arg){
+		.dc = dc,
+		.scratch = arena->scratch,
+		.bf = bf,
+		.st = st,
+	    }))
+		return nullptr;
 	if (lenp != nullptr)
 		*lenp = buffer_get_len(bf);
 	return buffer_get_ptr(bf);

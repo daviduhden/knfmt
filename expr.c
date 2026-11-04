@@ -10,6 +10,7 @@
 #include "lexer.h"
 #include "libks/arena-buffer.h"
 #include "libks/arena.h"
+#include "libks/arithmetic.h"
 #include "libks/compiler.h"
 #include "libks/consistency.h"
 #include "libks/vector.h"
@@ -18,6 +19,7 @@
 #include "simple.h"
 #include "style.h"
 #include "token.h"
+#include "util.h"
 
 /*
  * Expression parser and expression document builder.
@@ -145,7 +147,8 @@ struct expr_state {
 	unsigned int es_noparens;    /* parens indent disabled */
 	unsigned int es_col;	     /* ruler column */
 	int es_overflow;	     /* stack budget exceeded */
-	const char *es_stack_base;   /* stack budget origin */
+	struct stack_guard es_stack;
+	struct stack_guard *es_stack_guard;
 };
 
 static struct expr *expr_exec1(struct expr_state *, enum expr_pc);
@@ -200,7 +203,7 @@ static void expr_doc_align_init(struct expr_state *, struct doc_minimize *, size
 
 static struct doc *expr_doc_indent_parens(const struct expr_state *, struct doc *);
 static int expr_doc_has_spaces(const struct expr *);
-static unsigned int expr_doc_width(struct expr_state *, const struct doc *);
+static unsigned int expr_doc_width(struct expr_state *, struct doc *);
 
 #define expr_doc_soft(a, b, c, d) expr_doc_soft_impl((a), (b), (c), (d), __func__, __LINE__)
 static struct doc *expr_doc_soft_impl(
@@ -331,7 +334,6 @@ expr_exec(const struct expr_exec_arg *ea)
 	arena_scope(ea->arena.scratch, scratch_scope);
 
 	expr_state_init(&es, ea, EXPR_MODE_EXEC, &scratch_scope);
-	es.es_stack_base = (const char *)__builtin_frame_address(0);
 
 	ex = expr_exec1(&es, PC0);
 	if (ex == nullptr)
@@ -426,23 +428,17 @@ is_std_attribute(struct lexer *lx)
 #define EXPR_MAX_DEPTH 8000
 
 /*
- * Bound the document construction recursion by the amount of process stack it
- * may consume. A flat left-associative operator chain such as a + a + ... + a
- * is parsed iteratively but produces a left-nested expression tree whose
- * document representation is equally deep. Reject such input cleanly instead
- * of exhausting the process stack in expr_doc() and, subsequently, the
- * renderer. Measuring consumed stack rather than recursion depth keeps the
- * policy independent of frame sizes, which differ between builds (for example
- * when sanitizer instrumentation is enabled).
+ * Parsing and document construction share the caller's process-stack budget.
+ * Unlike a depth-only guard, this also accounts for mutually recursive parser
+ * callbacks and the larger frames produced by instrumented builds.
  */
-#define EXPR_STACK_BUDGET (2 * 1024 * 1024)
-
 static struct expr *
 expr_exec1(struct expr_state *es, enum expr_pc pc)
 {
 	struct expr *ex;
 
-	if (es->es_parse_depth >= EXPR_MAX_DEPTH)
+	if (es->es_parse_depth >= EXPR_MAX_DEPTH ||
+	    !stack_guard_check(es->es_stack_guard, __builtin_frame_address(0)))
 		return nullptr;
 	es->es_parse_depth++;
 	ex = expr_exec2(es, pc);
@@ -862,15 +858,9 @@ expr_doc(struct expr *ex, struct expr_state *es, struct doc *dc)
 {
 	struct doc *concat, *group;
 
-	if (es->es_stack_base != nullptr) {
-		uintptr_t base = (uintptr_t)es->es_stack_base;
-		uintptr_t here = (uintptr_t)__builtin_frame_address(0);
-		size_t used = base > here ? (size_t)(base - here) : (size_t)(here - base);
-
-		if (used > EXPR_STACK_BUDGET) {
-			es->es_overflow = 1;
-			return doc_alloc(DOC_CONCAT, dc);
-		}
+	if (!stack_guard_check(es->es_stack_guard, __builtin_frame_address(0))) {
+		es->es_overflow = 1;
+		return doc_alloc(DOC_CONCAT, dc);
 	}
 
 	es->es_depth++;
@@ -1038,9 +1028,12 @@ expr_doc_binary_chain(struct expr *ex, struct expr_state *es, struct doc *dc)
 
 		if (nframes == cap) {
 			struct expr_doc_chain_frame *tmp;
+			size_t bytes;
 
-			cap *= 2;
-			tmp = realloc(frames, cap * sizeof(*frames));
+			if (KS_size_mul_overflow(cap, 2, &cap) ||
+			    KS_size_mul_overflow(cap, sizeof(*frames), &bytes))
+				errx(1, "%s: frame stack too large", __func__);
+			tmp = realloc(frames, bytes);
 			if (tmp == nullptr)
 				err(1, nullptr);
 			frames = tmp;
@@ -1677,7 +1670,7 @@ expr_doc_has_spaces(const struct expr *ex)
  * throwaway buffer in the dedicated buffer arena receives the munged output.
  */
 static unsigned int
-expr_doc_width(struct expr_state *es, const struct doc *dc)
+expr_doc_width(struct expr_state *es, struct doc *dc)
 {
 	struct buffer *bf;
 
@@ -1686,6 +1679,7 @@ expr_doc_width(struct expr_state *es, const struct doc *dc)
 	bf = arena_buffer_alloc(&s, 1 << 10);
 	return doc_width(&(struct doc_exec_arg){
 	    .dc = dc,
+	    .stack = es->es_stack_guard,
 	    .scratch = es->es_arena.scratch,
 	    .bf = bf,
 	    .st = es->es_st,
@@ -1744,6 +1738,12 @@ expr_state_init(struct expr_state *es, const struct expr_exec_arg *ea, enum expr
 	es->es_arena.scratch_scope = scratch_scope;
 	es->es_arena.buffer = ea->arena.buffer;
 	es->es_mode = mode;
+	if (ea->stack != nullptr) {
+		es->es_stack_guard = ea->stack;
+	} else {
+		stack_guard_init(&es->es_stack, __builtin_frame_address(0));
+		es->es_stack_guard = &es->es_stack;
+	}
 }
 
 static const struct expr_rule *

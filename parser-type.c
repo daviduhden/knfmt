@@ -562,7 +562,8 @@ scan_declarator(struct parser *pr, struct lexer *lx, struct token **args, struct
 	int result;
 
 	/* Bound recursion so that deeply nested declarators cannot overflow. */
-	if (pr->pr_depth >= SCAN_MAX_DEPTH)
+	if (pr->pr_depth >= SCAN_MAX_DEPTH ||
+	    !stack_guard_check(&pr->pr_stack, __builtin_frame_address(0)))
 		return 0;
 	pr->pr_depth++;
 	result = scan_declarator1(pr, lx, args, end, flags);
@@ -649,7 +650,8 @@ scan_function_declarator(
 {
 	int result;
 
-	if (pr->pr_depth >= SCAN_MAX_DEPTH)
+	if (pr->pr_depth >= SCAN_MAX_DEPTH ||
+	    !stack_guard_check(&pr->pr_stack, __builtin_frame_address(0)))
 		return 0;
 	pr->pr_depth++;
 	result = scan_function_declarator1(pr, lx, func_lparen, end);

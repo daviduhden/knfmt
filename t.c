@@ -650,12 +650,13 @@ test_parser_expr_impl(struct context *ctx, const char *src, const char *exp, int
 	KS_expect_int(GOOD, error);
 
 	bf = arena_buffer_alloc(&buffer_scope, 1 << 8);
-	doc_exec(&(struct doc_exec_arg){
+	error = doc_exec(&(struct doc_exec_arg){
 	    .dc = concat,
 	    .scratch = ctx->arena.scratch,
 	    .bf = bf,
 	    .st = ctx->st,
 	});
+	KS_expect_int(0, error);
 	buffer_putc(bf, '\0');
 	act = buffer_str(bf);
 	KS_expect_str(exp, act);

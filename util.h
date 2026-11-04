@@ -1,4 +1,8 @@
+#ifndef UTIL_H
+#define UTIL_H
+
 #include <stddef.h> /* size_t */
+#include <stdint.h> /* uintptr_t */
 
 /*
  * Small formatting helpers shared by the lexer, renderer and ruler. Columns are
@@ -8,9 +12,21 @@
 struct arena_scope;
 struct buffer;
 
+/* Per-operation recursion budget, shared across mutually recursive stages. */
+struct stack_guard {
+	uintptr_t base;
+	size_t budget;
+	int exceeded;
+};
+
+void stack_guard_init(struct stack_guard *, const void *);
+int stack_guard_check(struct stack_guard *, const void *);
+
 const char *path_slice(const char *, unsigned int, struct arena_scope *);
 
 unsigned int colwidth(const char *, size_t, unsigned int);
 size_t strwidth(const char *, size_t, size_t);
 
 size_t strindent_buffer(struct buffer *, size_t, int, size_t);
+
+#endif /* !UTIL_H */

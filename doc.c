@@ -111,6 +111,8 @@ struct doc {
 };
 
 struct doc_state {
+	struct stack_guard st_stack;
+	struct stack_guard *st_stack_guard;
 	const struct style *st_st;
 	struct buffer *st_bf;
 	struct lexer *st_lx;
@@ -581,19 +583,22 @@ doc_summarize(struct doc *root, struct arena *scratch)
  * then rendered in BREAK mode. DOC_EXEC_TRIM removes redundant trailing blank
  * lines, and doc_diff_exit() flushes any diff bookkeeping left by -D.
  */
-void
+int
 doc_exec(struct doc_exec_arg *arg)
 {
-	const struct doc *dc = arg->dc;
+	struct doc *dc = arg->dc;
 	struct doc_state st;
 
-	doc_summarize((struct doc *)dc, arg->scratch);
+	doc_summarize(dc, arg->scratch);
 	doc_state_init(&st, arg, BREAK);
 	doc_exec1(dc, &st);
+	if (st.st_stack_guard->exceeded)
+		return 1;
 	if (arg->flags & DOC_EXEC_TRIM)
 		doc_trim_lines(dc, &st);
 	doc_diff_exit(dc, &st);
 	doc_trace(dc, &st, "%s: nfits %u", __func__, st.st_stats.nfits);
+	return 0;
 }
 
 /*
@@ -606,7 +611,7 @@ doc_width(struct doc_exec_arg *arg)
 {
 	struct doc_state st;
 
-	doc_summarize((struct doc *)arg->dc, arg->scratch);
+	doc_summarize(arg->dc, arg->scratch);
 	doc_state_init(&st, arg, MUNGE);
 	doc_exec1(arg->dc, &st);
 	return st.st_col;
@@ -883,6 +888,9 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 	struct doc_exec_frame *stack;
 	size_t n = 0, cap = 32;
 
+	if (!stack_guard_check(st->st_stack_guard, __builtin_frame_address(0)))
+		return;
+
 	stack = malloc(cap * sizeof(*stack));
 	if (stack == nullptr)
 		err(1, nullptr);
@@ -891,8 +899,11 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 	do {                                                                                       \
 		if (n == cap) {                                                                    \
 			struct doc_exec_frame *_tmp;                                               \
-			cap *= 2;                                                                  \
-			_tmp = realloc(stack, cap * sizeof(*stack));                               \
+			size_t _bytes;                                                             \
+			if (KS_size_mul_overflow(cap, 2, &cap) ||                                  \
+			    KS_size_mul_overflow(cap, sizeof(*stack), &_bytes))                    \
+				errx(1, "%s: frame stack too large", __func__);                    \
+			_tmp = realloc(stack, _bytes);                                             \
 			if (_tmp == nullptr)                                                       \
 				err(1, nullptr);                                                   \
 			stack = _tmp;                                                              \
@@ -909,7 +920,7 @@ doc_exec1(const struct doc *root, struct doc_state *st)
 		struct doc_exec_frame *fr;
 		const struct doc *dc;
 
-		if (n == 0)
+		if (n == 0 || st->st_stack_guard->exceeded)
 			break;
 		fr = &stack[n - 1];
 
@@ -2310,6 +2321,12 @@ doc_state_init(struct doc_state *st, struct doc_exec_arg *arg, enum doc_mode mod
 	st->st_diff.beg = 1;
 	st->st_minimize.idx = -1;
 	st->st_minimize.force = -1;
+	if (arg->stack != nullptr) {
+		st->st_stack_guard = arg->stack;
+	} else {
+		stack_guard_init(&st->st_stack, __builtin_frame_address(0));
+		st->st_stack_guard = &st->st_stack;
+	}
 }
 
 /*

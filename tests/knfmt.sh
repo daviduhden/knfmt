@@ -169,8 +169,8 @@ OpenBSD) export MALLOC_OPTIONS="RS" ;;
 esac
 
 # Use a distinct sanitizer exit code.
-export ASAN_OPTIONS="exitcode=66"
-export UBSAN_OPTIONS="exitcode=66"
+export ASAN_OPTIONS="${ASAN_OPTIONS:+${ASAN_OPTIONS}:}exitcode=66"
+export UBSAN_OPTIONS="${UBSAN_OPTIONS:+${UBSAN_OPTIONS}:}exitcode=66"
 
 _wrkdir="$(mktemp -d "${TMPDIR:-/tmp}/knfmt.XXXXXX")"
 trap 'rm -rf "${_wrkdir}"' 0

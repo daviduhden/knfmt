@@ -8,10 +8,14 @@ libFuzzer harnesses. Both use the same `libks/fuzzer.h` callbacks.
 1. Configure and compile the binary.
 
    ```sh
-   ./configure --pedantic
+   CC=afl-cc ./configure --pedantic
    make clean
-   AFL_USE_ASAN=1 AFL_USE_UBSAN=1 CC=afl-cc make
+   AFL_USE_ASAN=1 AFL_USE_UBSAN=1 make
    ```
+
+The compiler is selected by `configure`; an environment-only `CC=afl-cc
+   make` is overridden by `config.mk`. Check `CC` in that file and verify the
+   binary with `afl-showmap` on a valid seed before starting the campaign.
 
 2. Copy the binary to a safe place.
 
@@ -55,8 +59,8 @@ make fuzz-parse fuzz-style
 ./fuzz-style -dict=style.dict <seed-dir>
 ```
 
-- `fuzz-parse` formats each input three times and requires the last two
-  results to be byte-identical. The first pass may normalize the input.
+- `fuzz-parse` formats each accepted input twice and requires both results
+  to be byte-identical. A rejected second pass also traps.
 - `fuzz-style` parses a `.clang-format` document. A `BasedOnStyle` value can
   make it execute the external `clang-format` helper.
 - `parse.dict` is a hand-maintained C token dictionary. `style.dict` is
@@ -75,8 +79,15 @@ independent oracle in `tests/semanticoracle.pl`.
 perl tests/mutate.pl ./fuzz-parse 20000 crashes
 ```
 
+The driver validates executable paths and runs a positive control before the
+campaign. Harness execution failures abort the run; formatter signals and
+timeouts are findings. An initial formatter rejection (exit 1) is permitted.
+`KNFMT_FUZZ_TIMEOUT` sets the positive per-input timeout in seconds (default
+15). The oracle stays strict: the exact historical exceptions used by
+`tests/semantic.sh` are never applied to mutations.
+
 The harness must enforce idempotence itself; `fuzz-parse` does so by trapping
-when the last two passes differ. Findings are written below the output
+when its two accepted passes differ or the second parse fails. Findings are written below the output
 directory. Minimize a finding before promoting it to a fixture, and add a
 reproducer under `tests/` once the cause is understood.
 
@@ -89,4 +100,9 @@ reproducer under `tests/` once the cause is understood.
   `tests/known-nonidempotent/`. `tests/known-nonidempotent.sh` fails when one
   of them starts passing, so the case is promoted rather than forgotten.
 - `tests/semantic.sh` checks normal-mode token preservation independently of
-  the formatter lexer.
+  the formatter lexer. `tests/semantic-known.tsv` explicitly tracks historical
+  violations by fixture name and exact input/output SHA-256 pairs. It reports
+  these separately, and requires review if either side changes or the case
+  starts preserving tokens. `compare()` and the mutation driver never apply
+  these exceptions. Directive boundaries, macro-name adjacency, literal
+  encoding prefixes, backslashes and semicolons are significant.

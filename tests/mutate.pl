@@ -33,7 +33,12 @@ my $HARNESS = defined $ARGV[0]    ? $ARGV[0]    : './fuzz-parse';
 my $ITERS   = defined $ARGV[1]    ? $ARGV[1]    : 20_000;
 my $OUT     = defined $ARGV[2]    ? $ARGV[2]    : 'crashes';
 my $KNFMT   = defined $ENV{KNFMT} ? $ENV{KNFMT} : './knfmt';
-my $TIMEOUT = 15;
+my $TIMEOUT = defined $ENV{KNFMT_FUZZ_TIMEOUT} ? $ENV{KNFMT_FUZZ_TIMEOUT} : 15;
+$TIMEOUT =~ /\A[1-9][0-9]*\z/ or die "invalid KNFMT_FUZZ_TIMEOUT\n";
+for my $program ( $HARNESS, $KNFMT ) {
+    -f $program && -x $program or die "not an executable file: $program\n";
+}
+$ITERS =~ /\A[0-9]+\z/ or die "invalid iteration count\n";
 my @DIRS    = ('tests');
 
 my @DICT = (
@@ -76,7 +81,7 @@ sub load_seeds {
     my @seeds;
     for my $d (@DIRS) {
         opendir( my $dh, $d ) or next;
-        for my $name ( readdir $dh ) {
+        for my $name ( sort readdir $dh ) {
             next unless $name =~ /\.[ch]$/;
             my $p = "$d/$name";
             next unless -f $p;
@@ -222,10 +227,13 @@ sub check {
     my ( $code, $sig ) = run_stdin( $HARNESS, $data, $wrk );
     return ( 'CRASH',   "sig$sig", "sig=$sig" ) if $sig != 0;
     return ( 'TIMEOUT', '',        '' )         if $code == 124;
-    return () unless $code == 0;
+    die "harness failed with exit $code\n" unless $code == 0;
 
     my ( $kcode, $ksig ) = run_stdin( $KNFMT, $data, $wrk );
-    return () unless $ksig == 0 && $kcode == 0;
+    return ( 'CRASH', "formatter-sig$ksig", "formatter sig=$ksig" ) if $ksig != 0;
+    return ( 'TIMEOUT', 'formatter', '' ) if $kcode == 124;
+    return () if $kcode == 1; # An initially rejected source is permitted.
+    die "formatter failed with exit $kcode\n" unless $kcode == 0;
     open( my $of, '<:raw', "$wrk/out" ) or return ();
     local $/ = undef;
     my $out = <$of>;
@@ -240,6 +248,13 @@ sub check {
 }
 
 my $wrk = tempdir( 'knfmt-fuzz.XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+# A positive control prevents missing instrumentation wrappers or broken
+# executables from turning every mutation into a silently skipped input.
+for my $program ( $HARNESS, $KNFMT ) {
+    my ( $code, $sig ) = run_stdin( $program, "int fuzz_control;\n", $wrk );
+    die "positive control failed: $program exit=$code signal=$sig\n"
+        unless $code == 0 && $sig == 0;
+}
 mkdir $OUT unless -d $OUT;
 
 my $seeds = load_seeds();

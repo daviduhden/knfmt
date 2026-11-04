@@ -40,7 +40,8 @@ init(int UNUSED(argc), char **UNUSED(argv))
 	options_init(&c.op);
 
 	c.eternal_scope = arena_scope_enter(c.arena.eternal);
-	c.st = style_parse(nullptr, &c.eternal_scope, c.arena.scratch, &c.op);
+	/* A campaign must not depend on configuration discovered in its cwd. */
+	c.st = style_parse("/dev/null", &c.eternal_scope, c.arena.scratch, &c.op);
 	c.si = simple_alloc(&c.eternal_scope, &c.op);
 	return &c;
 }
@@ -107,15 +108,15 @@ format_once(
 }
 
 /*
- * Fuzz target: format the input three times and require the second and third
- * passes to agree.  A non-idempotent result is treated as a crash so the fuzzer
+ * Fuzz target: format the input twice and require both accepted passes
+ * to agree.  A non-idempotent result is treated as a crash so the fuzzer
  * reports it with the offending input.
  */
 static void
 target(const struct buffer *bf, void *userdata)
 {
 	struct test_context *c = userdata;
-	struct buffer *dst, *dst2, *dst3;
+	struct buffer *dst, *dst2;
 
 	arena_scope(c->arena.eternal, eternal_scope);
 	arena_scope(c->arena.buffer, buffer_scope);
@@ -124,33 +125,24 @@ target(const struct buffer *bf, void *userdata)
 	if (!format_once(c, bf, &eternal_scope, dst))
 		return;
 
-	/*
-	 * Format three times. Malformed input may need a first pass to
-	 * normalize, but from the second pass on the output must be a fixed
-	 * point.
-	 */
 	dst2 = arena_buffer_alloc(&buffer_scope, 1 << 12);
 	if (!format_once(c, dst, &eternal_scope, dst2))
-		return;
+		__builtin_trap();
 
-	dst3 = arena_buffer_alloc(&buffer_scope, 1 << 12);
-	if (!format_once(c, dst2, &eternal_scope, dst3))
-		return;
+	size_t len1, len2;
+	const char *str1, *str2;
 
-	size_t len2, len3;
-	const char *str2, *str3;
-
+	len1 = buffer_get_len(dst);
 	len2 = buffer_get_len(dst2);
-	len3 = buffer_get_len(dst3);
 	/*
 	 * buffer_str() releases the buffer and resets its length to zero, so
 	 * the lengths and pointers must be captured first. Relying on the
 	 * unspecified evaluation order of a single expression could compare
 	 * zero bytes and hide a non-idempotent result.
 	 */
+	str1 = buffer_str(dst);
 	str2 = buffer_str(dst2);
-	str3 = buffer_str(dst3);
-	if (len2 != len3 || memcmp(str2, str3, len2) != 0)
+	if (len1 != len2 || memcmp(str1, str2, len1) != 0)
 		__builtin_trap();
 }
 FUZZER_TARGET_BUFFER(target);

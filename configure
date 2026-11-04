@@ -4,7 +4,7 @@
 set -e
 
 atexit() {
-	local _err="$?"
+	_err="$?"
 
 	# Dump contents of generated files to config.log.
 	exec 1>>config.log 2>&1
@@ -18,7 +18,7 @@ atexit() {
 
 compile() {
 	# shellcheck disable=SC2086
-	"${CC}" ${CPPFLAGS} -Werror -o /dev/null -x c - "$@"
+	"${CC}" ${CPPFLAGS} -Werror -o /dev/null -x c - "$@" ${LDFLAGS:-}
 }
 
 cc_has_option() {
@@ -28,8 +28,6 @@ cc_has_option() {
 }
 
 cc_has_sanitizer() {
-	local _sanitizer
-
 	_sanitizer="$1"; shift; : "${_sanitizer:?}"
 	if echo 'int main(void) { return 0; }' |
 	   compile "-fsanitize=${_sanitizer}" "$@"
@@ -117,6 +115,10 @@ while [ $# -gt 0 ]; do
 		}
 		shift
 		_fuzz="$1"
+		case "${_fuzz}" in
+		afl|llvm) ;;
+		*) echo "configure: unsupported fuzzer: ${_fuzz}" >&2; exit 1;;
+		esac
 		_sanitize="address"
 		;;
 	--help)
@@ -174,15 +176,23 @@ MANDIR="$(make_variable MANDIR || :)"
 if [ -n "${BINDIR}" ]; then
 	_bindir="${BINDIR}"
 else
+	# shellcheck disable=SC2016
 	_bindir='$(PREFIX)/bin'
 fi
 if [ -n "${MANDIR}" ]; then
 	_mandir="${MANDIR}"
 else
+	# shellcheck disable=SC2016
 	_mandir='$(PREFIX)/man'
 fi
 INSTALL="$(make_variable INSTALL || echo install)"
 INSTALL_MAN="$(make_variable INSTALL_MAN || echo "${INSTALL}")"
+
+# Fail at configure time when the required language mode is unavailable.
+compile -std=c23 <<'EOF' || fatal "a compiler supporting ISO C23 is required"
+#include <stdbool.h>
+int main(void) { void *p = nullptr; bool b = true; return p != nullptr || !b; }
+EOF
 
 # Following chunks must happen after CC is defined.
 
@@ -229,6 +239,15 @@ if [ "${_pedantic}" -eq 1 ]; then
 fi
 
 if [ -n "${_sanitize}" ]; then
+	# An explicit request must never silently produce an uninstrumented build.
+	if ! (
+		if is_openbsd; then
+			CPPFLAGS="${CPPFLAGS} -fsanitize-minimal-runtime -Wl,--no-execute-only"
+		fi
+		cc_has_sanitizer "${_sanitize}"
+	) | grep -q .; then
+		fatal "requested sanitizer is unavailable: ${_sanitize}"
+	fi
 	(
 		if is_openbsd; then
 			# Abuse CPPFLAGS honored by compile.
@@ -252,6 +271,10 @@ if [ -n "${_sanitize}" ]; then
 		DEBUG="${_sanitize} ${DEBUG}"
 	fi
 	if [ "${_fuzz}" = "llvm" ]; then
+		# shellcheck disable=SC2086
+		compile ${_sanitize} <<'EOF' || fatal "libFuzzer runtime is unavailable"
+int LLVMFuzzerTestOneInput(const unsigned char *p, __SIZE_TYPE__ n) { return p != 0 && n == 0; }
+EOF
 		NO_SANITIZE_FUZZER="$(cc_has_option -fno-sanitize=fuzzer)"
 	fi
 fi
@@ -269,7 +292,7 @@ done
 CXXFLAGS="${_cxxflags} ${CXXFLAGS}"
 
 if make_has_object_dir; then
-	mkdir -p obj/{,libks}
+	mkdir -p obj obj/libks
 fi
 
 check_pledge && HAVE_PLEDGE=1

@@ -62,6 +62,12 @@ the cross-cutting contracts and the evidence that supports them.
   token joined. When a macro's continuations are aligned, a splice between two
   non-whitespace characters suppresses the alignment so the padding cannot
   split the token.
+- Without a phase-2 splice, the logical input aliases the source and physical
+  offsets are the identity mapping. No per-byte copy, offset map or line-number
+  map is allocated; sequential byte reads update line numbers in O(1), and the
+  physical line table remains available for random lookups. Spliced inputs
+  retain the explicit maps. This avoids approximately 13 auxiliary bytes per
+  source byte on LP64 for the common unspliced path.
 - NUL bytes are tolerated where the lexer can carry them (e.g. comments) and
   otherwise produce a clean parse error (`tests/nul.sh`).
 
@@ -78,11 +84,16 @@ the cross-cutting contracts and the evidence that supports them.
   contains no declaration list followed by `{`, so a run of annotated
   declarations is not rescanned (near-linear).
 - Expression parsing is recursive and guarded (`EXPR_MAX_DEPTH`); document
-  construction additionally enforces `EXPR_STACK_BUDGET`. It is bounded by
-  nesting, not by flat length. Declarator scanning has its own
+  construction shares a per-operation `stack_guard` with the parser. It is
+  bounded by nesting, not by flat length. Declarator scanning has its own
   `SCAN_MAX_DEPTH` guard, and statement/declaration nesting is bounded by
-  `PARSER_MAX_DEPTH` (8000). New recursive descent must still account for
-  process stack use.
+  `PARSER_MAX_DEPTH` (8000). `util.c` additionally bounds consumed stack to the
+  smaller of 2 MiB and one quarter of a finite `RLIMIT_STACK`; the parser,
+  expression parser/builder, declarator scans and nested renderer helpers share
+  the guard. Exceeding it rejects the file without publishing partial output.
+  Frame sizes differ by compiler/instrumentation, so acceptance at an extreme
+  nesting boundary is resource-dependent. New recursive descent must use the
+  guard rather than relying only on a fixed depth count.
 - Parser outputs are initialised on every return path where a caller may
   observe them (`parser_expr()` sets `*expr = NULL` up front;
   `parser_attributes_expr()` falls back to the enclosing document).
@@ -104,6 +115,8 @@ the cross-cutting contracts and the evidence that supports them.
   `doc_fits()` accepts or rejects a pure subtree whole (`DOC_WALK_SKIP`)
   instead of walking its left spine, making fitting near-linear.
 - There is no document-height guard; `DOC_MAX_EXEC_DEPTH` was removed.
+  Nested renderer calls use the shared stack budget. Explicit frame-array
+  capacity growth checks both doubling and multiplication before allocation.
 
 ## Document types
 
@@ -205,6 +218,19 @@ Fuzzing: `CC=clang ./configure --fuzz llvm`, `make fuzz-parse`, then run
 (`LDFLAGS=-L<gcc-libstdc++-dir>` in this environment). The AFL-mode harness
 and the mutation driver are described in [FUZZ.md](FUZZ.md).
 
+`tests/bench.sh` and `tests/bench-decl.sh` preserve their shell entry points and
+invoke the shared `tests/benchmark.pl` driver. It uses Time::HiRes directly,
+streams generated inputs, measures byte sizes without `wc`, and compares
+outputs without `cmp`. `KNFMT`, `TMPDIR`, default counts, output columns,
+nonfatal `N=... FAILED` markers and rounded declaration ratios are preserved.
+Elapsed intervals no longer include timestamp-interpreter startup, so very
+short measurements require a fresh baseline.
+Counts must be nonnegative decimal integers; invalid counts fail with status 2
+and a diagnostic before temporary input is created, instead of being silently
+coerced as in the old one-liners. Peak RSS remains optional using the existing BSD `time -l` conversion, with `-` elsewhere.
+Benchmark and distribution helper regressions live in
+`tests/benchmark-tools.pl`, run through `tests/benchmark-tools.sh` by make test.
+
 ## Reentrancy
 
 Sequential in-process reentrancy is verified: the CLI formats several files
@@ -220,6 +246,17 @@ the target, and synchronizes the parent directory. A failure before `rename()`
 leaves the target unchanged. If the parent-directory `fsync()` fails after the
 rename, the replacement may already be visible even though the command reports
 an error; persistence across a crash is then uncertain.
+
+`KS_fs_replace_checked()` also compares the opened path's device/inode with the
+original input descriptor and rereads the current bytes against the input
+snapshot before publication. A detected edit or path replacement returns
+`EBUSY`; the CLI reports failure without replacing it. This is best effort,
+not compare-and-swap: a writer can still modify the path after the final check.
+Symlinks are replaced and hard links separated, as before. Ownership is applied
+before permissions because chown can clear set-id bits. Short writes and EINTR
+are handled; zero-byte writes fail instead of spinning. `tests/fs-replace.c`
+compiles the implementation with test-only syscall wrappers to exercise write,
+chmod, file/directory sync and rename failures, conflicts, modes and links.
 
 ## Recovered input stability
 
@@ -253,13 +290,19 @@ an error; persistence across a crash is then uncertain.
 
 ## Sanitizer instrumentation
 
-- Sanitizers are only verified with Clang; the system GCC 16 cannot link
-  its sanitizer runtimes in this environment, and `./configure --sanitize`
-  then silently produces an uninstrumented build. Always confirm the
-  resulting `CFLAGS` contain `-fsanitize=...` and that the binary is
-  actually instrumented. LeakSanitizer cannot run here (`ptrace` is
-  restricted); leak-freedom is therefore not established by LSan and the
-  `tests/fault.sh` and reference counting checks are used instead.
+- `./configure --sanitize NAME` requires the requested sanitizer to compile
+  and link; an unavailable request is fatal. Optional additional sanitizers
+  are enabled only when their probes succeed. LLVM fuzz mode additionally
+  checks the fuzzer runtime. Confirm the generated flags and resulting binary
+  before trusting a campaign; successful instrumentation does not establish
+  that every runtime facility, such as leak detection, is available on a
+  restricted host. On hosts where LeakSanitizer cannot use ptrace, run with
+  `ASAN_OPTIONS=detect_leaks=0` and report the limitation; the fixture driver
+  preserves caller options while adding its distinct sanitizer exit code.
+  The independently implemented unsigned-overflow reference functions in
+  `libks/arithmetic.c` deliberately wrap to detect overflow. Only those
+  reference operations exclude the unsigned-overflow sanitizer; production
+  checked arithmetic and the other sanitizers remain enabled.
 
 ## Valgrind memory checking
 
@@ -343,7 +386,12 @@ codebase.
   `tests/known-nonidempotent/00{1,2}.c` (an aligned continuation after an
   unexpected identifier before a subscript designator, and a CPP branch
   soup). Both are now fixed and promoted to reproducers. The directory still
-  contains `005.c`, a known include-guard recovery case.
+  is currently empty: the former `005.c` is promoted to
+  `tests/repro-idempotence-019.c`. Its recovery can revisit an earlier crossed
+  branch after a later successful construct installed a new stamp.
+  `clang.crossed_end` retains the furthest crossing across successful parses;
+  a recovery that revisits it defers whole-source reproduction until the parse
+  succeeds. A failed parse remains a failure.
 
 ## Recovered assignment with a brace initializer
 
@@ -447,7 +495,7 @@ covered by `tests/semantic-cpp-branches.c`.
 
 Sequential conditional *initializers* (`int v = #ifdef A 1 #else 2 #endif ;`)
 scale quadratically; top-level conditionals (`#ifdef A int v = 1; #endif`) do
-not. Measured with the semantic build (`int v_i =` construct):
+not. Historical measurements without the reparse budget (`int v_i =` construct):
 
 | constructs | time | peak RSS | documents |
 |---:|---:|---:|---:|
@@ -470,8 +518,19 @@ surviving stamp the rewind is O(1) and the same input is linear.
 
 A safe correction needs a rewind floor that is nearer than the first token —
 the start of the construct that contains the crossing — but the parser has no
-such position recorded when no stamp survives. This is not implemented; the
-behaviour is pre-existing and unchanged by the recovery corrections.
+such position recorded when no stamp survives. That algorithmic correction is
+not implemented. Instead, the lexer records monotonic token visits, including
+speculative reads, and initializes a deterministic work allowance of
+`128 * initial_token_count + 65536` (saturating on overflow). Once reparsing has
+started, `parser_exec()` checks this allowance between top-level attempts and
+rejects excessive work with `preprocessor reparse limit exceeded`. No partial
+output is published and `-i` leaves the input unchanged. A large individual
+attempt can overshoot the allowance; the budget contains repeated prefix
+reparsing rather than imposing a hard memory or wall-clock limit. Exhaustion
+never becomes an early successful verbatim fallback. `tests/reparse-budget.sh`
+checks a small accepted case, excessive initializer branches and many ordinary
+top-level branches. The quadratic algorithm remains below the budget; future
+rewind-floor changes must preserve rejection and branch content.
 
 ## Malformed declarations and punctuation
 
@@ -552,17 +611,47 @@ behaviour is pre-existing and unchanged by the recovery corrections.
 
 ## Semantic-preservation oracle
 
-- `tests/semantic.sh` formats each accepted fixture in normal mode and
-  compares the non-comment, non-whitespace, non-semicolon, non-backslash byte
-  sequence before and after. Translation phase 1 (trigraph replacement) and
-  phase 2 (backslash-newline splicing) are applied first. It is independent of
-  the formatter's lexer and catches token loss, duplication and reordering
-  that idempotence cannot see. Not applied to `-s`, which legitimately
-  rewrites tokens.
-- `tests/semanticoracle.pl --selftest` exercises its own case set covering
-  identifier and operator concatenation, token splitting, deleted/duplicate
-  punctuation,
-  changed and truncated literals, swallowed comments, macro continuation and
-  escaped-newline changes, and CPP branch deletion/duplication/reordering.
-- `tests/mutate.pl` runs the same check on every mutant, so the fuzzer
-  reports `SEMANTIC` findings separately from `CRASH`/`TIMEOUT`.
+- `tests/semanticoracle.pl` independently scans preprocessing tokens after
+  trigraph replacement and splicing. It preserves semicolons and stray
+  backslashes, literal encoding prefixes, logical directive boundaries and
+  function-like versus object-like macro adjacency. Whitespace outside
+  directives is ignored. Comments are compared as a whitespace-normalized
+  multiset, so this is not an exact comment-byte oracle or a complete C
+  preprocessor/compiler. Idempotence and byte-oriented tests remain separate.
+- `tests/semantic.sh` uses exact SHA-256 input/output pairs from
+  `tests/semantic-known.tsv` for historical removal of redundant semicolons
+  and unattached backslashes. These exceptions are fixture-specific, counted
+  separately, and never used by general `compare()` or mutation fuzzing.
+  Changed pairs and newly passing exceptions fail until deliberately reviewed.
+- Explicit style policies can sort includes and add/remove guards without
+  `-s`. Those transformations are tested with policy-specific fixtures rather
+  than being considered layout-only token preservation. The normal oracle is
+  not applied to `-s`, which has pass-specific rewrite contracts.
+- The oracle's selftests include negative cases for macros, prefixes,
+  directives, punctuation, `for` separators, empty loops and token boundaries.
+  The corpus report distinguishes checked inputs, rejections, unsupported
+  literals and exact historical exceptions.
+- `fuzz-parse` compares the first and second accepted outputs and treats a
+  rejected second pass as a finding. The mutation driver checks executables
+  and a positive control before campaigns; infrastructure errors abort, while
+  crashes and timeouts remain findings. The target's style is fixed instead of
+  depending on configuration discovery in the campaign's working directory.
+
+## Automated verification
+
+The product workflow builds with Clang/GNU make and GCC/bmake on Linux, runs
+fixtures, in-process and filesystem tests, SIMD/fallback comparison and
+allocation-fault tests, then compares a normal build with an instrumented
+Clang build. The independent knowledge workflow tests the Perl validator and
+checks pull-request changes. These jobs do not establish support on untested
+systems. Tool-specific checks and long campaigns remain documented development
+commands. Do not bulk-format raw regression inputs: their whitespace and line
+boundaries are part of the test, even when the expected output is unchanged.
+
+## Buffer line iteration
+
+`buffer_getline_impl()` checks both copying and NUL termination and leaves the
+cursor unchanged on allocation failure. After a null result, `iterator.error`
+distinguishes failure from EOF; retry clears the flag and EOF/free clears the
+iterator. Consumers can retry or explicitly release its scratch storage. Arena
+callbacks still terminate on allocation failure by their separate contract.

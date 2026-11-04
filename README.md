@@ -49,12 +49,15 @@ The implementation is further described in
 
 ## Documentation
 
-All user-facing documentation lives under [`docs/`](docs/):
+The command-line reference is [knfmt.1](knfmt.1); development guides live
+under [`docs/`](docs/):
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implementation, contracts and
   verification.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — release history.
 - [docs/FUZZ.md](docs/FUZZ.md) — fuzzing guide.
+- [docs/python-migration.md](docs/python-migration.md) — auxiliary tooling
+  migration inventory and verification.
 - [docs/ARCHITECTURE-REWRITE-PROGRESS.md](docs/ARCHITECTURE-REWRITE-PROGRESS.md)
   — chronological evidence log of the rewrite.
 
@@ -79,6 +82,16 @@ fork.
 
 ### From source
 
+Building requires a C23 compiler (including `nullptr`, `bool` and standard
+attributes), POSIX shell, make and a C library with the BSD interfaces used by
+`libks`. CI targets Clang 19 with GNU make and GCC 14 with bmake on Linux;
+other platforms still require local verification. `configure` rejects a
+compiler without the required C23 features. Normal builds need no external
+library. Development checks use Perl 5.20+, core modules and Git, including
+`make test` and the agent knowledge checker's Test::More suite. Benchmark builds
+additionally require a C++23 compiler, `pkg-config` and Google Benchmark. `ksh` and `mkls` are needed only to
+regenerate the committed source/test lists.
+
 The installation prefix defaults to `/usr/local` and can be altered using the
 `PREFIX` environment variable when invoking `configure`, or on the
 `make install` command line:
@@ -88,6 +101,47 @@ $ ./configure
 $ make
 $ make install
 ```
+
+## Development and releases
+
+Run `make test` for fixture, semantic and filesystem-failure checks, and
+`make str-match` for SIMD/fallback equivalence. `make fault` uses ELF linker
+wrapping and is not portable to Apple's linker. See
+[docs/FUZZ.md](docs/FUZZ.md) for fuzzing and instrumentation checks.
+
+Run the agent knowledge checks independently of the C build:
+
+```sh
+$ prove -v tests/agent_knowledge_validator/*.pl
+$ perl scripts/validate-agent-knowledge.pl --scope worktree
+```
+
+See [the validation contract](docs/agent-knowledge-validation.md) for range
+checks, JSON output and repository configuration.
+
+GitHub Actions runs product checks separately from the agent knowledge gate.
+The product workflow builds with two compilers/makes and compares normal and
+sanitized output. External action revisions are pinned to reviewed commit
+SHAs; updating them requires reviewing the associated release and changing
+the pin deliberately. These checks do not establish support for untested
+platforms.
+
+`make dist` delegates to the POSIX shell helper `scripts/dist.sh` and archives
+the existing `v<VERSION>` Git tag, not the working tree, and writes a SHA-256
+checksum using `sha256` or `sha256sum`. Before publishing,
+verify the tag names the reviewed release commit, build/test its archive in a
+fresh directory, and verify the checksum. No tag or publication is created
+by the build. The helper accepts a nonempty version consisting of ASCII
+letters, digits, `.`, `_`, `+` and `-`; other values fail with status 2 before
+Git or output creation. This avoids interpreting release metadata as a path.
+The distribution helper and benchmark tools are source-only
+development tools; `make install` continues to install only the formatter and
+manual. Release archives include the vendored `libks` sources and ISC
+notices; there is no separately resolved `libks` package version. Its history
+and local modifications are tracked with the enclosing repository's Git
+revision. The fork started from `mptre/knfmt` revision `8d14715` (5.3.1);
+compare vendored changes against that provenance rather than replacing them
+with an unrelated library release.
 
 ## License
 

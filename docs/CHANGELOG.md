@@ -2,6 +2,21 @@
 
 ## Bug fixes
 
+- Preserve escaped backslashes and encoding prefixes when removing a trailing
+  newline in the err/warn simplifier.
+- Track compiled regex ownership and retain a valid expression when a
+  replacement pattern fails to compile.
+- Generate valid ASCII include-guard identifiers for unusual filenames and
+  decode spaces and Git quoting in unified-diff paths.
+- Detect changed input identities and contents before in-place replacement;
+  retry interrupted writes and reject writes that make no progress.
+- Bound parser/declarator/expression/renderer stack consumption and reject
+  excessive CPP reparse work without partial output.
+- Preserve earlier crossed CPP alternatives during later recovery and promote
+  the remaining known non-idempotent case to a regression fixture.
+- Check explicit frame-stack growth and propagate getline allocation failures.
+- Avoid per-byte logical input maps when the physical source has no splices.
+
 - Restore the Linux x86-64 assembler prologue and the GCC AddressSanitizer
   preprocessor comment that the source reformat had corrupted.
 - Check for overflow when growing the last arena allocation, close
@@ -20,6 +35,28 @@
 
 ## Build and tests
 
+- Move benchmark generation, clocks and arithmetic into a shared standalone
+  Perl driver while retaining shell entry points, fields and optional BSD RSS.
+- Delegate the release archive recipe to a checked POSIX shell helper and add
+  benchmark/distribution regressions. Keep CI interpreter programs in scripts.
+
+- Reimplement the agent knowledge validator and its black-box contract tests
+  in Perl with core modules, preserving CLI options, JSON schema, rule IDs and
+  exit codes. Update CI and maintenance instructions to use Perl and prove.
+
+- Restore raw fixture inputs damaged by the later bulk source reformat;
+  retain their independently specified expected outputs.
+- Compare preprocessing tokens strictly in the semantic oracle, including
+  macro adjacency, literal prefixes, directive boundaries and semicolons.
+  Track historical exceptions by exact input/output hashes.
+- Enforce first-pass idempotence in the fuzz harness and fail mutation
+  campaigns on infrastructure errors instead of silently skipping them.
+- Require requested instrumentation to link and correct AFL compiler selection.
+- Add product CI, deterministic filesystem fault tests, reduced-stack and CPP
+  work-budget regressions; use C23 for clang-tidy and portable release checksums.
+- Document toolchain requirements, vendored-source provenance and release
+  verification; synchronize subsystem instructions with the implementation.
+
 - Build `str-match` from the shared source list instead of the bmake-only
   `:N` modifier, so the target also works with GNU make.
 - Register `tests/error-077.c` and remove the undefined `${T}` from the test
@@ -36,8 +73,8 @@
 - Exclude development-only scripts from the `mkls.sh` test list so the
   generated `tests/Makefile` matches the committed one, and add
   `fuzz-parse.c` to the static-analysis lists.
-- Remove the GitHub Actions workflows. The project no longer ships CI
-  configuration.
+- Remove the earlier GitHub Actions workflows; replacement product and agent
+  knowledge workflows are described above.
 - Give `configure` a `--help` option, reject unknown options and diagnose a
   missing `--fuzz`/`--sanitize` value instead of failing silently.
 - Honor `AFLAGS`/`ASFLAGS` in the `.S.o` rules and correct the GNU make probe

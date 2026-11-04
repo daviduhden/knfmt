@@ -80,8 +80,6 @@ run_one(const struct KS_str_match *match, const char *ranges, const char *name1,
 
 	for (i = 0; i < sizeof(lens) / sizeof(lens[0]); i++) {
 		size_t len = lens[i];
-		void *map = NULL;
-		size_t maplen = 0;
 		long pg = sysconf(_SC_PAGESIZE);
 		char *base, *g;
 
@@ -153,7 +151,7 @@ main(void)
 	if (caps->avx >= 2 && caps->bmi >= 2)
 		u256 = KS_str_match_until_native_256;
 
-	printf("str-match: avx=%u bmi=%u sse=%#x bw=%u; testing", caps->avx, caps->bmi, caps->sse,
+	printf("str-match: avx=%u bmi=%u sse=%#x bw=%d; testing", caps->avx, caps->bmi, caps->sse,
 	    caps->avx512.bw);
 	if (m128)
 		printf(" match_128");

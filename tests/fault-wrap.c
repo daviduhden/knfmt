@@ -18,6 +18,9 @@
 void *__real_malloc(size_t);
 void *__real_calloc(size_t, size_t);
 void *__real_realloc(void *, size_t);
+void *__wrap_malloc(size_t);
+void *__wrap_calloc(size_t, size_t);
+void *__wrap_realloc(void *, size_t);
 
 static long fault_at = -1;
 static long ncalls;

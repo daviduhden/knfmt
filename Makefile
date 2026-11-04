@@ -470,8 +470,10 @@ IWYUFLAGS += -d trace.h:options.h
 IWYUFLAGS += ${CPPFLAGS}
 
 SHLINT += configure
+SHLINT += scripts/dist.sh
 SHLINT += tests/bench-decl.sh
 SHLINT += tests/bench.sh
+SHLINT += tests/benchmark-tools.sh
 SHLINT += tests/bytes.sh
 SHLINT += tests/cp.sh
 SHLINT += tests/cross-build.sh
@@ -489,11 +491,12 @@ SHLINT += tests/nul.sh
 SHLINT += tests/reparse.sh
 SHLINT += tests/simple.sh
 SHLINT += tests/stdckdint-compile-fail.sh
-SHLINT += tests/stdin.sh
-SHLINT += tests/style-enoent.sh
+SHLINT += tests/tooling.sh
+SHLINT += tests/audit-inputs.sh
 SHLINT += tests/reparse-budget.sh
 SHLINT += tests/stack-budget.sh
-SHLINT += tests/audit-inputs.sh
+SHLINT += tests/stdin.sh
+SHLINT += tests/style-enoent.sh
 
 SHELLCHECKFLAGS += -f gcc
 SHELLCHECKFLAGS += -s ksh
@@ -522,12 +525,6 @@ ${PROG_benchmark}: ${OBJS_benchmark}
 	${CXX} ${DEBUG} -o ${PROG_benchmark} ${OBJS_benchmark} \
 		${LDFLAGS} ${LDFLAGS_benchmark}
 
-clean:
-	rm -f ${DEPS_knfmt} ${OBJS_knfmt} ${PROG_knfmt} \
-		${DEPS_fault} ${OBJS_fault} ${PROG_fault} \
-		${DEPS_strmatch} ${OBJS_strmatch} ${PROG_strmatch} \
-		${DEPS_test} ${OBJS_test} ${PROG_test} \
-		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
 fs-test: tests/fs-replace.c libks/fs.c libks/fs.h
 	${CC} ${CPPFLAGS} ${CFLAGS} ${DEBUG} ${NO_SANITIZE_FUZZER} -o $@ tests/fs-replace.c ${LDFLAGS}
 
@@ -535,8 +532,14 @@ test-fs: fs-test
 	${EXEC} ./fs-test
 .PHONY: test-fs
 
-		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
+clean:
 	rm -f fs-test fs-test.d
+	rm -f ${DEPS_knfmt} ${OBJS_knfmt} ${PROG_knfmt} \
+		${DEPS_fault} ${OBJS_fault} ${PROG_fault} \
+		${DEPS_strmatch} ${OBJS_strmatch} ${PROG_strmatch} \
+		${DEPS_test} ${OBJS_test} ${PROG_test} \
+		${DEPS_fuzz-dict} ${OBJS_fuzz-dict} ${PROG_fuzz-dict} \
+		${DEPS_fuzz-style} ${OBJS_fuzz-style} ${PROG_fuzz-style} ${DICT_fuzz-style} \
 		${DEPS_fuzz-parse} ${OBJS_fuzz-parse} ${PROG_fuzz-parse} \
 		${DEPS_benchmark} ${OBJS_benchmark} ${PROG_benchmark}
 .PHONY: clean
@@ -545,10 +548,8 @@ cleandir: clean
 	cd ${.CURDIR} && rm -f config.h config.log config.mk
 .PHONY: cleandir
 
-dist:
-	set -e; p=knfmt-${VERSION}; cd ${.CURDIR}; \
-	git archive --output $$p.tar.gz --prefix $$p/ v${VERSION}; \
-	sha256 $$p.tar.gz >$$p.sha256
+dist: ${.CURDIR}/scripts/dist.sh
+	cd "${.CURDIR}" && sh scripts/dist.sh "${VERSION}"
 .PHONY: dist
 
 format: ${PROG_knfmt}
@@ -590,7 +591,7 @@ lint: ${PROG_knfmt}
 .PHONY: lint
 
 lint-clang-tidy:
-	cd ${.CURDIR} && clang-tidy --quiet ${CLANGTIDY} -- ${CPPFLAGS}
+	cd ${.CURDIR} && clang-tidy --quiet ${CLANGTIDY} -- ${CPPFLAGS} -std=c23
 .PHONY: lint-clang-tidy
 
 lint-cppcheck:

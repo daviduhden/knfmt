@@ -9,7 +9,7 @@ mkls -s "$@" -- \
 	CLANGTIDY !(config|compat-*).[ch] -- \
 	CPPCHECK !(compat-*).@(c|cpp) -- \
 	IWYU !(compat-*).c !(config).h -- \
-	SHLINT configure tests/*.sh
+	SHLINT configure scripts/*.sh tests/*.sh
 
 cd tests
 mkls -s "$@" -- \

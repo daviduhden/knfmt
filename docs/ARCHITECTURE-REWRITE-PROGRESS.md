@@ -117,7 +117,15 @@ ASAN_OPTIONS=detect_leaks=0 sh tests/cross-build.sh ./knfmt /tmp/opencode/p1-san
 Flat-expression reproducer:
 
 ```sh
-perl -e 'print "int x = " . ("a+" x 8000) . "a;\n"' >/tmp/ln.c
+{
+    printf 'int x = a'
+    i=0
+    while [ "$i" -lt 8000 ]; do
+        printf '+a'
+        i=$((i + 1))
+    done
+    printf ';\n'
+} >/tmp/ln.c
 knfmt /tmp/ln.c
 ```
 

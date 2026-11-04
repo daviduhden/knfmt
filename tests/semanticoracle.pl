@@ -12,10 +12,9 @@
 #   * Preprocessing tokens: identifiers, preprocessing numbers, string and
 #     character literals (escape aware), punctuators (longest match), comments
 #     and newlines.
-#   * Backslash tokens are dropped (knfmt discards them).
-#   * A run of ';' punctuators with no newline between them is collapsed to
-#     its last member (knfmt keeps the last on a line), and a ';' whose next
-#     token is '}' is dropped (empty statement before a block close).
+#   * Every non-comment token, including stray backslashes and semicolons,
+#     is preserved. Directive boundaries and function-like macro adjacency
+#     are significant.
 #   * The resulting non-comment token sequence must be identical, which
 #     detects token loss, duplication, reordering, operator/punctuator and
 #     literal changes, directive changes and branch swaps.
@@ -29,13 +28,15 @@
 
 # The regular expressions below are token scans: they match a few characters,
 # not whole lines.  Requiring "/x" would add noise for one-character classes
-# and would change the meaning of "[ \t\v\f\r]"; requiring "/m" or "/s" would
+# and would change the meaning of "[ \t\x0b\f\r]"; requiring "/m" or "/s" would
 # change what "^"/"$" and "." match.
 ## no critic (RegularExpressions::RequireExtendedFormatting, RegularExpressions::RequireLineBoundaryMatching, RegularExpressions::RequireDotMatchAnything)
 
 use strict;
 use warnings;
 use bytes;
+use Digest::SHA qw(sha256_hex);
+use FindBin qw($Bin);
 
 my @PUNCT = sort { length($b) <=> length($a) } (
     '...', '<<=', '>>=', '->', '++', '--', '<<', '>>', '<=', '>=',
@@ -67,7 +68,7 @@ sub tokenize {
     my @t;
     while ( $i < $n ) {
         my $c = substr( $d, $i, 1 );
-        if ( $c =~ /[ \t\v\f\r]/ ) { $i++; next; }
+        if ( $c =~ /[ \t\x0b\f\r]/ ) { $i++; next; }
         if ( $c eq "\n" ) { push @t, [ 'nl', "\n" ]; $i++; next; }
         if ( $c eq '/' ) {
             my ( $tk, $j ) = _scan_comment( $d, $i, $n );
@@ -77,8 +78,13 @@ sub tokenize {
                 next;
             }
         }
-        if ( $c eq '"' || $c eq "'" ) {
-            my ( $tk, $j ) = _scan_literal( $d, $i, $n );
+        my $prefix = '';
+        if ( $c =~ /[uUL]/ && substr( $d, $i, 3 ) =~ /\A(u8|u|U|L)(?=["'])/ ) {
+            $prefix = $1;
+        }
+        if ( $prefix ne '' || $c eq '"' || $c eq "'" ) {
+            my ( $tk, $j ) = _scan_literal( $d, $i + length($prefix), $n );
+            $tk->[1] = $prefix . $tk->[1];
             push @t, $tk;
             $i = $j;
             next;
@@ -87,7 +93,7 @@ sub tokenize {
         if ( $c =~ /[A-Za-z_]/ ) {
             my $j = $i + 1;
             $j++ while $j < $n && substr( $d, $j, 1 ) =~ /[A-Za-z0-9_]/;
-            push @t, [ 'ident', substr( $d, $i, $j - $i ) ];
+            push @t, [ 'ident', substr( $d, $i, $j - $i ), substr( $d, $j, 1 ) eq '(' ];
             $i = $j;
             next;
         }
@@ -145,11 +151,12 @@ sub _scan_literal {
         if ( $ch eq '\\' ) { $j += 2; next; }
         $j++;
     }
+    my $closed = $j < $n && substr( $d, $j, 1 ) eq $q;
     $j = $n if $j > $n;
     $j++;
     $j = $n if $j > $n;
     my $lit = substr( $d, $i, $j - $i );
-    return [ ( $lit =~ /\n/ ? 'uliteral' : 'literal' ), $lit ], $j;
+    return [ ( !$closed || $lit =~ /\n/ ? 'uliteral' : 'literal' ), $lit ], $j;
 }
 
 # Scan a preprocessing number at $i.  Returns a (type, text) token and the
@@ -159,12 +166,15 @@ sub _scan_number {
     my $j = $i + 1;
     while ( $j < $n ) {
         my $ch = substr( $d, $j, 1 );
-        if ( $ch =~ /[A-Za-z0-9_.]/ ) { $j++; next; }
         if ( $ch =~ /[eEpP]/
             && substr( $d, $j + 1, 1 ) =~ /[+\-]/ )
         {
             $j += 2;
             next;
+        }
+        if ( $ch =~ /[A-Za-z0-9_.]/ ) { $j++; next; }
+        if ( $ch eq "'" && substr( $d, $j + 1, 1 ) =~ /[A-Za-z0-9_]/ ) {
+            $j += 2; next;
         }
         last;
     }
@@ -189,45 +199,41 @@ sub _is_punct {
     return defined $tk && $tk->[0] eq 'punct' && $tk->[1] eq $p;
 }
 
-# A ';' is dropped before '}', when trailing, and before a directive.
-sub _drop_semi {
-    my ( $prev, $next ) = @_;
-    return 1 if _is_punct( $prev, '}' );
-    return 1 if !defined $next;
-    return 1 if _is_punct( $next, '}' ) || _is_punct( $next, '#' );
-    return 0;
-}
-
-# Normalize the token stream: drop comments/backslashes/newlines, collapse
-# semicolon runs (keeping the last), drop a ';' before '}'.
+# Ignore layout outside directives. Inside directives a logical newline is
+# significant, as is adjacency between the name of a function-like macro and
+# its opening parenthesis. Comments separate tokens even when they contain no
+# spaces; tokenize() records adjacency directly from the translated bytes.
 sub _normalize {
     my ($t) = @_;
-    my @seq = grep { $_->[0] ne 'comment' && $_->[0] ne 'backslash' } @$t;
     my @out;
-    my $i = 0;
-    while ( $i < @seq ) {
-        if ( _is_punct( $seq[$i], ';' ) ) {
-            my $j = $i;
-            $j++ while $j < @seq && _is_punct( $seq[$j], ';' );
-            push @out, $seq[ $j - 1 ];
-            $i = $j;
+    my $bol = 1;
+    my $directive = 0;
+    my $define = 0;
+    for my $tk (@$t) {
+        next if $tk->[0] eq 'comment';
+        if ( $tk->[0] eq 'nl' ) {
+            push @out, [ 'directive_end', '' ] if $directive;
+            $bol = 1;
+            $directive = 0;
+            $define = 0;
             next;
         }
-        push @out, $seq[$i];
-        $i++;
-    }
-    @out = grep { $_->[0] ne 'nl' } @out;
-    my @final;
-    for my $k ( 0 .. $#out ) {
-        my $tk = $out[$k];
-        if ( _is_punct( $tk, ';' ) ) {
-            my $prev = @final          ? $final[-1]     : undef;
-            my $next = $k + 1 <= $#out ? $out[ $k + 1 ] : undef;
-            next if _drop_semi( $prev, $next );
+        if ( $bol && _is_punct( $tk, '#' ) ) {
+            $directive = 1;
+            $define = 1;
         }
-        push @final, $tk;
+        elsif ( $define == 1 ) {
+            $define = $tk->[0] eq 'ident' && $tk->[1] eq 'define' ? 2 : 0;
+        }
+        elsif ( $define == 2 ) {
+            push @out, [ 'macro_kind', $tk->[2] ? 'function' : 'object' ];
+            $define = 0;
+        }
+        push @out, $tk;
+        $bol = 0;
     }
-    return \@final;
+    push @out, [ 'directive_end', '' ] if $directive;
+    return \@out;
 }
 
 sub _canon {
@@ -268,8 +274,8 @@ sub compare {
         my @la = split /\x00/, $ca, -1;
         my @lb = split /\x00/, $cb, -1;
         my $cat =
-            @la < @lb ? 'TOKEN_LOSS'
-          : @la > @lb ? 'TOKEN_DUPLICATION'
+            @la > @lb ? 'TOKEN_LOSS'
+          : @la < @lb ? 'TOKEN_DUPLICATION'
           :             'TOKEN_CHANGE';
         return [ $cat, '' ];
     }
@@ -382,6 +388,21 @@ sub _selftest {
         # Question marks that are not trigraphs stay punctuators.
         [ "a ? b : c;\n", "a?b:c;\n", 1 ],
     );
+    push @cases,
+        [ "#define F(x) x\n", "#define F (x) x\n", 0 ],
+        [ "#define F(x) x\n", "#define F/**/(x) x\n", 0 ],
+        [ "#define X 1\nint x;\n", "#define X 1 int x;\n", 0 ],
+        [ "#define X 1", "#define X 1\n", 1 ],
+        [ 'u8"x"', 'u8 "x"', 0 ],
+        [ "L'x'", "L 'x'", 0 ],
+        [ 'u"x"', 'u "x"', 0 ],
+        [ 'U"x"', 'U "x"', 0 ],
+        [ 'void f(void) { while (x); }', 'void f(void) { while (x) }', 0 ],
+        [ 'int x;;', 'int x;', 0 ],
+        [ 'int x;', 'int x', 0 ],
+        [ "int x;\\", 'int x;', 0 ],
+        [ 'double x = 1e+2;', 'double x = 1e + 2;', 0 ],
+        [ "int x = 1'000;", "int x = 1 '0' 00;", 0 ];
     my $bad = 0;
     for my $c (@cases) {
         my ( $a, $b, $ok ) = @$c;
@@ -391,7 +412,7 @@ sub _selftest {
             $pass = defined($r) && $r->[0] eq 'ORACLE_UNSUPPORTED';
         }
         else {
-            $pass = $ok ? !defined($r) : defined($r);
+            $pass = $ok ? !defined($r) : defined($r) && $r->[0] ne 'ORACLE_UNSUPPORTED';
         }
         if ( !$pass ) {
             $bad++;
@@ -407,7 +428,7 @@ return 1 if caller;
 if ( @ARGV && $ARGV[0] eq '--selftest' ) {
     exit( _selftest() ? 1 : 0 );
 }
-if ( @ARGV == 3 && $ARGV[0] eq 'compare' ) {
+if ( @ARGV == 3 && ( $ARGV[0] eq 'compare' || $ARGV[0] eq 'compare-known' ) ) {
     open( my $fa, '<:raw', $ARGV[1] ) or die "$ARGV[1]: $!\n";
     local $/ = undef;
     my $a = <$fa>;
@@ -416,8 +437,26 @@ if ( @ARGV == 3 && $ARGV[0] eq 'compare' ) {
     my $b = <$fb>;
     close $fb or die "$ARGV[2]: $!\n";
     my $r = compare( $a, $b );
+    if ( $ARGV[0] eq 'compare-known' ) {
+        open( my $known, '<', "$Bin/semantic-known.tsv" ) or die "semantic-known.tsv: $!\n";
+        my $name = $ARGV[1];
+        $name =~ s{.*/}{};
+        local $/ = "\n";
+        while ( my $line = <$known> ) {
+            next if $line =~ /\A#/ || $line =~ /\A\s*\z/;
+            chomp $line;
+            my ( $file, $input, $output, $reason ) = split /\t/, $line, 4;
+            next unless $file eq $name;
+            if ( sha256_hex($a) eq $input && sha256_hex($b) eq $output && defined $r ) {
+                print "KNOWN_EXCEPTION: $file: $reason\n";
+                exit 0;
+            }
+            die "known semantic exception changed or fixed: $file; review manifest\n";
+        }
+        close $known or die "semantic-known.tsv: $!\n";
+    }
     exit 0 unless defined $r;
     print "$r->[0]\n";
     exit 1;
 }
-die "usage: semanticoracle.pl --selftest | compare A B\n";
+die "usage: semanticoracle.pl --selftest | compare A B | compare-known A B\n";

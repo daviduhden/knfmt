@@ -235,7 +235,10 @@ lexer_getc(struct lexer *lx, unsigned char *ch)
 
 	off = lx->lx_st.st_off++;
 	c = (unsigned char)lx->lx_input.ptr[off];
-	lx->lx_st.st_lno = lexer_line_of(lx, lx->lx_st.st_off);
+	if (lx->lx_input.pline != nullptr)
+		lx->lx_st.st_lno = lexer_line_of(lx, lx->lx_st.st_off);
+	else if (c == '\n')
+		lx->lx_st.st_lno++;
 	*ch = c;
 
 	return 0;
@@ -255,7 +258,10 @@ lexer_ungetc(struct lexer *lx)
 
 	assert(st->st_off > 0);
 	st->st_off--;
-	st->st_lno = lexer_line_of(lx, st->st_off);
+	if (lx->lx_input.pline != nullptr)
+		st->st_lno = lexer_line_of(lx, st->st_off);
+	else if (lx->lx_input.ptr[st->st_off] == '\n')
+		st->st_lno--;
 }
 
 struct token *
@@ -302,7 +308,8 @@ lexer_emit_synthetic(struct lexer *lx, const struct token *tk)
 static int
 has_line(const char *str, size_t len)
 {
-	return memchr(str, '\n', len) != nullptr;
+	/* Synthetic diagnostic tokens may have no text, even an empty string. */
+	return len > 0 && memchr(str, '\n', len) != nullptr;
 }
 
 /*
@@ -1104,6 +1111,11 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 	    KS_size_mul_overflow(nbytes, sizeof(*map), &mapsize) ||
 	    KS_size_mul_overflow(nbytes, sizeof(*pline), &plinesize))
 		errx(1, "%s: input too large", __func__);
+	int spliced = 0;
+
+	/* An empty released buffer has no allocation, but EOF still has a slice. */
+	if (n == 0 && p == nullptr)
+		p = "";
 	lg = arena_malloc(lx->lx_arena.eternal_scope, nbytes);
 	map = arena_malloc(lx->lx_arena.eternal_scope, mapsize);
 	pline = arena_malloc(lx->lx_arena.eternal_scope, plinesize);
@@ -1114,6 +1126,8 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 
 		if (splice > 0) {
 			size_t *dst = VECTOR_ALLOC(lx->lx_splices);
+		if (!spliced && splice_len(p, n, i) > 0)
+			spliced = 1;
 
 			if (dst == nullptr)
 				err(1, nullptr);
@@ -1123,6 +1137,15 @@ lexer_input_init(struct lexer *lx, const struct buffer *bf)
 			continue;
 		}
 		map[j] = i;
+	lx->lx_input.phys = p;
+	lx->lx_input.phys_len = n;
+	if (!spliced) {
+		/* Identity mapping needs neither a copy nor per-byte tables. */
+		lx->lx_input.ptr = p;
+		lx->lx_input.len = n;
+		return;
+	}
+
 		lg[j] = p[i];
 		pline[j] = lno;
 		if (p[i] == '\n')
@@ -1169,6 +1192,8 @@ lexer_token_physical(struct lexer *lx, struct token *tk)
 
 /*
  * Map a physical offset back to the logical offset. Every logical byte maps to
+	if (lx->lx_input.map == nullptr)
+		return off;
  * a distinct physical byte; offsets pointing into a removed splice map to the
  * following logical byte.
  */
@@ -1200,6 +1225,9 @@ physical_to_logical(const struct lexer *lx, size_t poff)
  * physical offsets, so their range is translated back before comparison. The
  * tokens are visited in source order and the scan resumes from the previous
  * token, keeping the post-processing linear.
+	if (lx->lx_input.map == nullptr)
+		return poff < hi ? poff : hi;
+
  */
 static void
 lexer_apply_splices(struct lexer *lx)

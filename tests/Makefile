@@ -936,6 +936,7 @@ TESTS += style-simple-AlignOperands-002.c
 TESTS += style-trace-001.c
 
 TESTS += diff.sh
+TESTS += audit-inputs.sh
 TESTS += enoent.sh
 TESTS += fd.sh
 TESTS += git.sh

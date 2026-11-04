@@ -58,9 +58,10 @@ is_guard_define(const struct token *tk)
 
 /*
  * Build a guard identifier from the resolved absolute path. Only the last
- * ncomponents components are used; '.', '/', and '-' become underscores and all
- * other characters are uppercased. Returns nullptr if the path cannot be
- * resolved, which leaves the file unchanged.
+ * ncomponents components are used; bytes outside the ASCII identifier alphabet
+ * become underscores, lowercase ASCII is uppercased, and a leading digit gets an
+ * underscore prefix. Returns nullptr if resolution fails, leaving the file
+ * unchanged.
  */
 static const char *
 path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
@@ -75,13 +76,16 @@ path_to_guard(const char *path, unsigned int ncomponents, struct arena_scope *s)
 	sliced_path = path_slice(resolved_path, ncomponents, s);
 
 	bf = arena_buffer_alloc(s, PATH_MAX);
+	if (sliced_path[0] >= '0' && sliced_path[0] <= '9')
+		buffer_putc(bf, '_');
 	for (; sliced_path[0] != '\0'; sliced_path++) {
 		char c = sliced_path[0];
 
-		if (c == '.' || c == '/' || c == '-')
+		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		    (c >= '0' && c <= '9') || c == '_'))
 			buffer_putc(bf, '_');
 		else
-			buffer_putc(bf, (char)toupper((unsigned char)c));
+			buffer_putc(bf, c >= 'a' && c <= 'z' ? (char)(c - 'a' + 'A') : c);
 	}
 	return buffer_str(bf);
 }

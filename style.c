@@ -96,6 +96,7 @@ struct style {
 struct regex {
 	const char *pattern;
 	regex_t r;
+	bool compiled;
 };
 
 struct include_category {
@@ -461,7 +462,8 @@ style_free(void *arg)
 		struct include_category *ic;
 
 		ic = VECTOR_POP(st->include_categories);
-		regfree(&ic->regex.r);
+		if (ic->regex.compiled)
+			regfree(&ic->regex.r);
 	}
 	VECTOR_FREE(st->include_categories);
 
@@ -469,7 +471,8 @@ style_free(void *arg)
 		struct include_guard *guard;
 
 		guard = VECTOR_POP(st->include_guards);
-		regfree(&guard->regex.r);
+		if (guard->regex.compiled)
+			regfree(&guard->regex.r);
 	}
 	VECTOR_FREE(st->include_guards);
 }
@@ -530,7 +533,11 @@ style_include_guards(const struct style *st, const char *path)
 
 	for (uint32_t i = 0; i < VECTOR_LENGTH(st->include_guards); i++) {
 		const struct include_guard *guard = &st->include_guards[i];
-		int error = regexec(&guard->regex.r, path, 0, nullptr, 0);
+		int error;
+
+		if (!guard->regex.compiled)
+			continue;
+		error = regexec(&guard->regex.r, path, 0, nullptr, 0);
 		if (error == 0)
 			return guard->ncomponents;
 	}
@@ -591,6 +598,8 @@ style_include_priority(const struct style *st, const char *include_path)
 		const struct include_category *ic = &st->include_categories[i];
 		int error;
 
+		if (!ic->regex.compiled)
+			continue;
 		error = regexec(&ic->regex.r, include_path, 0, nullptr, 0);
 		if (error == 0)
 			return ic->priority;
@@ -873,7 +882,8 @@ style_dump_IncludeCategories(const struct style *st)
 	for (i = 0; i < VECTOR_LENGTH(st->include_categories); i++) {
 		const struct include_category *ic = &st->include_categories[i];
 
-		fprintf(stderr, "[s] - Regex: '%s'\n", ic->regex.pattern);
+		fprintf(stderr, "[s] - Regex: '%s'\n",
+		    ic->regex.pattern != nullptr ? ic->regex.pattern : "");
 		fprintf(stderr, "[s]   Priority: %d\n", ic->priority.group);
 		fprintf(stderr, "[s]   SortPriority: %d\n", ic->priority.sort);
 	}
@@ -889,7 +899,8 @@ style_dump_IncludeGuards(const struct style *st)
 	for (i = 0; i < VECTOR_LENGTH(st->include_guards); i++) {
 		const struct include_guard *guard = &st->include_guards[i];
 
-		fprintf(stderr, "[s] - Regex: '%s'\n", guard->regex.pattern);
+		fprintf(stderr, "[s] - Regex: '%s'\n",
+		    guard->regex.pattern != nullptr ? guard->regex.pattern : "");
 		fprintf(stderr, "[s]   PathComponents: %u\n", guard->ncomponents);
 	}
 }
@@ -1415,7 +1426,7 @@ include_categories_recompile(struct style *st)
 		struct include_category *ic = &st->include_categories[i];
 		regex_t r;
 
-		if (ic->regex.pattern == nullptr)
+		if (!ic->regex.compiled)
 			continue;
 		if (regcomp(&r, ic->regex.pattern, REG_EXTENDED | REG_NOSUB))
 			continue;
@@ -1530,6 +1541,8 @@ static int
 parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 {
 	struct regex *regex;
+	regex_t compiled;
+	const char *pattern;
 	struct token *tk;
 	int error;
 
@@ -1540,10 +1553,8 @@ parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 		return FAIL;
 
 	regex = st->regex;
-	regex->pattern = arena_strndup(st->arena.eternal_scope, tk->tk_str, tk->tk_len);
-	/* Allow the pattern to be redefined. */
-	regfree(&regex->r);
-	error = regcomp(&regex->r, regex->pattern, REG_EXTENDED | REG_NOSUB | REG_ICASE);
+	pattern = arena_strndup(st->arena.eternal_scope, tk->tk_str, tk->tk_len);
+	error = regcomp(&compiled, pattern, REG_EXTENDED | REG_NOSUB | REG_ICASE);
 	if (error) {
 		char errbuf[128] = {0};
 
@@ -1551,11 +1562,17 @@ parse_Regex(struct style *st, struct lexer *lx, const struct style_option *so)
 			/* Use platform agnostic error for testing. */
 			(void)snprintf(errbuf, sizeof(errbuf), "parentheses not balanced");
 		} else {
-			regerror(error, &regex->r, errbuf, sizeof(errbuf));
+			regerror(error, &compiled, errbuf, sizeof(errbuf));
 		}
 		lexer_error(lx, tk, __func__, __LINE__, "%s", errbuf);
 		return FAIL;
 	}
+	/* A failed replacement must leave the previous expression usable. */
+	if (regex->compiled)
+		regfree(&regex->r);
+	regex->r = compiled;
+	regex->pattern = pattern;
+	regex->compiled = true;
 	return GOOD;
 }
 

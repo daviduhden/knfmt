@@ -29,7 +29,7 @@ static int matchline(const char *, unsigned int, struct file *);
 
 static const char *trimprefix(const char *, size_t *);
 
-static regex_t rechunk, repath;
+static regex_t rechunk;
 
 /*
  * Number of directories above the current working directory where a Git
@@ -50,8 +50,7 @@ diff_init(void)
 		regex_t *r;
 		const char *p;
 	} patterns[] = {
-	    {&rechunk, "^@@.+\\+([[:digit:]]+)(,([[:digit:]]+))?.+@@"},
-	    {&repath, "^\\+\\+\\+[[:space:]]+([^[:space:]]+)"},
+		{&rechunk, "^@@.+\\+([[:digit:]]+)(,([[:digit:]]+))?.+@@"},
 	};
 	size_t i;
 	int fd;
@@ -77,7 +76,6 @@ void
 diff_shutdown(void)
 {
 	regfree(&rechunk);
-	regfree(&repath);
 }
 
 /*
@@ -107,8 +105,15 @@ diff_parse(struct files *files, struct arena_scope *eternal_scope, struct arena 
 	while ((line = arena_buffer_getline(&s, bf, &it)) != nullptr) {
 		const char *path;
 		unsigned int el, sl;
+		int matched;
 
-		if (matchpath(line, &path, &s)) {
+		matched = matchpath(line, &path, &s);
+		if (matched < 0) {
+			warnx("malformed diff path");
+			error = 1;
+			goto out;
+		}
+		if (matched > 0) {
 			fe = files_alloc(files, path, eternal_scope);
 		} else if (matchchunk(line, &sl, &el)) {
 			/* Chunks cannot be present before the path. */
@@ -195,16 +200,60 @@ diff_end(struct diffchunk *chunks, unsigned int lno)
 static int
 matchpath(const char *str, const char **out, struct arena_scope *s)
 {
-	regmatch_t rm[2];
 	struct stat sb;
 	const char *buf, *path;
 	size_t len;
 
-	if (regexec(&repath, str, 2, rm, 0))
+	if (strncmp(str, "+++ ", 4) != 0 && strncmp(str, "+++\t", 4) != 0)
 		return 0;
+	buf = str + 4;
+	if (buf[0] == '"') {
+		struct buffer *decoded = arena_buffer_alloc(s, 64);
 
-	buf = str + rm[1].rm_so;
-	len = (size_t)(rm[1].rm_eo - rm[1].rm_so);
+		buf++;
+		while (*buf != '\0' && *buf != '"') {
+			unsigned char c = (unsigned char)*buf++;
+
+			if (c == '\\') {
+				c = (unsigned char)*buf++;
+				switch (c) {
+				case 'a': c = '\a'; break;
+				case 'b': c = '\b'; break;
+				case 't': c = '\t'; break;
+				case 'n': c = '\n'; break;
+				case 'v': c = '\v'; break;
+				case 'f': c = '\f'; break;
+				case 'r': c = '\r'; break;
+				case '\\': case '"': break;
+				default: {
+					unsigned int value;
+
+					if (c < '0' || c > '3' || buf[0] < '0' || buf[0] > '7' ||
+					    buf[1] < '0' || buf[1] > '7')
+						return -1;
+					value = (unsigned int)(c - '0') * 64 +
+					    (unsigned int)(buf[0] - '0') * 8 +
+					    (unsigned int)(buf[1] - '0');
+					if (value == 0)
+						return -1;
+					c = (unsigned char)value;
+					buf += 2;
+					break;
+				}
+				}
+			}
+			buffer_putc(decoded, (char)c);
+		}
+		if (*buf != '"' || (buf[1] != '\0' && buf[1] != '\t'))
+			return -1;
+		len = buffer_get_len(decoded);
+		buf = buffer_str(decoded);
+	} else {
+		/* Unified diff separates an optional timestamp with a tab. */
+		len = strcspn(buf, "\t");
+	}
+	if (len == 0)
+		return -1;
 	if (strncmp(buf, "b/", 2) == 0) {
 		/* Trim git prefix. */
 		buf = trimprefix(buf, &len);

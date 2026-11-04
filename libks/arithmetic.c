@@ -18,6 +18,7 @@
 #include <limits.h>
 
 #include "libks/arithmetic.h"
+#include "libks/compiler.h"
 
 /*
  * Independent, division/sign-based implementation of the C23 7.20.1 checked
@@ -29,7 +30,10 @@
  * of the result type and returns 1 exactly when that conversion is not value
  * preserving.  The wrapped value is computed in the corresponding unsigned
  * type, where the arithmetic is well defined, and converted back to the
- * signed type (two's complement, as required by C23).
+ * signed type (two's complement, as required by C23).  Only these reference
+ * functions disable the unsigned-overflow sanitizer: wrapping is the result
+ * being tested, not an unchecked size calculation.  Signed-overflow and other
+ * sanitizer checks remain enabled, as do all production arithmetic wrappers.
  */
 
 #define SIGNED_ADD_OVERFLOW(stype, utype, max, min, a, b, c)                                       \
@@ -80,91 +84,91 @@
 		return _ovf;                                                                       \
 	} while (0)
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i32_add_overflow0(int32_t a, int32_t b, int32_t *c)
 {
 	SIGNED_ADD_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i32_sub_overflow0(int32_t a, int32_t b, int32_t *c)
 {
 	SIGNED_SUB_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i32_mul_overflow0(int32_t a, int32_t b, int32_t *c)
 {
 	SIGNED_MUL_OVERFLOW(int32_t, uint32_t, INT32_MAX, INT32_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i64_add_overflow0(int64_t a, int64_t b, int64_t *c)
 {
 	SIGNED_ADD_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i64_sub_overflow0(int64_t a, int64_t b, int64_t *c)
 {
 	SIGNED_SUB_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_i64_mul_overflow0(int64_t a, int64_t b, int64_t *c)
 {
 	SIGNED_MUL_OVERFLOW(int64_t, uint64_t, INT64_MAX, INT64_MIN, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u32_add_overflow0(uint32_t a, uint32_t b, uint32_t *c)
 {
 	UNSIGNED_ADD_OVERFLOW(UINT32_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u32_sub_overflow0(uint32_t a, uint32_t b, uint32_t *c)
 {
 	UNSIGNED_SUB_OVERFLOW(UINT32_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u32_mul_overflow0(uint32_t a, uint32_t b, uint32_t *c)
 {
 	UNSIGNED_MUL_OVERFLOW(UINT32_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u64_add_overflow0(uint64_t a, uint64_t b, uint64_t *c)
 {
 	UNSIGNED_ADD_OVERFLOW(UINT64_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u64_sub_overflow0(uint64_t a, uint64_t b, uint64_t *c)
 {
 	UNSIGNED_SUB_OVERFLOW(UINT64_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_u64_mul_overflow0(uint64_t a, uint64_t b, uint64_t *c)
 {
 	UNSIGNED_MUL_OVERFLOW(UINT64_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_size_add_overflow0(size_t a, size_t b, size_t *c)
 {
 	UNSIGNED_ADD_OVERFLOW(SIZE_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_size_sub_overflow0(size_t a, size_t b, size_t *c)
 {
 	UNSIGNED_SUB_OVERFLOW(SIZE_MAX, a, b, c);
 }
 
-int
+__attribute__((NO_SANITIZE_UNSIGNED_INTEGER_OVERFLOW)) int
 KS_size_mul_overflow0(size_t a, size_t b, size_t *c)
 {
 	UNSIGNED_MUL_OVERFLOW(SIZE_MAX, a, b, c);

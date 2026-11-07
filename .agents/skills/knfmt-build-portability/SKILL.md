@@ -117,8 +117,29 @@ output; verify with the test and cross-build layers when possible.
   GCC 14/bmake on Linux, plus sanitizer comparison. GNU make uses
   `GNUmakefile`; bmake reads `Makefile` directly. Isolated configure tests
   must clear `MAKEFLAGS`/`MFLAGS`/`MAKELEVEL`: bmake jobserver `-J` flags
-  cannot be passed to the GNU make probes. Actions are pinned by SHA;
-  verify a replacement against its upstream release before updating it.
+  cannot be passed to the GNU make probes.
+- Every workflow action is pinned to a full commit SHA with a trailing
+  release comment, never a moving tag. Current pin:
+  `actions/checkout` v7.0.1
+  (`3d3c42e5aac5ba805825da76410c181273ba90b1`). When updating a pin,
+  resolve the tag to a commit first (for example
+  `https://api.github.com/repos/actions/checkout/git/ref/tags/v7.0.1`),
+  update the `# vX.Y.Z` comment in the same edit, and keep the file's
+  existing comment spacing. `product.yml` and
+  `.github/workflows/agent-knowledge-validation.yml` are independent
+  copies; update both or the knowledge workflow silently keeps an older
+  action. Do not combine an action-pin bump with unrelated workflow
+  changes.
+- `product.yml` passes `matrix.make` through the job-level `MAKE` environment
+  variable and invokes `"$MAKE"` in the run block. This keeps zizmor's
+  `template-injection` audit clean without changing the fixed `make`/`bmake`
+  matrix. `zizmor` 1.32.0 must report zero findings in regular, pedantic and
+  auditor modes.
+- `product.yml` intentionally runs on `ubuntu-24.04` with clang-19 and
+  gcc-14. `./configure --pedantic` turns warnings into errors, and the
+  repository documents that exact compiler matrix; do not move the runner
+  image or compiler versions without reproducing a full `--pedantic`
+  build and the sanitizer comparison.
 
 ## Analysis procedure
 

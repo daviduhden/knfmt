@@ -229,7 +229,7 @@ repository change is incomplete until this synchronization is done.
 The maintenance gate is `perl scripts/validate-agent-knowledge.pl --scope worktree`. It checks Git's changed
 paths for at least one substantive instruction-file edit, required section
 structure, skill frontmatter and resolvable local Markdown links. Run it after
-the final instruction edit; CI runs it for pull requests. This structural
+the final instruction edit; CI runs it only on manual dispatch. This structural
 check cannot decide whether knowledge is relevant, so review that manually.
 Keep new auxiliary Perl code under `use strict;` and `use warnings;`, use
 lexical handles and core modules, and invoke subprocesses as argument lists

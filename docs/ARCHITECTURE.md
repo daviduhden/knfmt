@@ -643,8 +643,8 @@ The product workflow builds with Clang/GNU make and GCC/bmake on Linux, runs
 fixtures, in-process and filesystem tests, SIMD/fallback comparison and
 allocation-fault tests, then compares a normal build with an instrumented
 Clang build. The independent knowledge workflow tests the Perl validator and
-checks pull-request changes. These jobs do not establish support on untested
-systems. Tool-specific checks and long campaigns remain documented development
+validates the checked-out worktree on manual dispatch. These jobs do not
+establish support on untested systems. Tool-specific checks and long campaigns remain documented development
 commands. Do not bulk-format raw regression inputs: their whitespace and line
 boundaries are part of the test, even when the expected output is unchanged.
 

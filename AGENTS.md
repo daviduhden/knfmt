@@ -419,7 +419,7 @@ for its contract tests. The validator requires Perl 5.20+ and Git, uses only
 core Perl modules, and publishes contract version `1.0.0`. All
 adopting repositories share the same CLI, AK001-AK006 identifiers, output
 schema, and exit codes (`0` pass, `1` policy failure, `2` execution/configuration
-error). For a pull request, pass both revisions with
+error). To compare committed revisions locally, pass both with
 `--scope range --base BASE_REF --head HEAD_REF`; compare from their merge base.
 
 Read [Agent Knowledge Validation Contract](docs/agent-knowledge-validation.md)
@@ -429,5 +429,6 @@ review; their warnings do not prove or disprove semantic correctness. Keep the
 canonical Perl implementation and black-box Test::More suite synchronized
 across repositories adopting this port, with equivalent public behavior.
 Repository-specific requirements belong in the documented TOML configuration
-or a stable `AKX...` extension, never in a private fork of the shared rules. The GitHub PR workflow runs the same tests and range command;
-it does not edit files or require secrets.
+or a stable `AKX...` extension, never in a private fork of the shared rules.
+All workflows are manual-only: start them from the Actions tab or with `gh workflow run`; the agent workflow runs the same tests and
+worktree validation and does not edit files or require secrets.

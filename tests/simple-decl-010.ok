@@ -1,0 +1,8 @@
+int
+main(void)
+{
+	struct foo *const *a;
+	struct foo *const b;
+
+	return 0;
+}

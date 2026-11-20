@@ -1,0 +1,3 @@
+.clang-format:2: integer Integer<2:21>("0") too small
+  - PathComponents: 0
+                    ^

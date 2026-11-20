@@ -1,0 +1,3 @@
+test.c:8: expected type RPAREN got CONST<8:11>("const")
+item_name(const ITEM * item)
+          ^^^^^

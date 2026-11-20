@@ -1,0 +1,3 @@
+.clang-format:2: parentheses not balanced
+  - Regex: '('
+            ^

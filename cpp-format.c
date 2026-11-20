@@ -1,0 +1,332 @@
+#include "cpp-format.h"
+
+#include "config.h"
+
+#include <ctype.h>
+#include <string.h>
+
+#include "libks/arena-buffer.h"
+#include "libks/arena.h"
+#include "libks/buffer.h"
+#include "libks/compiler.h"
+
+#include "arenas.h"
+#include "doc.h"
+#include "lexer.h"
+#include "ruler.h"
+#include "style.h"
+#include "token.h"
+#include "trace-types.h"
+#include "trace.h"
+#include "util.h"
+
+#define cpp_trace(op, fmt, ...) trace(TRACE_CPP, (op), (fmt), __VA_ARGS__)
+
+enum indent_type {
+	INDENT_TYPE_NONE,
+	INDENT_TYPE_SPACES,
+	INDENT_TYPE_TABS,
+};
+
+struct alignment {
+	const char		*indent;
+	enum indent_type	 indent_type;
+	enum style_keyword	 mode;
+	unsigned int		 width;
+	unsigned int		 tabs:1,
+				 skip_first_line:1;
+};
+
+static const char *
+trim_line(const char *str, size_t len, struct arena_scope *s)
+{
+	int newlines = 0;
+
+	/* Honor up to two trailing new line(s). */
+	if (len > 0 && str[len - 1] == '\n')
+		newlines++;
+	if (len > 1 && str[len - 2] == '\n')
+		newlines++;
+
+	while (len > 0 && isspace((unsigned char)str[len - 1]))
+		len--;
+
+	return arena_sprintf(s, "%.*s%s%s",
+	    (int)len, str,
+	    newlines >= 2 ? "\n" : "",
+	    newlines >= 1 ? "\n" : "");
+}
+
+static enum indent_type
+classify_indent(const char *str)
+{
+	if (str[0] == '\t')
+		return INDENT_TYPE_TABS;
+	if (str[0] == ' ')
+		return INDENT_TYPE_SPACES;
+	return INDENT_TYPE_NONE;
+}
+
+/*
+ * Returns a pointer to the end of current line assuming it's a line
+ * continuation.
+ */
+static const char *
+nextline(const char *str, size_t len, const char **nx)
+{
+	const char *p;
+
+	p = memchr(str, '\n', len);
+	if (p == NULL || p == str || p[-1] != '\\')
+		return NULL;
+	*nx = &p[1];
+	p--;	/* consume '\\' */
+	while (p > str && isspace((unsigned char)p[-1]))
+		p--;
+	return p;
+}
+
+static int
+is_not_aligned(const struct alignment *a)
+{
+	return strncmp(a->indent, " \\", 2) == 0;
+}
+
+static const struct alignment *
+max_alignment(const struct alignment *a, unsigned int len)
+{
+	const struct alignment *max = NULL;
+	for (unsigned int i = 0; i < len; i++) {
+		const struct alignment *candidate = &a[len - i - 1];
+		if (candidate->indent_type == INDENT_TYPE_NONE)
+			continue;
+		if (max == NULL || candidate->width > max->width)
+			max = candidate;
+	}
+	return max;
+}
+
+static int
+all_identical(const struct alignment *a, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len - 1; i++) {
+		if (a[i].indent_type == INDENT_TYPE_NONE ||
+		    a[i + 1].indent_type == INDENT_TYPE_NONE)
+			continue;
+		if (a[i].width != a[i + 1].width)
+			return 0;
+		if (a[i].indent_type != a[i + 1].indent_type)
+			return 0;
+	}
+	return 1;
+}
+
+static int
+all_not_aligned(const struct alignment *a, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; i++) {
+		if (!is_not_aligned(&a[i]))
+			return 0;
+	}
+	return 1;
+}
+
+static int
+all_tabs(const struct alignment *a, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; i++) {
+		if (a[i].indent_type != INDENT_TYPE_NONE &&
+		    a[i].indent_type != INDENT_TYPE_TABS)
+			return 0;
+	}
+	return 1;
+}
+
+static int
+sense_alignment(const char *str, size_t len, const struct style *st,
+    struct alignment *alignment)
+{
+	struct alignment lines[3] = {0};
+	unsigned int maxcol = style(st, ColumnLimit);
+	unsigned int nlines = 0;
+	unsigned int i;
+
+	for (i = 0; i < countof(lines); i++) {
+		const char *indent, *nx;
+		size_t linelen;
+		unsigned int col;
+
+		indent = nextline(str, len, &nx);
+		if (indent == NULL)
+			break;
+
+		linelen = (size_t)(nx - str);
+		/* Require trailing '\\' '\n' characters. */
+		if (linelen < 2)
+			return 0;
+		col = colwidth(str, linelen - 1, 1);
+		if (col > maxcol)
+			return 0;
+		lines[i].indent = indent;
+		lines[i].indent_type = classify_indent(indent);
+		lines[i].width = col - 2;
+		len -= linelen;
+		str += linelen;
+		nlines++;
+	}
+
+	if (all_not_aligned(lines, nlines)) {
+		*alignment = (struct alignment){.mode = DontAlign};
+		return 1;
+	}
+
+	/* The first line is allowed to not be aligned. */
+	if (nlines >= 2 && all_identical(&lines[1], nlines - 1)) {
+		unsigned int width = alignment->width;
+		const struct alignment *max = max_alignment(lines, nlines);
+		if (max != NULL && max->width < width)
+			width = max->width;
+		*alignment = (struct alignment){
+		    .mode		= Right,
+		    .width		= width,
+		    .tabs		= all_tabs(lines, nlines) ? 1 : 0,
+		    .skip_first_line	= is_not_aligned(&lines[0]) ? 1 : 0,
+		};
+		return 1;
+	}
+	return 0;
+}
+
+static unsigned int
+max_width(const struct style *st)
+{
+	unsigned int width = style(st, ColumnLimit) - style(st, IndentWidth);
+	return width - (width % 8);
+}
+
+/*
+ * Align line continuations.
+ */
+const char *
+cpp_format(const struct lexer *lx, struct token *tk, const struct style *st,
+    struct arenas *arena, const struct options *op)
+{
+	struct alignment alignment = {
+		.mode	= style(st, AlignEscapedNewlines),
+		.width	= max_width(st),
+		.tabs	= style_use_tabs(st) ? 1 : 0,
+	};
+	struct ruler rl;
+	struct buffer *bf;
+	struct doc *dc;
+	const char *nx, *str;
+	size_t len;
+	int nlines = 0;
+	int didtrim = 0;
+
+	str = tk->tk_str;
+	len = tk->tk_len;
+	if (nextline(str, len, &nx) == NULL)
+		return NULL;
+
+	arena_scope(arena->ruler, ruler_scope);
+
+	if (sense_alignment(str, len, st, &alignment)) {
+		cpp_trace(op, "mode %s, width %u, tabs %d, skip %d",
+		    style_keyword_str(alignment.mode), alignment.width,
+		    alignment.tabs ? 1 : 0,
+		    alignment.skip_first_line ? 1 : 0);
+	}
+	switch (alignment.mode) {
+	case DontAlign:
+		ruler_init(&rl, 1, RULER_ALIGN_FIXED, &ruler_scope);
+		break;
+	case Left:
+		ruler_init(&rl, 0,
+		    alignment.tabs ? RULER_ALIGN_TABS : RULER_ALIGN_MIN,
+		    &ruler_scope);
+		break;
+	case Right:
+		ruler_init(&rl, alignment.width,
+		    RULER_ALIGN_MAX | (alignment.tabs ? RULER_ALIGN_TABS : 0),
+		    &ruler_scope);
+		break;
+	default:
+		return NULL;
+	}
+
+	arena_scope(arena->scratch, scratch_scope);
+
+	bf = arena_buffer_alloc(lexer_get_arena_scope(lx), len);
+	dc = doc_root(&scratch_scope);
+
+	for (;;) {
+		struct doc *concat;
+		const char *ep, *sp;
+		size_t cpplen, linelen;
+		unsigned int w;
+
+		concat = doc_alloc(DOC_CONCAT, dc);
+
+		sp = str;
+		ep = nextline(sp, len, &nx);
+		if (ep == NULL)
+			break;
+
+		cpplen = (size_t)(ep - sp);
+		if (cpplen > 0) {
+			const char *literal;
+
+			literal = arena_strndup(&scratch_scope, sp, cpplen);
+			doc_literal(literal, concat);
+		}
+		buffer_reset(bf);
+		w = doc_width(&(struct doc_exec_arg){
+		    .dc		= concat,
+		    .scratch	= arena->scratch,
+		    .bf		= bf,
+		    .st		= st,
+		});
+		if (nlines == 0 && alignment.skip_first_line)
+			doc_literal(" ", concat);
+		else
+			ruler_insert(&rl, tk, concat, 1, w, 0);
+
+		linelen = (size_t)(nx - str);
+		len -= linelen;
+		str += linelen;
+		nlines++;
+
+		/* No continuation wanted if the next line is empty. */
+		if (len > 0 && nx[0] != '\n')
+			doc_literal("\\", concat);
+		doc_alloc(DOC_HARDLINE, concat);
+	}
+	if (len > 0) {
+		const char *literal;
+
+		literal = trim_line(str, len, &scratch_scope);
+		didtrim = len != strlen(literal);
+		doc_literal(literal, dc);
+	}
+
+	/* Alignment only wanted for multiple lines. */
+	if (nlines <= 1 && !didtrim)
+		return NULL;
+
+	ruler_exec(&rl);
+	buffer_reset(bf);
+	doc_exec(&(struct doc_exec_arg){
+	    .dc		= dc,
+	    .scratch	= arena->scratch,
+	    .bf		= bf,
+	    .st		= st,
+	});
+	return buffer_str(bf);
+}

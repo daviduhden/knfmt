@@ -1,0 +1,414 @@
+.Dd $Mdocdate: April 10 2021 $
+.Dt KNFMT 1
+.Os
+.Sh NAME
+.Nm knfmt
+.Nd kernel normal form formatter
+.Sh SYNOPSIS
+.Nm
+.Op Fl dis
+.Op Ar
+.Nm
+.Op Fl Ddis
+.Sh DESCRIPTION
+The
+.Nm
+utility formats source code files to conform to the Kernel Normal Form (KNF) in
+a best effort fashion, see
+.Xr style 9 .
+.Pp
+The options are as follows:
+.Bl -tag -width "file"
+.It Fl D
+Only format changed lines extracted from a unified diff read from standard
+input.
+.It Fl d
+Produce a diff for each given
+.Ar file .
+.It Fl i
+In place edit of
+.Ar file .
+.It Fl s
+Simplify the source code.
+.It Ar file
+One or many files to format.
+If omitted, defaults to reading from standard input.
+.El
+.Pp
+In addition,
+.Nm
+is also interoperable with clang-format.
+A subset of the available style options found in a
+.Pa .clang-format
+file located in any directory along the current working directory is honored.
+Some style options are exclusive to
+.Nm
+and not supported by clang-format, annotated as extensions.
+The supported style options and corresponding values are as follows:
+.Bl -tag -width Ds
+.It Cm AlignAfterOpenBracket
+Horizontally align arguments enclosed in parenthesis.
+.Bl -tag -width Ds
+.It Cm Align
+Align arguments enclosed in parenthesis.
+.Bd -literal
+some_long_function(argument1,
+		   argument2);
+.Ed
+.It Cm DontAlign
+Do not align, instead indent arguments using
+.Cm ContinuationIndentWidth .
+.Pq default
+.Bd -literal
+some_long_function(argument1,
+    argument2);
+.Ed
+.It Cm AlwaysBreak
+Not supported, interpreted as
+.Cm DontAlign .
+.It Cm BlockIndent
+Not supported, interpreted as
+.Cm DontAlign .
+.El
+.It Cm AlignEscapedNewlines
+Align backslashes in preprocessor macro definitions spanning multiple lines.
+.Bl -tag -width Ds
+.It Cm DontAlign
+Do not align backslashes.
+.Bd -literal
+#define A \e
+	int x; \e
+	int y
+.Ed
+.It Cm Left
+Not supported, interpreted as
+.Cm DontAlign .
+.It Cm Right
+Align backslashes to the right-most column with respect to
+.Cm ColumnLimit .
+.Pq default
+.Bd -literal
+#define A		\e
+	int x;		\e
+	int y
+.Ed
+.El
+.It Cm AlignOperands
+Horizontally align operands of binary and ternary expressions.
+.Bl -tag -width Ds
+.It Cm DontAlign
+Do not align, instead indent arguments using
+.Cm ContinuationIndentWidth .
+.Pq default
+.Bd -literal
+int x = 11111111 +
+    22222222;
+.Ed
+.It Cm Align
+Align operands of binary and ternary expressions.
+.Bd -literal
+int x = 11111111 +
+        22222222;
+.Ed
+.Pp
+When
+.Cm BreakBeforeBinaryOperators
+equals
+.Cm NonAssignment ,
+the operator is aligned with the operand on the previous line.
+.Bd -literal
+int x = 11111111
+        + 22222222;
+.Ed
+.It Cm AlignAfterOperator
+Not supported, interpreted as
+.Cm DontAlign .
+.El
+.It Cm AlwaysBreakAfterReturnType
+Break after the return type for function prototypes and definitions.
+.Bl -tag -width Ds
+.It Cm None
+Never break after the function return type.
+.Bd -literal
+void prototype(void);
+
+void definition(void)
+{
+}
+.Ed
+.It Cm All
+Always break after the function return type.
+.Bd -literal
+void
+prototype(void);
+
+void definition(void)
+{
+}
+.Ed
+.It Cm TopLevel
+Not supported, interpreted as
+.Cm All .
+.It Cm AllDefinitions
+Always break after the return type for function definitions.
+.Pq default
+.Bd -literal
+void prototype(void);
+
+int
+definition(void)
+{
+}
+.Ed
+.It Cm TopLevelDefinitions
+Not supported, interpreted as
+.Cm AllDefinitions .
+.El
+.It Cm BitFieldColonSpacing
+Insert spaces around bitfields.
+.Bl -tag -width Ds
+.It Cm Both
+Add spaces on each side of the colon.
+.Bd -literal
+unsigned int field : 1;
+.Ed
+.It Cm None
+Do not insert spaces.
+.Pq default
+.Bd -literal
+unsigned int field:1;
+.Ed
+.It Cm Before
+Add space before the colon.
+.Bd -literal
+unsigned int field :1;
+.Ed
+.It Cm After
+Add space after the colon.
+.Bd -literal
+unsigned int field: 1;
+.Ed
+.El
+.It Cm BraceWrapping
+Break before or after braces in certain contexts.
+The supported nested options are as follows:
+.Bl -tag -width Ds
+.It Cm AfterEnum
+Break before braces in enum definitions.
+.Bl -tag -width Ds
+.It Cm true
+.Bd -literal -compact
+enum e
+{
+}
+.Ed
+.It Cm false
+.Bd -literal -compact
+enum e {
+}
+.Ed
+.El
+.It Cm AfterFunction
+Break before braces in function definitions.
+.Bl -tag -width Ds
+.It Cm true
+.Bd -literal -compact
+int
+main(void)
+{
+}
+.Ed
+.It Cm false
+.Bd -literal -compact
+int
+main(void) {
+}
+.Ed
+.El
+.It Cm AfterStruct
+Break before braces in struct definitions.
+.Bl -tag -width Ds
+.It Cm true
+.Bd -literal -compact
+struct s
+{
+}
+.Ed
+.It Cm false
+.Bd -literal -compact
+struct s {
+}
+.Ed
+.El
+.It Cm AfterUnion
+Break before braces in union definitions.
+.Bl -tag -width Ds
+.It Cm true
+.Bd -literal -compact
+union u
+{
+}
+.Ed
+.It Cm false
+.Bd -literal -compact
+union u {
+}
+.Ed
+.El
+.It Xo
+.Cm AfterCaseLabel AfterClass AfterControlStatement AfterEnum
+.Cm AfterExternBlock AfterFunction AfterNamespace AfterObjCDeclaration
+.Cm AfterStruct AfterUnion BeforeCatch BeforeElse BeforeLambdaBody BeforeWhile
+.Cm IndentBraces SplitEmptyFunction SplitEmptyNamespace SplitEmptyRecord
+.Xc
+Not supported.
+.El
+.It Cm BreakBeforeBinaryOperators
+Break before or after binary operators.
+.Bl -tag -width Ds
+.It Cm None
+Break after binary operators.
+.Pq default
+.Bd -literal
+int x = 11111111 +
+    22222222;
+.Ed
+.It Cm NonAssignment
+Break before non assignment operators.
+.Bd -literal
+int x = 11111111
+    + 22222222;
+.Ed
+.It Cm All
+Break before all binary operators.
+.Bd -literal
+int x = 11111111
+    + 22222222;
+.Ed
+.El
+.It Cm BreakBeforeBraces
+Brace break style.
+.Bl -tag -width Ds
+.It Cm Linux
+Enables
+.Cm AfterFunction ,
+see
+.Cm BraceWrapping .
+.Pq default
+.It Cm Custom
+Breaks dictated by
+.Cm BraceWrapping .
+.It Cm Allman Attach GNU Mozilla Stroustrup WebKit Whitesmiths
+Not supported, interpreted as
+.Cm Custom .
+.El
+.It Cm BreakBeforeTernaryOperators
+Break before or after ternary operators.
+.Bl -tag -width Ds
+.It Cm true
+Break before ternary operators.
+.Bd -literal
+condition
+    ? true
+    : false;
+.Ed
+.It Cm false
+Break after ternary operators.
+.Pq default
+.Bd -literal
+condition ?
+    true :
+    false;
+.Ed
+.El
+.It Cm ColumnLimit
+Maximum number of allowed columns per line.
+.Pq default 80
+.It Cm ContinuationIndentWidth
+Indentation width for line continuations.
+.Pq default 4
+.It Cm IncludeBlocks
+Treatment of blocks of includes.
+.Bl -tag -width Ds
+.It Cm Merge
+Regroup blocks of includes according to
+.Ic IncludeCategories
+but do not emit a blank line between the block of includes.
+.It Cm Preserve
+Preserve blocks of includes.
+.Pq default
+.It Cm Regroup
+Regroup blocks of includes according to
+.Ic IncludeCategories .
+.El
+.It Cm IncludeCategories
+Rules used to group includes into blocks.
+.It Cm IncludeGuards Pq extension
+List of headers in which include guards must be present.
+The supported nested options are as follows:
+.Bl -tag -width Ds
+.It Cm Regex
+Extended regular expression used to determine if
+.Ar file
+denotes a header, see
+.Xr regex 3 .
+.It Cm PathComponents
+Number of path components used to construct header include guards.
+.Bl -tag -width Ds
+.It Cm >0
+.Bd -literal -compact
+$ cat libks/vector.h
+#ifndef LIBKS_VECTOR_H
+#define LIBKS_VECTOR_H
+#endif /* !LIBKS_VECTOR_H */
+.Ed
+.It Cm 1
+.Pq default
+.Bd -literal -compact
+$ cat libks/vector.h
+#ifndef VECTOR_H
+#define VECTOR_H
+#endif /* !VECTOR_H */
+.Ed
+.El
+.El
+.It Cm IndentWidth
+Indentation width.
+.Pq default 8
+.It Cm SortIncludes
+Sort blocks of preprocessor include directives.
+.Bl -tag -width Ds
+.It Cm Never
+Do not sort includes.
+.Pq default
+.It Cm CaseSensitive
+Sort includes in a case sensitive manner.
+.It Cm CaseInsensitive
+Not supported, interpreted as
+.Cm Never .
+.El
+.It Cm UseTab
+Use tabs for indentation.
+.Bl -tag -width Ds
+.It Cm Never
+Do not use tabs for indentation.
+.It Cm ForIndentation
+Not supported, interpreted as
+.Cm Always .
+.It Cm ForContinuationAndIndentation
+Not supported, interpreted as
+.Cm Always .
+.It Cm AlignWithSpaces
+Not supported, interpreted as
+.Cm Always .
+.It Cm Always
+Use tabs for indentation.
+.Pq default
+.El
+.El
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr style 9
+.Sh AUTHORS
+.An Anton Lindqvist Aq Mt anton@basename.se

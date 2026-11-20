@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2025 Anton Lindqvist <anton@basename.se>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef LIBKS_BIT_H
+#define LIBKS_BIT_H
+
+#include <stdint.h>
+
+#define KS_clamp(x, nbits) ((uint64_t)(x) & (((1U << (nbits)) - 1)))
+
+int KS_bit_init(void);
+
+static inline uint8_t
+KS_u8_clamp(uint64_t x)
+{
+	return x & 0xffU;
+}
+
+static inline uint16_t
+KS_u16_clamp(uint64_t x)
+{
+	return x & 0xffffU;
+}
+
+static inline uint32_t
+KS_u32_clamp(uint64_t x)
+{
+	return (uint32_t)x;
+}
+
+uint64_t KS_extract_and_deposit_default(uint64_t, uint64_t, uint64_t);
+extern uint64_t (*KS_extract_and_deposit)(uint64_t, uint64_t, uint64_t);
+
+#endif /* !LIBKS_BIT_H */

@@ -1,0 +1,2 @@
+int download_schedule(download_t *, const char *, download_cb_t,
+    void *);

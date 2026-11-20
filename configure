@@ -1,0 +1,322 @@
+#!/bin/sh
+# shellcheck disable=SC2030,SC2031
+
+set -e
+
+atexit() {
+	local _err="$?"
+
+	# Dump contents of generated files to config.log.
+	exec 1>>config.log 2>&1
+	set -x
+	[ -e config.h ] && cat config.h
+	[ -e config.mk ] && cat config.mk
+	rm -rf "$@" || :
+	[ "${_err}" -ne 0 ] && fatal
+	exit 0
+}
+
+compile() {
+	# shellcheck disable=SC2086
+	"${CC}" ${CPPFLAGS} -Werror -o /dev/null -x c - "$@"
+}
+
+cc_has_option() {
+	if echo 'int main(void) { return 0; }' | compile "$@"; then
+		echo "$@"
+	fi
+}
+
+cc_has_sanitizer() {
+	local _sanitizer
+
+	_sanitizer="$1"; shift; : "${_sanitizer:?}"
+	if echo 'int main(void) { return 0; }' |
+	   compile "-fsanitize=${_sanitizer}" "$@"
+	then
+		echo "${_sanitizer}"
+	fi
+}
+
+cxx_compile() {
+	# shellcheck disable=SC2086
+	"${CXX}" ${CPPFLAGS} -Werror -o /dev/null -x c++ - "$@"
+}
+
+cxx_has_option() {
+	if echo 'int main(void) { return 0; }' | cxx_compile "$@"; then
+		echo "$@"
+	fi
+}
+
+fatal() {
+	[ $# -gt 0 ] && echo "fatal: ${*}"
+	exec 1>&3 2>&4
+	cat config.log
+	exit 1
+}
+
+headers() {
+	local _tmp="${WRKDIR}/headers"
+
+	cat >"${_tmp}"
+	[ -s "${_tmp}" ] || return 0
+
+	xargs printf '#include <%s>\n' <"${_tmp}"
+}
+
+is_openbsd() {
+	case "$(uname -s)" in
+	OpenBSD)	return 0;;
+	*)		return 1;;
+	esac
+}
+
+make_has_object_dir() (
+	cd "${WRKDIR}"
+	# shellcheck disable=SC2016
+	printf 'all:\n\t[ ${PWD} = ${.OBJDIR} ]\n' >Makefile
+	printf 'all:\n\tfalse\n' >GNUMakefile
+	mkdir -p obj
+	make >/dev/null 1>&2
+)
+
+make_variable() {
+	# shellcheck disable=SC2016
+	var="$(printf 'all:\n\t@echo ${%s}\n' "$1" | make -sf -)"
+	if [ -n "${var}" ]; then
+		echo "${var}"
+	else
+		return 1
+	fi
+}
+
+# rmdup arg ...
+#
+# Remove duplicates from the given arguments while preserving the order.
+rmdup() {
+	echo "$@" |
+	xargs printf '%s\n' |
+	awk '!x[$1]++' |
+	xargs
+}
+
+check_pledge() {
+	compile <<-EOF
+	#include <unistd.h>
+
+	int main(void) {
+		return !(pledge("stdio", NULL) == 0);
+	}
+	EOF
+}
+
+_benchmark=0
+_fuzz=''
+_pedantic=0
+_sanitize=''
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--benchmark)	_benchmark=1;;
+	--fuzz)		shift; _fuzz="$1"; _sanitize="address";;
+	--pedantic)	_pedantic=1;;
+	--sanitize)	shift; _sanitize="${1}";;
+	*)		;;
+	esac
+	shift
+done
+
+WRKDIR=$(mktemp -dt configure.XXXXXX)
+trap 'atexit ${WRKDIR}' EXIT
+
+exec 3>&1 4>&2
+exec 1>config.log 2>&1
+
+# At this point, all variables used must be defined.
+set -u
+# Enable tracing, will end up in config.log.
+set -x
+
+HAVE_PLEDGE=0
+
+# Order is important, must come first if not defined.
+DEBUG="$(make_variable DEBUG || :)"
+
+CC=$(make_variable CC || fatal "CC: not defined")
+CFLAGS="$(unset CFLAGS DEBUG; make_variable CFLAGS || :) ${CFLAGS:-} ${DEBUG}"
+CFLAGS="${CFLAGS} -MD -MP"
+CXX=$(make_variable CXX || fatal "CXX: not defined")
+CXXFLAGS="$(unset CXXFLAGS DEBUG; make_variable CXXFLAGS || :) ${CXXFLAGS:-} ${DEBUG}"
+CXXFLAGS="${CXXFLAGS} -MD -MP -std=c++20"
+CPPFLAGS="$(make_variable CPPFLAGS || :)"
+AFLAGS="$(make_variable AFLAGS || :) -MD -MP"
+ASFLAGS="$(make_variable ASFLAGS || :) -MD -MP"
+LDFLAGS="$(unset DEBUG; make_variable LDFLAGS || :)"
+LDFLAGS_benchmark=""
+PREFIX="$(make_variable PREFIX || echo /usr/local)"
+BINDIR="$(make_variable BINDIR || echo "${PREFIX}/bin")"
+MANDIR="$(make_variable MANDIR || echo "${PREFIX}/man")"
+INSTALL="$(make_variable INSTALL || echo install)"
+INSTALL_MAN="$(make_variable INSTALL_MAN || echo "${INSTALL}")"
+
+# Following chunks must happen after CC is defined.
+
+if [ "${_pedantic}" -eq 1 ]; then
+	while read -r _o; do
+		CFLAGS="${CFLAGS} ${_o}"
+	done <<-CC-PEDANTIC
+	-g
+	-O2
+	-Wall
+	-Werror
+	-Wextra
+	-Wcast-qual
+	-Wmissing-prototypes
+	-Wpedantic
+	-Wshadow
+	-Wsign-conversion
+	-Wwrite-strings
+	CC-PEDANTIC
+
+	while read -r _o; do
+		CFLAGS="${CFLAGS} $(cc_has_option "${_o}")"
+	done <<-CC-PEDANTIC-OPTIONAL
+	-Waddress-of-packed-member
+	-Wcovered-switch-default
+	-Wextra-semi-stmt
+	-Wformat-signedness
+	-Wimplicit-fallthrough
+	-Wmissing-format-attribute
+	-Wmissing-variable-declarations
+	-Wtautological-unsigned-enum-zero-compare
+	-Wunreachable-code-aggressive
+	-Wused-but-marked-unused
+	-Wno-gnu-zero-variadic-macro-arguments
+	CC-PEDANTIC-OPTIONAL
+
+	while read -r _o; do
+		LDFLAGS="${LDFLAGS} $(cc_has_option "${_o}")"
+	done <<-LD-PEDANTIC-OPTIONAL
+	-Wl,--fatal-warnings
+	LD-PEDANTIC-OPTIONAL
+
+	DEBUG="-g ${DEBUG}"
+fi
+
+if [ -n "${_sanitize}" ]; then
+	(
+		if is_openbsd; then
+			# Abuse CPPFLAGS honored by compile.
+			CPPFLAGS="${CPPFLAGS} -fsanitize-minimal-runtime"
+			CPPFLAGS="${CPPFLAGS} -Wl,--no-execute-only"
+		fi
+		cc_has_sanitizer "${_sanitize}"
+		cc_has_sanitizer undefined
+		cc_has_sanitizer unsigned-integer-overflow
+		{ [ "${_fuzz}" = "llvm" ] && echo fuzzer; } || :
+	) >"${WRKDIR}/sanitize"
+	if ! cmp -s /dev/null "${WRKDIR}/sanitize"; then
+		_sanitize="-fsanitize=$(paste -sd , "${WRKDIR}/sanitize")"
+		_sanitize="${_sanitize} $(cc_has_option -fno-sanitize-recover=all)"
+		_sanitize="${_sanitize} $(cc_has_option -fno-omit-frame-pointer)"
+		if is_openbsd; then
+			_sanitize="${_sanitize} -fsanitize-minimal-runtime"
+			LDFLAGS="${LDFLAGS} -Wl,--no-execute-only"
+		fi
+		CFLAGS="${_sanitize} ${CFLAGS}"
+		DEBUG="${_sanitize} ${DEBUG}"
+	fi
+	if [ "${_fuzz}" = "llvm" ]; then
+		NO_SANITIZE_FUZZER="$(cc_has_option -fno-sanitize=fuzzer)"
+	fi
+fi
+
+if [ "${_benchmark}" -eq 1 ]; then
+	CPPFLAGS="${CPPFLAGS} $(pkg-config --cflags-only-I benchmark)"
+	LDFLAGS_benchmark="$(pkg-config --libs benchmark)"
+fi
+
+# Let CXX inherit applicable CFLAGS.
+_cxxflags=""
+for _c in ${CFLAGS}; do
+	_cxxflags="${_cxxflags} $(cxx_has_option "${_c}")"
+done
+CXXFLAGS="${_cxxflags} ${CXXFLAGS}"
+
+if make_has_object_dir; then
+	mkdir -p obj/{,libks}
+fi
+
+check_pledge && HAVE_PLEDGE=1
+
+# Redirect stdout to config.h.
+exec 1>config.h
+
+printf '#ifndef CONFIG_H\n#define CONFIG_H\n'
+
+# Headers needed for function prototypes.
+{
+	:
+} | sort | uniq | headers
+
+[ "${HAVE_PLEDGE}" -eq 1 ] && printf '#define HAVE_PLEDGE\t1\n'
+
+if [ -n "${_fuzz}" ]; then
+	printf '#define FUZZER_%s\t1\n' \
+		"$(echo "${_fuzz}" | tr '[:lower:]' '[:upper:]')"
+fi
+
+[ "${HAVE_PLEDGE}" -eq 0 ] &&
+	printf 'int pledge(const char *, const char *);\n'
+
+printf '#endif\n'
+
+# Redirect stdout to config.mk.
+exec 1>config.mk
+
+# Use echo to normalize whitespace.
+# shellcheck disable=SC1083,SC2086,SC2116
+cat <<EOF
+CC=			$(echo ${CC})
+CFLAGS=			$(rmdup ${CFLAGS})
+CXX=			$(echo ${CXX})
+CXXFLAGS=		$(rmdup ${CXXFLAGS})
+CPPFLAGS=		$(rmdup ${CPPFLAGS} -I\${.CURDIR})
+DEBUG=			$(rmdup ${DEBUG})
+AFLAGS=			$(rmdup ${AFLAGS})
+ASFLAGS=		$(rmdup ${ASFLAGS})
+LDFLAGS=		$(rmdup ${LDFLAGS})
+LDFLAGS_benchmark=	$(rmdup ${LDFLAGS_benchmark})
+
+BINDIR?=		$(echo ${BINDIR})
+MANDIR?=		$(echo ${MANDIR})
+INSTALL?=		$(echo ${INSTALL})
+INSTALL_MAN?=		$(echo ${INSTALL_MAN})
+
+NO_SANITIZE_FUZZER=	$(echo ${NO_SANITIZE_FUZZER:-})
+EOF
+
+if make_has_object_dir; then
+	cat <<EOF
+
+.SUFFIXES: .c .cc .o .S
+.c.o:
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.c=%.o} \$<
+.cc.o:
+	\${CXX} \${CPPFLAGS} \${CXXFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.cc=%.o} \$<
+.S.o:
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \${<:\${.CURDIR}/%.S=%.o} \$<
+EOF
+else
+	cat <<EOF
+
+.SUFFIXES: .c .cc .o .S
+.c.o:
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \$@ \$<
+.cc.o:
+	\${CXX} \${CPPFLAGS} \${CXXFLAGS} \${DEBUG} -c -o \$@ \$<
+.S.o:
+	\${CC} \${CPPFLAGS} \${CFLAGS} \${DEBUG} -c -o \$@ \$<
+EOF
+fi
